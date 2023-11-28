@@ -13,6 +13,10 @@ It uses a dummy int value that you attach a seed to to enure that it will contin
 into an input and connect a seed generator of your choice set to random.
 
 interesting uses for this
+
+
   -loading up a directory and letting it cycle through all your images in order
+  
   -connecting this node to something like IPAdapter, while being set to random, allowing you to cycle through styles via images
+  
   -batch processing of any kind on large amounts of images
