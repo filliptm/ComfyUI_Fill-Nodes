@@ -1,9 +1,11 @@
 # ComfyUI_Fill-Nodes
 
-The start of a pack that I will continue to build out to fill the gaps of nodes and functionality that I feel is missing in comfyUI
+Image randomizer from directory, Image Captioning saver.
 
-For now this pack has a single node. A load image directory node that allows you to pull images either in sequence (Per que render) or at random (also per que render)
-
+Image randomizer: - A load image directory node that allows you to pull images either in sequence (Per que render) or at random (also per que render)
+-
+Image Captioning saver: - takes an input image (single or batch) and saves a matching .txt file with the image with desired captioning. Both files will be over written for continuous experimentation
+-
 ## Video
 
 
@@ -20,3 +22,7 @@ interesting uses for this
   -connecting this node to something like IPAdapter, while being set to random, allowing you to cycle through styles via images
   
   -batch processing of any kind on large amounts of images
+
+
+
+![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/69ab3151-2e16-4b54-b9ae-17e4bf0f0157)
