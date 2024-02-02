@@ -4,8 +4,6 @@ Image randomizer from directory, Image Captioning saver.
 
 Image randomizer: - A load image directory node that allows you to pull images either in sequence (Per que render) or at random (also per que render)
 -
-Image Captioning saver: - takes an input image (single or batch) and saves a matching .txt file with the image with desired captioning. Both files will be over written for continuous experimentation
--
 ## Video
 
 
@@ -23,6 +21,8 @@ interesting uses for this
   
   -batch processing of any kind on large amounts of images
 
-
+Image Captioning saver: - takes an input image (single or batch) and saves a matching .txt file with the image with desired captioning. 
+-
+Both files will be over written for continuous experimentation. Required to have an output attached for monitoring. Will overwrite images and text on each run. Built this node to save Lora captions from my Dataset Creator
 
 ![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/69ab3151-2e16-4b54-b9ae-17e4bf0f0157)
