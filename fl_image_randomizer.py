@@ -1,51 +1,50 @@
 import os
+import random
+import numpy as np
 import torch
-from PIL import Image
+from PIL import Image, ImageOps
 
-
-class FL_ImageCaptionSaver:
+class FL_ImageRandomizer:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "images": ("IMAGE", {}),
-                "folder_name": ("STRING", {"default": "output_folder"}),
-                "caption_text": ("STRING", {"default": "Your caption here"}),
-                "overwrite": ("BOOLEAN", {"default": True})  # New overwrite toggle
+                "directory_path": ("STRING", {"default": ""}),
+                "randomize": ("BOOLEAN", {"default": True}),  # Toggle for randomization
+                "run_trigger": ("INT", {"default": 0}),  # Dummy input for caching issue
             }
         }
 
-    RETURN_TYPES = ("STRING",)
-    FUNCTION = "save_images_with_captions"
-    CATEGORY = "🏵️Fill Nodes"
+    RETURN_TYPES = ("IMAGE", "PATH")  # Adjusted to include image path for preview
+    FUNCTION = "select_image"
+    CATEGORY = "️🏵️Fill Nodes"  # Adjusted to appear under "Fill Nodes"
 
-    def save_images_with_captions(self, images, folder_name, caption_text, overwrite):
-        # Ensure output directory exists
-        os.makedirs(folder_name, exist_ok=True)
+    def __init__(self):
+        self.last_index = -1
 
-        saved_files = []
-        for i, image_tensor in enumerate(images):
-            base_name = f"image_{i}"
-            image_file_name = f"{folder_name}/{base_name}.png"
-            text_file_name = f"{folder_name}/{base_name}.txt"
+    def select_image(self, directory_path, randomize, run_trigger):
+        if not directory_path:
+            raise ValueError("Directory path is not provided.")
 
-            # Check if overwrite is disabled and file exists
-            if not overwrite:
-                counter = 1
-                while os.path.exists(image_file_name) or os.path.exists(text_file_name):
-                    image_file_name = f"{folder_name}/{base_name}_{counter}.png"
-                    text_file_name = f"{folder_name}/{base_name}_{counter}.txt"
-                    counter += 1
+        images = self.load_images(directory_path)
+        if not images:
+            raise ValueError("No images found in the specified directory.")
 
-            # Convert tensor to image
-            image = Image.fromarray((image_tensor.numpy() * 255).astype('uint8'), 'RGB')
+        if randomize:
+            selected_image_path = random.choice(images)
+        else:
+            self.last_index = (self.last_index + 1) % len(images)
+            selected_image_path = images[self.last_index]
 
-            # Save image
-            image.save(image_file_name)
-            saved_files.append(image_file_name)
+        image = Image.open(selected_image_path)
+        image = ImageOps.exif_transpose(image)
+        image = image.convert("RGB")
+        image_np = np.array(image).astype(np.float32) / 255.0
+        image_tensor = torch.from_numpy(image_np)[None,]
 
-            # Save text file
-            with open(text_file_name, "w") as text_file:
-                text_file.write(caption_text)
+        return (image_tensor, selected_image_path)  # Return both data points
 
-        return (f"Saved {len(images)} images and captions in '{folder_name}'",)
+    def load_images(self, directory):
+        supported_formats = ["jpg", "jpeg", "png", "bmp", "gif"]
+        return [os.path.join(directory, f) for f in os.listdir(directory)
+                if os.path.isfile(os.path.join(directory, f)) and f.split('.')[-1].lower() in supported_formats]
