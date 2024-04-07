@@ -27,5 +27,40 @@ Both files will be over written for continuous experimentation. Required to have
 
 ![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/69ab3151-2e16-4b54-b9ae-17e4bf0f0157)
 
+Dimension Display: - Simply shows the dimension of an image in a string for monitoring. No need for INTS.
+-
 
 ![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/05286d8f-bf8b-4737-b2f8-635a14f42d7a)
+
+
+
+Pixelator: - Custom effect that bid reduces an image and makes it black and white. See examples
+-
+
+current implementation requires you to break batches into a list and back into a batch if you want to use it on video. for VRAM management.
+
+![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/6806e256-0f57-48eb-be96-02f880f68de0)
+
+
+Audio Tools (WIP): - Load audio, scans for BPM, crops audio to desired bars and duration
+-
+
+other nodes that are a work in progress takes the sliced audio/bpm/fps and holds an image for the duration.
+There is also a VHS converter node that allows you to load audio into the VHS video combine for audio insertion on the fly!
+
+![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/e1b642e2-29d7-442a-a657-a32ca0fac9c4)
+
+Directory Crawler: - Simple node that loads all images in a directory and any subdirectories as well
+-
+
+![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/7f6862c7-60dc-4561-8b58-72b489903107)
+
+
+Raw Code Node: - Simple node that loads python and allows you to dev inside comfy without having to reload the instance every time
+-
+Great for deving out ideas and write custom stuff quickly
+
+
+![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/db439865-e3c5-4e52-b37c-c3ba601c0840)
+
+
