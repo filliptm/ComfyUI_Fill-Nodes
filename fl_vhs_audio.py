@@ -1,0 +1,41 @@
+import io
+import wave
+import numpy as np
+
+class FL_AudioConverter:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "audio": ("AUDIO",),
+                "sample_rate": ("INT", {"default": 44100, "description": "Sample rate of the audio"}),
+            }
+        }
+
+    RETURN_TYPES = ("VHS_AUDIO",)
+    RETURN_NAMES = ("audio",)
+    FUNCTION = "convert_audio"
+    CATEGORY = "🏵️Fill Nodes"
+
+    def convert_audio(self, audio, sample_rate):
+        # Extract the audio data and sample rate from the input tuple
+        audio_data, _ = audio
+
+        # Convert the audio data to int16
+        audio_data = (audio_data * 32767).astype(np.int16)
+
+        # Create a bytes buffer
+        buffer = io.BytesIO()
+
+        # Write the audio data to the buffer using wave module
+        with wave.open(buffer, 'wb') as wav_file:
+            wav_file.setnchannels(1)  # Mono audio
+            wav_file.setsampwidth(2)  # 2 bytes per sample (int16)
+            wav_file.setframerate(sample_rate)
+            wav_file.writeframes(audio_data.tobytes())
+
+        # Get the bytes from the buffer
+        audio_bytes = buffer.getvalue()
+
+        # Return a lambda function that returns the audio bytes
+        return (lambda: audio_bytes,)
