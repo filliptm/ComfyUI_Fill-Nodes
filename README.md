@@ -34,7 +34,7 @@ Dimension Display: - Simply shows the dimension of an image in a string for moni
 
 
 
-Pixelator: - Custom effect that bid reduces an image and makes it black and white. See examples
+Pixelator: - Custom effect that bit reduces an image and makes it black and white. See examples
 -
 
 current implementation requires you to break batches into a list and back into a batch if you want to use it on video. for VRAM management.
