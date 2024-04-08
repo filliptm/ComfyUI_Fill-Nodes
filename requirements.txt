@@ -1,0 +1,3 @@
+librosa
+sounddevice
+wave
