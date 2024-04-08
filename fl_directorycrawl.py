@@ -9,7 +9,6 @@ class FL_DirectoryCrawl:
         return {
             "required": {
                 "directory_path": ("STRING", {"default": ""}),
-                #"run_trigger": ("INT", {"default": 0}),  # Dummy input to trigger node execution
             }
         }
 
@@ -17,7 +16,7 @@ class FL_DirectoryCrawl:
     FUNCTION = "load_image_batch"
     CATEGORY = "🏵️Fill Nodes"
 
-    def load_image_batch(self, directory_path, run_trigger):
+    def load_image_batch(self, directory_path):
         if not directory_path:
             raise ValueError("Directory path is not provided.")
 
