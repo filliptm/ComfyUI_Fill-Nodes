@@ -63,4 +63,10 @@ Great for deving out ideas and write custom stuff quickly
 
 ![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/db439865-e3c5-4e52-b37c-c3ba601c0840)
 
+Ascii art Converter: Converts any image/video into ascii art. Allows for Font size, spacing, and alt codes work ♥♦♣♠
+-
+
+https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/d41b32e5-a5a2-4460-805c-5c6288cef8e0
+
+
 
