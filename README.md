@@ -91,7 +91,9 @@ Ascii: Video and image
 -
 This one allows for a TON of different styles. This node also works with Alt Codes like this: alt+3 = ♥ or alt+219 = █
 If you play with the spacing of 219 you can actually get a pixel art effect. ALSO, the last character in the list will always be applied to the highest luminance areas of the image. This is useful because you can do silly things like leave the last character as a blank space, allowing for negative space to be applied to light areas.
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/57e56250-5504-4def-8c40-4a628050effc)
+
+<img width="1136" alt="Screenshot 2024-04-29 192646" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/926287e9-e22a-4e64-9e4f-7fd6e096b558">
+
 
 
 
