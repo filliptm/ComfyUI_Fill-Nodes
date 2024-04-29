@@ -63,11 +63,35 @@ Great for developing ideas and writing custom stuff quickly
 
 ![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/db439865-e3c5-4e52-b37c-c3ba601c0840)
 
-Various FX: - Video effects (ACTIVE WIP) These effects both work with video and images
+Glitch: Video and image effect 
 -
-CAUTION THE PIXEL SORT NODE IS A HEAVY PROCESS, TAKES 5-10 seconds per frame depending on the resolution
-Play around with these nodes, there is a lot to play with within each of them, and when you chain them together!
-Soon, I will be adding a masking feature that will allow you to mask the effect right inside the node.
-I will also in the grander scheme of things be adding variable frame parameters based on sine or any wave inputs to make the effects "Breath" and change over time.
+Slices up your image or video to make a glitching feel
 
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/8b6bcfa5-f050-44ff-abe1-1f18afd75ecc)
+![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/b9bc2f82-19e3-4877-bb98-0801c4ceb96f)
+
+Ripple: Video and image effect
+-
+Ripples your video or image
+
+![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/660983b1-1090-400b-9c92-4e5d3a1eb2b6)
+
+Pixel Sort: Video and image
+-
+CAUTION: This node is a very heavy operation. It takes 5-10 seconds per frame. (WIP)
+
+![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/7ab1785a-fab7-4206-bf9b-fef48896b518)
+
+Hexagon: Video an image
+-
+This one is really fun. It masks your image and video in slices, but thats not all! Each slice acts as its own video or image when you start rotating and messing with the parameters.
+
+![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/06ddaae1-2c1e-41c0-af7f-d713f1bc6d91)
+
+Ascii: Video and image
+-
+This one allows for a TON of different styles. This node also works with Alt Codes like this: alt+3 = ♥ or alt+219 = █
+If you play with the spacing of 219 you can actually get a pixel art effect. ALSO, the last character in the list will always be applied to the highest luminance areas of the image. This is useful because you can do silly things like leave the last character as a blank space, allowing for negative space to be applied to light areas.
+![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/57e56250-5504-4def-8c40-4a628050effc)
+
+
+
