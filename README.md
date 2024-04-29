@@ -45,7 +45,7 @@ current implementation requires you to break batches into a list and back into a
 Audio Tools (WIP): - Load audio, scans for BPM, crops audio to desired bars and duration
 -
 
-other nodes that are a work in progress takes the sliced audio/bpm/fps and holds an image for the duration.
+other nodes that are a work in progress take the sliced audio/bpm/fps and hold an image for the duration.
 There is also a VHS converter node that allows you to load audio into the VHS video combine for audio insertion on the fly!
 
 ![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/e1b642e2-29d7-442a-a657-a32ca0fac9c4)
@@ -56,11 +56,18 @@ Directory Crawler: - Simple node that loads all images in a directory and any su
 ![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/7f6862c7-60dc-4561-8b58-72b489903107)
 
 
-Raw Code Node: - Simple node that loads python and allows you to dev inside comfy without having to reload the instance every time
+Raw Code Node: - Simple node that loads Python and allows you to dev inside comfy without having to reload the instance every time
 -
-Great for deving out ideas and write custom stuff quickly
+Great for developing ideas and writing custom stuff quickly
 
 
 ![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/db439865-e3c5-4e52-b37c-c3ba601c0840)
 
+Various FX: - Video effects (ACTIVE WIP) These effects both work with video and images
+-
+CAUTION THE PIXEL SORT NODE IS A HEAVY PROCESS, TAKES 5-10 seconds per frame depending on the resolution
+Play around with these nodes, there is a lot to play with within each of them, and when you chain them together!
+Soon, I will be adding a masking feature that will allow you to mask the effect right inside the node.
+I will also in the grander scheme of things be adding variable frame parameters based on sine or any wave inputs to make the effects "Breath" and change over time.
 
+![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/8b6bcfa5-f050-44ff-abe1-1f18afd75ecc)
