@@ -1,6 +1,7 @@
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import torch
+import sys
 
 class FL_Ascii:
     def __init__(self):
@@ -22,7 +23,6 @@ class FL_Ascii:
                     "min": 4,
                     "max": 100,
                     "step": 2,
-
                 }),
                 "characters": ("STRING", {
                     "default": "\._♥♦♣MachineDelusions♣♦♥_./",
@@ -45,6 +45,14 @@ class FL_Ascii:
             result_b = ascii_art_effect(img_b, spacing, font_size, characters)
             result_b = torch.tensor(np.array(result_b)) / 255.0
             result[b] = result_b
+
+            # Update the print log
+            progress = (b + 1) / batch_size * 100
+            sys.stdout.write(f"\rProcessing images: {progress:.2f}%")
+            sys.stdout.flush()
+
+        # Print a new line after the progress log
+        print()
 
         return (result,)
 

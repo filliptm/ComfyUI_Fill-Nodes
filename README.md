@@ -63,17 +63,4 @@ Great for deving out ideas and write custom stuff quickly
 
 ![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/db439865-e3c5-4e52-b37c-c3ba601c0840)
 
-Ascii art Converter: Converts any image/video into ascii art. Allows for Font size, spacing, and alt codes work ♥♦♣♠
--
-This node does a lot of interesting things. The LAST character in the character box will ALWAYS be the luminance of the image. So if you have a blank space in the box, luminance will be represented as negative space. 
-
-Another thing you can do is play with the spacing of the characters to achieve an overlapping effect. CARFUL putting the overlap too low, it will take a lot of time to process and you essentially get back your original image.
-
-If you use alt codes that are full colored in boxes, you can achieve a pixelation effect!
-
-Go nuts, have fun
-
-https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/d41b32e5-a5a2-4460-805c-5c6288cef8e0
-
-
 

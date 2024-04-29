@@ -9,6 +9,10 @@ from .fl_code_node import FL_CodeNode
 from .fl_image_pixelator import FL_ImagePixelator
 from .fl_directorycrawl import FL_DirectoryCrawl
 from .fl_ascii import FL_Ascii
+from .fl_glitch import FL_Glitch
+from .fl_ripple import FL_Ripple
+from .fl_pixelsort import FL_PixelSort
+from .fl_hexagonalpattern import FL_HexagonalPattern
 
 NODE_CLASS_MAPPINGS = {
     "FL_ImageRandomizer": FL_ImageRandomizer,
@@ -21,7 +25,11 @@ NODE_CLASS_MAPPINGS = {
     "FL_CodeNode": FL_CodeNode,
     "FL_ImagePixelator": FL_ImagePixelator,
     "FL_DirectoryCrawl": FL_DirectoryCrawl,
-    "FL_Ascii": FL_Ascii
+    "FL_Ascii": FL_Ascii,
+    "FL_Glitch": FL_Glitch,
+    "FL_Ripple": FL_Ripple,
+    "FL_PixelSort": FL_PixelSort,
+    "FL_HexagonalPattern": FL_HexagonalPattern
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -35,7 +43,11 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_CodeNode": "FL Code Node",
     "FL_ImagePixelator": "FL Image Pixelator",
     "FL_DirectoryCrawl": "FL DirectoryCrawl",
-    "FL_Ascii": "FL Ascii"
+    "FL_Ascii": "FL Ascii",
+    "FL_Glitch": "FL Glitch",
+    "FL_Ripple": "FL Ripple",
+    "FL_PixelSort": "FL PixelSort",
+    "FL_HexagonalPattern": "FL Hexagonal Pattern"
 }
 
 

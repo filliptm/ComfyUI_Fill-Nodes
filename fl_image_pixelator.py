@@ -21,19 +21,29 @@ class FL_ImagePixelator:
     def pixelate_image(self, image, scale_factor, kernel_size):
         if isinstance(image, torch.Tensor):
             if image.dim() == 4:  # Batch dimension is present
-                image = self.apply_pixelation_tensor(image, scale_factor)
+                output_images = []
+                total_frames = image.shape[0]
+                for i, single_image in enumerate(image, start=1):
+                    single_image = single_image.unsqueeze(0)  # Add batch dimension
+                    single_image = self.apply_pixelation_tensor(single_image, scale_factor)
+                    single_image = self.process(single_image, kernel_size)
+                    output_images.append(single_image)
+                    print(f"Processing frame {i}/{total_frames}")
+                image = torch.cat(output_images, dim=0)  # Concatenate processed images along batch dimension
             elif image.dim() == 3:  # No batch dimension, single image
                 image = image.unsqueeze(0)  # Add batch dimension
                 image = self.apply_pixelation_tensor(image, scale_factor)
+                image = self.process(image, kernel_size)
                 image = image.squeeze(0)  # Remove batch dimension
+                print("Processing single image")
             else:
                 return (None,)
         elif isinstance(image, Image.Image):
             image = self.apply_pixelation_pil(image, scale_factor)
+            image = self.process(image, kernel_size)
+            print("Processing single PIL image")
         else:
             return (None,)
-
-        image = self.process(image, kernel_size)
 
         return (image,)
 
