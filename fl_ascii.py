@@ -1,33 +1,47 @@
 from PIL import Image, ImageDraw, ImageFont
+import matplotlib.font_manager
 import numpy as np
 import torch
 import sys
+
 
 class FL_Ascii:
     def __init__(self):
         pass
 
+
     @classmethod
     def INPUT_TYPES(s):
+        font_list = [x.split('/')[-1] for x in matplotlib.font_manager.findSystemFonts(fontpaths=None, fontext="ttf" )]
         return {
             "required": {
                 "image": ("IMAGE",),
-                "spacing": ("INT", {
-                    "default": 20,
-                    "min": 4,
-                    "max": 100,
-                    "step": 2,
-                }),
-                "font_size": ("INT", {
-                    "default": 20,
-                    "min": 4,
-                    "max": 100,
-                    "step": 2,
-                }),
-                "characters": ("STRING", {
-                    "default": "\._♥♦♣MachineDelusions♣♦♥_./",
-                    "description": "characters to use"
-                }),
+                "spacing": (
+                    "INT",
+                    {
+                        "default": 20,
+                        "min": 4,
+                        "max": 100,
+                        "step": 2,
+                    },
+                ),
+                "font_size": (
+                    "INT",
+                    {
+                        "default": 20,
+                        "min": 4,
+                        "max": 100,
+                        "step": 2,
+                    },
+                ),
+                "font_name": (font_list,),
+                "characters": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "description": "characters to use",
+                    },
+                ),
             },
         }
 
@@ -35,14 +49,23 @@ class FL_Ascii:
     FUNCTION = "apply_ascii_art_effect"
     CATEGORY = "🏵️Fill Nodes"
 
-    def apply_ascii_art_effect(self, image: torch.Tensor, spacing: int, font_size: int, characters):
+    def apply_ascii_art_effect(
+        self,
+        image: torch.Tensor,
+        spacing: int,
+        font_size: int,
+        font_name: str,
+        characters,
+    ):
         batch_size, height, width, channels = image.shape
         result = torch.zeros_like(image)
 
         for b in range(batch_size):
             img_b = image[b] * 255.0
-            img_b = Image.fromarray(img_b.numpy().astype('uint8'), 'RGB')
-            result_b = ascii_art_effect(img_b, spacing, font_size, characters)
+            img_b = Image.fromarray(img_b.numpy().astype("uint8"), "RGB")
+            result_b = ascii_art_effect(
+                img_b, spacing, font_size, font_name, characters
+            )
             result_b = torch.tensor(np.array(result_b)) / 255.0
             result[b] = result_b
 
@@ -57,15 +80,19 @@ class FL_Ascii:
         return (result,)
 
 
-def ascii_art_effect(image: torch.Tensor, spacing: int, font_size: int, characters):
+def ascii_art_effect(
+    image: torch.Tensor, spacing: int, font_size: int, font_name: str, characters
+):
     chars = characters
-    small_image = image.resize((image.size[0] // spacing, image.size[1] // spacing), Image.Resampling.NEAREST)
+    small_image = image.resize(
+        (image.size[0] // spacing, image.size[1] // spacing), Image.Resampling.NEAREST
+    )
 
     def get_char(value):
         return chars[value * len(chars) // 256]
 
-    ascii_image = Image.new('RGB', image.size, (0, 0, 0))
-    font = ImageFont.truetype("arial.ttf", font_size)
+    ascii_image = Image.new("RGB", image.size, (0, 0, 0))
+    font = ImageFont.truetype(font_name, font_size)
     draw_image = ImageDraw.Draw(ascii_image)
 
     for i in range(small_image.height):
@@ -73,10 +100,7 @@ def ascii_art_effect(image: torch.Tensor, spacing: int, font_size: int, characte
             r, g, b = small_image.getpixel((j, i))
             k = (r + g + b) // 3
             draw_image.text(
-                (j * spacing, i * spacing),
-                get_char(k),
-                font=font,
-                fill=(r, g, b)
+                (j * spacing, i * spacing), get_char(k), font=font, fill=(r, g, b)
             )
 
     return ascii_image
