@@ -63,9 +63,7 @@ class FL_Ascii:
         for b in range(batch_size):
             img_b = image[b] * 255.0
             img_b = Image.fromarray(img_b.numpy().astype("uint8"), "RGB")
-            result_b = ascii_art_effect(
-                img_b, spacing, font_size, font_name, characters
-            )
+            result_b = ascii_art_effect(img_b, spacing, font_size, font_name, characters)
             result_b = torch.tensor(np.array(result_b)) / 255.0
             result[b] = result_b
 
@@ -80,13 +78,9 @@ class FL_Ascii:
         return (result,)
 
 
-def ascii_art_effect(
-    image: torch.Tensor, spacing: int, font_size: int, font_name: str, characters
-):
+def ascii_art_effect(image: torch.Tensor, spacing: int, font_size: int, font_name: str, characters):
     chars = characters
-    small_image = image.resize(
-        (image.size[0] // spacing, image.size[1] // spacing), Image.Resampling.NEAREST
-    )
+    small_image = image.resize((image.size[0] // spacing, image.size[1] // spacing), Image.Resampling.NEAREST)
 
     def get_char(value):
         return chars[value * len(chars) // 256]
@@ -100,7 +94,10 @@ def ascii_art_effect(
             r, g, b = small_image.getpixel((j, i))
             k = (r + g + b) // 3
             draw_image.text(
-                (j * spacing, i * spacing), get_char(k), font=font, fill=(r, g, b)
+                (j * spacing, i * spacing),
+                get_char(k), 
+                font=font,
+                fill=(r, g, b)
             )
 
     return ascii_image
