@@ -45,7 +45,7 @@ current implementation requires you to break batches into a list and back into a
 Audio Tools (WIP): - Load audio, scans for BPM, crops audio to desired bars and duration
 -
 
-other nodes that are a work in progress take the sliced audio/bpm/fps and hold an image for the duration.
+other nodes that are a work in progress takes the sliced audio/bpm/fps and holds an image for the duration.
 There is also a VHS converter node that allows you to load audio into the VHS video combine for audio insertion on the fly!
 
 ![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/e1b642e2-29d7-442a-a657-a32ca0fac9c4)
@@ -56,44 +56,11 @@ Directory Crawler: - Simple node that loads all images in a directory and any su
 ![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/7f6862c7-60dc-4561-8b58-72b489903107)
 
 
-Raw Code Node: - Simple node that loads Python and allows you to dev inside comfy without having to reload the instance every time
+Raw Code Node: - Simple node that loads python and allows you to dev inside comfy without having to reload the instance every time
 -
-Great for developing ideas and writing custom stuff quickly
+Great for deving out ideas and write custom stuff quickly
 
 
 ![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/db439865-e3c5-4e52-b37c-c3ba601c0840)
-
-Glitch: Video and image effect 
--
-Slices up your image or video to make a glitching feel
-
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/b9bc2f82-19e3-4877-bb98-0801c4ceb96f)
-
-Ripple: Video and image effect
--
-Ripples your video or image
-
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/660983b1-1090-400b-9c92-4e5d3a1eb2b6)
-
-Pixel Sort: Video and image
--
-CAUTION: This node is a very heavy operation. It takes 5-10 seconds per frame. (WIP)
-
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/7ab1785a-fab7-4206-bf9b-fef48896b518)
-
-Hexagon: Video an image
--
-This one is really fun. It masks your image and video in slices, but thats not all! Each slice acts as its own video or image when you start rotating and messing with the parameters.
-
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/06ddaae1-2c1e-41c0-af7f-d713f1bc6d91)
-
-Ascii: Video and image
--
-This one allows for a TON of different styles. This node also works with Alt Codes like this: alt+3 = ♥ or alt+219 = █
-If you play with the spacing of 219 you can actually get a pixel art effect. ALSO, the last character in the list will always be applied to the highest luminance areas of the image. This is useful because you can do silly things like leave the last character as a blank space, allowing for negative space to be applied to light areas.
-
-<img width="1136" alt="Screenshot 2024-04-29 192646" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/926287e9-e22a-4e64-9e4f-7fd6e096b558">
-
-
 
 

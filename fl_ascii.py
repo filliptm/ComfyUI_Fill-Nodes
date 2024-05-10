@@ -5,7 +5,8 @@ import sys
 
 class FL_Ascii:
     def __init__(self):
-        pass
+        self.spacing_index = 0
+        self.font_size_index = 0
 
     @classmethod
     def INPUT_TYPES(s):
@@ -42,7 +43,28 @@ class FL_Ascii:
         for b in range(batch_size):
             img_b = image[b] * 255.0
             img_b = Image.fromarray(img_b.numpy().astype('uint8'), 'RGB')
-            result_b = ascii_art_effect(img_b, spacing, font_size, characters)
+
+            # Check if spacing is a list and get the current value
+            if isinstance(spacing, list):
+                if self.spacing_index >= len(spacing):
+                    print("Warning: Spacing list index out of range. Using the last value.")
+                    self.spacing_index = len(spacing) - 1
+                current_spacing = spacing[self.spacing_index]
+                self.spacing_index = (self.spacing_index + 1) % len(spacing)
+            else:
+                current_spacing = spacing
+
+            # Check if font_size is a list and get the current value
+            if isinstance(font_size, list):
+                if self.font_size_index >= len(font_size):
+                    print("Warning: Font size list index out of range. Using the last value.")
+                    self.font_size_index = len(font_size) - 1
+                current_font_size = font_size[self.font_size_index]
+                self.font_size_index = (self.font_size_index + 1) % len(font_size)
+            else:
+                current_font_size = font_size
+
+            result_b = ascii_art_effect(img_b, current_spacing, current_font_size, characters)
             result_b = torch.tensor(np.array(result_b)) / 255.0
             result[b] = result_b
 

@@ -5,6 +5,14 @@ import math
 import sys
 
 class FL_HexagonalPattern:
+    def __init__(self):
+        self.hexagon_size_index = 0
+        self.shadow_offset_index = 0
+        self.shadow_color_index = 0
+        self.background_color_index = 0
+        self.rotation_index = 0
+        self.spacing_index = 0
+
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -37,14 +45,20 @@ class FL_HexagonalPattern:
         draw.regular_polygon((size // 2, size // 2, size // 2), 6, fill=255)
         return mask
 
-    def calculate_adjusted_hexagon_size(self, width, height, hexagon_size, spacing):
-        horizontal_count = math.ceil(width / (hexagon_size * spacing))
-        vertical_count = math.ceil(height / (hexagon_size * spacing * math.sqrt(3) / 2))
+    def process_input_value(self, value, index):
+        if isinstance(value, list):
+            if index >= len(value):
+                print(f"Warning: Value list index out of range. Using the last value.")
+                index = len(value) - 1
+            current_value = value[index]
+            index = (index + 1) % len(value)
+        else:
+            current_value = value
 
-        adjusted_width = width / horizontal_count
-        adjusted_height = height / (vertical_count * math.sqrt(3) / 2)
+        if hasattr(current_value, 'values'):
+            current_value = float(current_value.values[0])
 
-        return min(adjusted_width, adjusted_height) / spacing
+        return current_value, index
 
     def hexagonal_pattern(self, images, hexagon_size=100, shadow_offset=5, shadow_color="black", shadow_opacity=0.5,
                           background_color="white", rotation=0.0, spacing=1.0):
@@ -54,24 +68,30 @@ class FL_HexagonalPattern:
             p = self.t2p(img_tensor)
             width, height = p.size
 
-            adjusted_hexagon_size = self.calculate_adjusted_hexagon_size(width, height, hexagon_size, spacing)
-            hexagon_mask = self.create_hexagon_mask(int(adjusted_hexagon_size))
+            current_hexagon_size, self.hexagon_size_index = self.process_input_value(hexagon_size, self.hexagon_size_index)
+            current_shadow_offset, self.shadow_offset_index = self.process_input_value(shadow_offset, self.shadow_offset_index)
+            current_shadow_color, self.shadow_color_index = self.process_input_value(shadow_color, self.shadow_color_index)
+            current_background_color, self.background_color_index = self.process_input_value(background_color, self.background_color_index)
+            current_rotation, self.rotation_index = self.process_input_value(rotation, self.rotation_index)
+            current_spacing, self.spacing_index = self.process_input_value(spacing, self.spacing_index)
 
-            output_image = Image.new("RGBA", (width, height), background_color)
+            hexagon_mask = self.create_hexagon_mask(current_hexagon_size)
 
-            for y in range(0, height, int(adjusted_hexagon_size * spacing * math.sqrt(3) / 2)):
-                for x in range(0, width, int(adjusted_hexagon_size * spacing)):
-                    if y % (2 * int(adjusted_hexagon_size * spacing * math.sqrt(3) / 2)) == int(adjusted_hexagon_size * spacing * math.sqrt(3) / 2):
-                        x += int(adjusted_hexagon_size * spacing) // 2
+            output_image = Image.new("RGBA", (width, height), current_background_color)
 
-                    cropped_hexagon = p.crop((x, y, x + int(adjusted_hexagon_size), y + int(adjusted_hexagon_size))).rotate(rotation, expand=True)
+            for y in range(0, height, int(current_hexagon_size * current_spacing * math.sqrt(3) / 2)):
+                for x in range(0, width, int(current_hexagon_size * current_spacing)):
+                    if y % (2 * int(current_hexagon_size * current_spacing * math.sqrt(3) / 2)) == int(current_hexagon_size * current_spacing * math.sqrt(3) / 2):
+                        x += int(current_hexagon_size * current_spacing) // 2
+
+                    cropped_hexagon = p.crop((x, y, x + current_hexagon_size, y + current_hexagon_size)).rotate(current_rotation, expand=True)
 
                     shadow = Image.new("RGBA", cropped_hexagon.size, (0, 0, 0, 0))
                     shadow_mask = hexagon_mask.copy().resize(cropped_hexagon.size)
-                    shadow.paste(shadow_color, (shadow_offset, shadow_offset), shadow_mask)
+                    shadow.paste(current_shadow_color, (current_shadow_offset, current_shadow_offset), shadow_mask)
                     shadow.putalpha(int(255 * shadow_opacity))
 
-                    output_image.paste(shadow, (x + shadow_offset, y + shadow_offset), shadow_mask)
+                    output_image.paste(shadow, (x + current_shadow_offset, y + current_shadow_offset), shadow_mask)
                     output_image.paste(cropped_hexagon, (x, y), shadow_mask)
 
             o = np.array(output_image.convert("RGB")).astype(np.float32) / 255.0
