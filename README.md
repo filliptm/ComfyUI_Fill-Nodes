@@ -94,6 +94,22 @@ If you play with the spacing of 219 you can actually get a pixel art effect. ALS
 
 <img width="1136" alt="Screenshot 2024-04-29 192646" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/926287e9-e22a-4e64-9e4f-7fd6e096b558">
 
+Prompt Selector: - simple prompt selector/randomizer
+-
+Great for iterating through a lot of prompts or randomizing a list of things you already know works.
 
+<img width="1021" alt="Screenshot 2024-05-15 144223" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/1e96e75a-e9f4-4056-a55a-0ee1cc316dff">
+
+Random Number Range: - Randomize numbers within a selected range.
+-
+Has a lot of uses where you want numbers randomized, but you need them in a specific range for error purposes.
+
+<img width="683" alt="Screenshot 2024-05-15 144242" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/b2d15b5c-aeda-44d1-b341-075940d83a3f">
+
+Half Tone FX: - Creates a black and white half-tone effect.
+-
+Lots of fun with this one. Get interesting effects on both images and video.
+
+<img width="953" alt="Screenshot 2024-05-15 144011" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/486e0e4f-ad37-4353-8e92-42e85767f882">
 
 
