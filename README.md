@@ -63,4 +63,20 @@ Great for deving out ideas and write custom stuff quickly
 
 ![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/db439865-e3c5-4e52-b37c-c3ba601c0840)
 
+Prompt Selector: - simple prompt selector/randomizer
+-
+Great for iterating through a lot of prompts or randomizing a list of things you already know works.
 
+<img width="1021" alt="Screenshot 2024-05-15 144223" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/1e96e75a-e9f4-4056-a55a-0ee1cc316dff">
+
+Random Number Range: - Randomize numbers within a selected range.
+-
+Has a lot of uses where you want numbers randomized, but you need them in a specific range for error purposes.
+
+<img width="683" alt="Screenshot 2024-05-15 144242" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/b2d15b5c-aeda-44d1-b341-075940d83a3f">
+
+Half Tone FX: - Creates a black and white half-tone effect.
+-
+Lots of fun with this one. Get interesting effects on both images and video.
+
+<img width="953" alt="Screenshot 2024-05-15 144011" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/486e0e4f-ad37-4353-8e92-42e85767f882">
