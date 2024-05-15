@@ -13,6 +13,10 @@ from .fl_glitch import FL_Glitch
 from .fl_ripple import FL_Ripple
 from .fl_pixelsort import FL_PixelSort
 from .fl_hexagonalpattern import FL_HexagonalPattern
+from .fl_nftgenerator import FL_NFTGenerator
+from .fl_halftone import FL_HalftonePattern
+from. fl_randomrange import FL_RandomNumber
+from. fl_promptselector import FL_PromptSelector
 
 
 
@@ -31,7 +35,11 @@ NODE_CLASS_MAPPINGS = {
     "FL_Glitch": FL_Glitch,
     "FL_Ripple": FL_Ripple,
     "FL_PixelSort": FL_PixelSort,
-    "FL_HexagonalPattern": FL_HexagonalPattern
+    "FL_HexagonalPattern": FL_HexagonalPattern,
+    "FL_NFTGenerator": FL_NFTGenerator,
+    "FL_HalftonePattern": FL_HalftonePattern,
+    "FL_RandomNumber": FL_RandomNumber,
+    "FL_PromptSelector": FL_PromptSelector
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -44,12 +52,16 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_AudioFrameCalculator": "FL Audio Scanner",
     "FL_CodeNode": "FL Code Node",
     "FL_ImagePixelator": "FL Image Pixelator",
-    "FL_DirectoryCrawl": "FL DirectoryCrawl",
+    "FL_DirectoryCrawl": "FL Directory Crawl",
     "FL_Ascii": "FL Ascii",
     "FL_Glitch": "FL Glitch",
     "FL_Ripple": "FL Ripple",
     "FL_PixelSort": "FL PixelSort",
-    "FL_HexagonalPattern": "FL Hexagonal Pattern"
+    "FL_HexagonalPattern": "FL Hexagonal Pattern",
+    "FL_NFTGenerator": "FL NFT Generator",
+    "FL_HalftonePattern": "FL Halftone",
+    "FL_RandomNumber": "FL Random Number",
+    "FL_PromptSelector": "FL Prompt Selector"
 }
 
 
