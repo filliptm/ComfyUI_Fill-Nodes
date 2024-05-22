@@ -1,0 +1,15 @@
+[project]
+name = "comfyui_fill-nodes"
+description = ""
+version = "1.0.0"
+license = "LICENSE"
+dependencies = ["librosa", "sounddevice", "glitch_this"]
+
+[project.urls]
+Repository = "https://github.com/filliptm/ComfyUI_Fill-Nodes"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "ComfyUI_Fill-Nodes"
+Icon = ""
