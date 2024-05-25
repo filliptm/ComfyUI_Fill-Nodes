@@ -15,9 +15,11 @@ from .fl_pixelsort import FL_PixelSort
 from .fl_hexagonalpattern import FL_HexagonalPattern
 from .fl_nftgenerator import FL_NFTGenerator
 from .fl_halftone import FL_HalftonePattern
-from. fl_randomrange import FL_RandomNumber
-from. fl_promptselector import FL_PromptSelector
-
+from .fl_randomrange import FL_RandomNumber
+from .fl_promptselector import FL_PromptSelector
+from .fl_shader import FL_Shadertoy
+from .fl_pixelshader import FL_PixelArtShader
+from .fl_infinitezoom import FL_InfiniteZoom
 
 
 NODE_CLASS_MAPPINGS = {
@@ -39,7 +41,10 @@ NODE_CLASS_MAPPINGS = {
     "FL_NFTGenerator": FL_NFTGenerator,
     "FL_HalftonePattern": FL_HalftonePattern,
     "FL_RandomNumber": FL_RandomNumber,
-    "FL_PromptSelector": FL_PromptSelector
+    "FL_PromptSelector": FL_PromptSelector,
+    "FL_Shadertoy": FL_Shadertoy,
+    "FL_PixelArtShader": FL_PixelArtShader,
+    "FL_InfiniteZoom": FL_InfiniteZoom
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -61,27 +66,32 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_NFTGenerator": "FL NFT Generator",
     "FL_HalftonePattern": "FL Halftone",
     "FL_RandomNumber": "FL Random Number",
-    "FL_PromptSelector": "FL Prompt Selector"
+    "FL_PromptSelector": "FL Prompt Selector",
+    "FL_Shadertoy": "FL Shadertoy",
+    "FL_PixelArtShader": "FL Pixel Art",
+    "FL_InfiniteZoom": "FL Infinite Zoom"
 }
-
-
-
-WEB_DIRECTORY = "./web"
-__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
-
 
 
 ascii_art = """
 
-███╗   ███╗ █████╗  ██████╗██╗  ██╗██╗███╗   ██╗███████╗    ██████╗ ███████╗██╗     ██╗   ██╗███████╗██╗ ██████╗ ███╗   ██╗███████╗
-████╗ ████║██╔══██╗██╔════╝██║  ██║██║████╗  ██║██╔════╝    ██╔══██╗██╔════╝██║     ██║   ██║██╔════╝██║██╔═══██╗████╗  ██║██╔════╝
-██╔████╔██║███████║██║     ███████║██║██╔██╗ ██║█████╗      ██║  ██║█████╗  ██║     ██║   ██║███████╗██║██║   ██║██╔██╗ ██║███████╗
-██║╚██╔╝██║██╔══██║██║     ██╔══██║██║██║╚██╗██║██╔══╝      ██║  ██║██╔══╝  ██║     ██║   ██║╚════██║██║██║   ██║██║╚██╗██║╚════██║
-██║ ╚═╝ ██║██║  ██║╚██████╗██║  ██║██║██║ ╚████║███████╗    ██████╔╝███████╗███████╗╚██████╔╝███████║██║╚██████╔╝██║ ╚████║███████║
-╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚══════╝    ╚═════╝ ╚══════╝╚══════╝ ╚═════╝ ╚══════╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+███╗   ███╗ █████╗  ██████╗██╗  ██╗██╗███╗   ██╗███████╗               
+████╗ ████║██╔══██╗██╔════╝██║  ██║██║████╗  ██║██╔════╝               
+██╔████╔██║███████║██║     ███████║██║██╔██╗ ██║█████╗                 
+██║╚██╔╝██║██╔══██║██║     ██╔══██║██║██║╚██╗██║██╔══╝                 
+██║ ╚═╝ ██║██║  ██║╚██████╗██║  ██║██║██║ ╚████║███████╗               
+╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚══════╝               
+                                                                       
+██████╗ ███████╗██╗     ██╗   ██╗███████╗██╗ ██████╗ ███╗   ██╗███████╗
+██╔══██╗██╔════╝██║     ██║   ██║██╔════╝██║██╔═══██╗████╗  ██║██╔════╝
+██║  ██║█████╗  ██║     ██║   ██║███████╗██║██║   ██║██╔██╗ ██║███████╗
+██║  ██║██╔══╝  ██║     ██║   ██║╚════██║██║██║   ██║██║╚██╗██║╚════██║
+██████╔╝███████╗███████╗╚██████╔╝███████║██║╚██████╔╝██║ ╚████║███████║
+╚═════╝ ╚══════╝╚══════╝ ╚═════╝ ╚══════╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+                                                                       
 
 """
 print(ascii_art)
 
 WEB_DIRECTORY = "./web"
-__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
+__all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]

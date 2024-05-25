@@ -1,3 +1,5 @@
 librosa
 sounddevice
 glitch_this
+PyOpenGL
+glfw
