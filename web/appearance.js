@@ -27,6 +27,8 @@ app.registerExtension({
             case "FL_Shadertoy":
             case "FL_PixelArtShader":
             case "FL_InfiniteZoom":
+            case "FL_PaperDrawn":
+
 
                 // node.setSize([200, 58]);
                 node.color = "#1b4669";
