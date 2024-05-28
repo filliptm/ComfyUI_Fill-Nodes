@@ -112,4 +112,11 @@ Lots of fun with this one. Get interesting effects on both images and video.
 
 <img width="953" alt="Screenshot 2024-05-15 144011" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/486e0e4f-ad37-4353-8e92-42e85767f882">
 
+Infinite Zoom: - Creates a zooming effect for both images and video.
+-
+![Screenshot 2024-05-27 222117](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/7874b38d-59ad-416d-acbc-ef9cdcc78abd)
+
+Paper Drawn: - Filter effect that makes your images and videos look like pencil drawn.
+-
+![Screenshot 2024-05-27 222434](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/32fd03ff-5f8b-4d55-b616-6365528fb218)
 
