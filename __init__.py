@@ -20,6 +20,7 @@ from .fl_promptselector import FL_PromptSelector
 from .fl_shader import FL_Shadertoy
 from .fl_pixelshader import FL_PixelArtShader
 from .fl_infinitezoom import FL_InfiniteZoom
+from. fl_paperdrawn import FL_PaperDrawn
 
 
 NODE_CLASS_MAPPINGS = {
@@ -44,7 +45,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_PromptSelector": FL_PromptSelector,
     "FL_Shadertoy": FL_Shadertoy,
     "FL_PixelArtShader": FL_PixelArtShader,
-    "FL_InfiniteZoom": FL_InfiniteZoom
+    "FL_InfiniteZoom": FL_InfiniteZoom,
+    "FL_PaperDrawn": FL_PaperDrawn
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -69,7 +71,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_PromptSelector": "FL Prompt Selector",
     "FL_Shadertoy": "FL Shadertoy",
     "FL_PixelArtShader": "FL Pixel Art",
-    "FL_InfiniteZoom": "FL Infinite Zoom"
+    "FL_InfiniteZoom": "FL Infinite Zoom",
+    "FL_PaperDrawn": "FL Paper Drawn"
 }
 
 
