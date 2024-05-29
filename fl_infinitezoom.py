@@ -185,7 +185,7 @@ class FL_InfiniteZoom:
         gl.glUniform1f(gl.glGetUniformLocation(shader_program, "iScale"), scale)
         gl.glUniform1f(gl.glGetUniformLocation(shader_program, "iSwirl"), 1.0 if mirror == "on" else 0.0)
         gl.glUniform1f(gl.glGetUniformLocation(shader_program, "iSwirlStrength"), mirror_warp)
-        #gl.glUniform1f(gl.glGetUniformLocation(shader_program, "iBlur"), blur)
+        # gl.glUniform1f(gl.glGetUniformLocation(shader_program, "iBlur"), blur)
         gl.glUniform1f(gl.glGetUniformLocation(shader_program, "iIterations"), iterations)
         gl.glUniform1f(gl.glGetUniformLocation(shader_program, "iTimeSpeed"), speed)
 
