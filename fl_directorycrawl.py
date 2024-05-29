@@ -38,7 +38,7 @@ class FL_DirectoryCrawl:
         return (batch_images_tensor,)
 
     def crawl_directories(self, directory):
-        supported_formats = ["jpg", "jpeg", "png", "bmp", "gif"]
+        supported_formats = ["jpg", "jpeg", "png", "bmp", "gif", "txt"]
         image_paths = []
         for root, dirs, files in os.walk(directory):
             for file in files:
