@@ -9,7 +9,7 @@ class FL_ImageNotes:
         return {
             "required": {
                 "images": ("IMAGE",),
-                "text": ("STRING", {"multiline": False}),
+                "text": ("STRING", {"default": "Text Here", "multiline": False}),
                 "bar_height": ("INT", {"default": 50, "min": 10, "max": 200, "step": 2}),
                 "text_size": ("INT", {"default": 24, "min": 10, "max": 100, "step": 1}),
             },
