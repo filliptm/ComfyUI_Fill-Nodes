@@ -28,10 +28,10 @@ app.registerExtension({
             case "FL_PixelArtShader":
             case "FL_InfiniteZoom":
             case "FL_PaperDrawn":
-
+            case "FL_ImageNotes":
 
                 // node.setSize([200, 58]);
-                node.color = "#1b4669";
+                node.color = "#16727c";
                 node.bgcolor = "#4F0074";
 
                 break;

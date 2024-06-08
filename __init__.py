@@ -21,7 +21,7 @@ from .nodes.fl_shader import FL_Shadertoy
 from .nodes.fl_pixelshader import FL_PixelArtShader
 from .nodes.fl_infinitezoom import FL_InfiniteZoom
 from .nodes.fl_paperdrawn import FL_PaperDrawn
-
+from .nodes.fl_imagenotes import FL_ImageNotes
 
 NODE_CLASS_MAPPINGS = {
     "FL_ImageRandomizer": FL_ImageRandomizer,
@@ -46,7 +46,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_Shadertoy": FL_Shadertoy,
     "FL_PixelArtShader": FL_PixelArtShader,
     "FL_InfiniteZoom": FL_InfiniteZoom,
-    "FL_PaperDrawn": FL_PaperDrawn
+    "FL_PaperDrawn": FL_PaperDrawn,
+    "FL_ImageNotes": FL_ImageNotes
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -72,7 +73,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Shadertoy": "FL Shadertoy",
     "FL_PixelArtShader": "FL Pixel Art",
     "FL_InfiniteZoom": "FL Infinite Zoom",
-    "FL_PaperDrawn": "FL Paper Drawn"
+    "FL_PaperDrawn": "FL Paper Drawn",
+    "FL_ImageNotes": "FL Image Notes"
 }
 
 
