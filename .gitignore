@@ -1,0 +1,10 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+_*
+*.code-workspace
+.vscode/
+config.json
+ignore.txt
+.env

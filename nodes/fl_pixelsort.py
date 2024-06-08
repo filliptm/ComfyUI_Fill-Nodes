@@ -4,6 +4,7 @@ from PIL import Image
 from colorsys import rgb_to_hsv
 import sys
 
+from comfy.utils import ProgressBar
 
 class FL_PixelSort:
     @classmethod
@@ -66,6 +67,7 @@ class FL_PixelSort:
 
         intervals = [np.flatnonzero(row) for row in edges]
 
+        pbar = ProgressBar(len(values))
         for row, key in enumerate(values):
             order = np.split(key, intervals[row])
             for index, interval in enumerate(order[1:]):
@@ -75,5 +77,7 @@ class FL_PixelSort:
 
             for channel in range(3):
                 pixels[row, :, channel] = pixels[row, order.astype('uint32'), channel]
+
+            pbar.update_absolute(row)
 
         return Image.fromarray(np.rot90(pixels, -rotation))

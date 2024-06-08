@@ -2,7 +2,8 @@ import torch
 import numpy as np
 from PIL import Image
 from glitch_this import ImageGlitcher
-import sys
+
+from comfy.utils import ProgressBar
 
 class FL_Glitch:
     def __init__(self):
@@ -44,6 +45,7 @@ class FL_Glitch:
         if not isinstance(seed, list):
             seed = [seed] * total_images
 
+        pbar = ProgressBar(total_images)
         for i, image in enumerate(images, start=1):
             p = self.t2p(image)
 
@@ -69,14 +71,7 @@ class FL_Glitch:
             o = np.array(f.convert("RGB")).astype(np.float32) / 255.0
             o = torch.from_numpy(o).unsqueeze(0)
             out.append(o)
-
-            # Print progress update
-            progress = i / total_images * 100
-            sys.stdout.write(f"\rProcessing images: {progress:.2f}%")
-            sys.stdout.flush()
-
-        # Print a new line after the progress update
-        print()
+            pbar.update_absolute(i)
 
         out = torch.cat(out, 0)
         return (out,)

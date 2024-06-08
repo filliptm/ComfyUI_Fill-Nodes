@@ -5,6 +5,7 @@ import sys
 import OpenGL.GL as gl
 import glfw
 import ctypes
+from comfy.utils import ProgressBar
 
 VERTEX_SHADER = """
 #version 330 core
@@ -87,17 +88,15 @@ class FL_InfiniteZoom:
     def apply_shader(self, images, scale, mirror, mirror_warp, iterations, speed, fps):
         result = []
         total_images = len(images)
+        pbar = ProgressBar(total_images)
         frame_time = 1.0 / fps
-
         for i, image in enumerate(images, start=1):
             img = self.t2p(image)
             result_img = self.process_image(img, scale, mirror, mirror_warp, iterations, speed, i * frame_time)
             result_img = self.p2t(result_img)
             result.append(result_img)
-            progress = i / total_images * 100
-            sys.stdout.write(f"\rProcessing images: {progress:.2f}%")
-            sys.stdout.flush()
-        print()
+            pbar.update_absolute(i)
+
         return (torch.cat(result, dim=0),)
 
     def process_image(self, image, scale, mirror, mirror_warp, iterations, speed, time):

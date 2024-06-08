@@ -1,7 +1,8 @@
 import torch
 import numpy as np
 from PIL import Image
-import sys
+
+from comfy.utils import ProgressBar
 
 class FL_PixelArtShader:
     @classmethod
@@ -23,20 +24,13 @@ class FL_PixelArtShader:
     def apply_pixel_art_shader(self, images, pixel_size, color_depth):
         result = []
         total_images = len(images)
-
-        for i, image in enumerate(images, start=1):
+        pbar = ProgressBar(total_images)
+        for idx, image in enumerate(images, start=1):
             img = self.t2p(image)
             result_img = pixel_art_effect(img, pixel_size, color_depth)
             result_img = self.p2t(result_img)
             result.append(result_img)
-
-            # Update the print log
-            progress = i / total_images * 100
-            sys.stdout.write(f"\rProcessing images: {progress:.2f}%")
-            sys.stdout.flush()
-
-        # Print a new line after the progress log
-        print()
+            pbar.update_absolute(idx)
 
         return (torch.cat(result, dim=0),)
 

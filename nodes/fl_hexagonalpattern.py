@@ -2,7 +2,8 @@ import torch
 import numpy as np
 from PIL import Image, ImageDraw
 import math
-import sys
+
+from comfy.utils import ProgressBar
 
 class FL_HexagonalPattern:
     def __init__(self):
@@ -64,6 +65,7 @@ class FL_HexagonalPattern:
                           background_color="white", rotation=0.0, spacing=1.0):
         out = []
         total_images = len(images)
+        pbar = ProgressBar(total_images)
         for i, img_tensor in enumerate(images, start=1):
             p = self.t2p(img_tensor)
             width, height = p.size
@@ -98,13 +100,7 @@ class FL_HexagonalPattern:
             o = torch.from_numpy(o).unsqueeze(0)
             out.append(o)
 
-            # Print progress update
-            progress = i / total_images * 100
-            sys.stdout.write(f"\rProcessing images: {progress:.2f}%")
-            sys.stdout.flush()
-
-        # Print a new line after the progress update
-        print()
+            pbar.update_absolute(i)
 
         out = torch.cat(out, 0)
         return (out,)
