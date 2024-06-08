@@ -120,3 +120,7 @@ Paper Drawn: - Filter effect that makes your images and videos look like pencil 
 -
 ![Screenshot 2024-05-27 222434](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/32fd03ff-5f8b-4d55-b616-6365528fb218)
 
+Image Notes: - Adds a black bar with a string input to save images with notes.
+-
+![Screenshot 2024-06-07 223629](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/84123521-6263-498f-ae57-4949f76e67a9)
+
