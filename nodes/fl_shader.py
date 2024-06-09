@@ -1,9 +1,8 @@
 import numpy as np
 import torch
-import os
-import sys
 import OpenGL.GL as gl
 import glfw
+from comfy.utils import ProgressBar
 
 SHADERTOY_HEADER = """
 #version 440
@@ -30,9 +29,9 @@ SHADERTOY_FOOTER = """
 
 layout(location = 0) out vec4 _fragColor;
 
-void main() 
-{ 
-	mainImage(_fragColor, gl_FragCoord.xy); 
+void main()
+{
+	mainImage(_fragColor, gl_FragCoord.xy);
 }
 """
 
@@ -201,8 +200,8 @@ class FL_Shadertoy:
 
         images = []
         frame = 0
-        total_frames = frame_count
-        for _ in range(frame_count):
+        pbar = ProgressBar(frame_count)
+        for idx in range(frame_count):
             shadertoy_vars_update(shader, width, height, frame * (1.0 / fps), (1.0 / fps), fps, frame)
             if channel_0 is not None: shadertoy_texture_update(textures[0], channel_0, frame)
             if channel_1 is not None: shadertoy_texture_update(textures[1], channel_1, frame)
@@ -215,14 +214,7 @@ class FL_Shadertoy:
             images.append(image)
 
             frame += 1
-
-            # Print progress update
-            progress = frame / total_frames * 100
-            sys.stdout.write(f"\rProcessing frames: {progress:.2f}%")
-            sys.stdout.flush()
-
-        # Print a new line after the progress update
-        print()
+            pbar.update_absolute(idx)
 
         render_resources_cleanup(ctx)
 

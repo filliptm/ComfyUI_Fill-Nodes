@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-import sys
+from comfy.utils import ProgressBar
 
 class FL_ImageNotes:
     @classmethod
@@ -22,20 +22,14 @@ class FL_ImageNotes:
     def add_notes(self, images, text, bar_height, text_size):
         result = []
         total_images = len(images)
-
+        pbar = ProgressBar(total_images)
         for i, image in enumerate(images, start=1):
             img = self.t2p(image)
             result_img = self.add_text_bar(img, text, bar_height, text_size)
             result_img = self.p2t(result_img)
             result.append(result_img)
 
-            # Update the print log
-            progress = i / total_images * 100
-            sys.stdout.write(f"\rProcessing images: {progress:.2f}%")
-            sys.stdout.flush()
-
-        # Print a new line after the progress log
-        print()
+            pbar.update_absolute(i)
 
         return (torch.cat(result, dim=0),)
 

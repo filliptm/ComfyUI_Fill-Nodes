@@ -1,7 +1,7 @@
 import os
-import torch
 from PIL import Image
 
+from comfy.utils import ProgressBar
 
 class FL_ImageCaptionSaver:
     @classmethod
@@ -24,6 +24,7 @@ class FL_ImageCaptionSaver:
         os.makedirs(folder_name, exist_ok=True)
 
         saved_files = []
+        pbar = ProgressBar(len(images))
         for i, image_tensor in enumerate(images):
             base_name = f"image_{i}"
             image_file_name = f"{folder_name}/{base_name}.png"
@@ -47,5 +48,7 @@ class FL_ImageCaptionSaver:
             # Save text file
             with open(text_file_name, "w") as text_file:
                 text_file.write(caption_text)
+
+            pbar.update_absolute(i)
 
         return (f"Saved {len(images)} images and captions in '{folder_name}'",)

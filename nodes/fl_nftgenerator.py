@@ -1,8 +1,11 @@
+import fnmatch
 import os
-import random
-from PIL import Image
 import torch
+import random
 import numpy as np
+from pathlib import Path
+from PIL import Image
+from .sup import ROOT
 
 class FL_NFTGenerator:
     @classmethod
@@ -25,17 +28,19 @@ class FL_NFTGenerator:
         return p
 
     def generate_nft(self, folder_path, dummy_seed):
-        if not os.path.exists(folder_path):
-            raise ValueError(f"Folder path does not exist: {folder_path}")
+        if not (path := Path(ROOT / folder_path)).is_dir():
+            if not (path := Path(folder_path)).is_dir():
+                raise ValueError(f"Folder path does not exist: {folder_path}")
 
-        image_files = [f for f in os.listdir(folder_path) if not f.lower().endswith("-mask.png") and not f.lower().endswith("-mask.jpg") and not f.lower().endswith("-mask.jpeg")]
-        if not image_files:
+        image_files = [str(f) for f in path.glob('*') if not fnmatch.fnmatch(f.name, '*-mask.*')]
+        if len(image_files) == 0:
             raise ValueError(f"No image files found in the folder: {folder_path}")
 
         # Extract rarity percentages from image filenames
         rarities = []
         for image_file in image_files:
             if "-" in image_file:
+                # name-alexperval-was
                 rarity_str = image_file.split("-")[1].split("per")[0]
                 rarity = int(rarity_str)
                 rarities.append(rarity)
@@ -63,8 +68,8 @@ class FL_NFTGenerator:
 
         # Get the selected image and its corresponding mask
         selected_image_file = image_files[selected_index]
-        selected_image_path = os.path.join(folder_path, selected_image_file)
-        selected_image = Image.open(selected_image_path)
+        # selected_image_path = os.path.join(folder_path, selected_image_file)
+        selected_image = Image.open(selected_image_file)
 
         # Get the file extension of the selected image
         _, extension = os.path.splitext(selected_image_file)

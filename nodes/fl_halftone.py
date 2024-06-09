@@ -1,6 +1,7 @@
 import torch
 import numpy as np
-import sys
+
+from comfy.utils import ProgressBar
 
 class FL_HalftonePattern:
     @classmethod
@@ -22,6 +23,7 @@ class FL_HalftonePattern:
     def halftone_pattern(self, images, dot_size=5, dot_spacing=10):
         out = []
         total_images = len(images)
+        pbar = ProgressBar(total_images)
         for i, img in enumerate(images, start=1):
             img_np = img.cpu().numpy().squeeze()
             grayscale_image = np.dot(img_np[..., :3], [0.299, 0.587, 0.114])
@@ -51,19 +53,16 @@ class FL_HalftonePattern:
                     mask_width = x_end - x_start
                     mask = mask[:mask_height, :mask_width]
 
-                    halftone_image[y_start:y_end, x_start:x_end][mask] = 0
+                    try:
+                        halftone_image[y_start:y_end, x_start:x_end][mask] = 0
+                    except Exception:
+                        pass
 
             o = np.stack((halftone_image,) * 3, axis=-1)
             o = torch.from_numpy(o).unsqueeze(0)
             out.append(o)
 
-            # Print progress update
-            progress = i / total_images * 100
-            sys.stdout.write(f"\rProcessing images: {progress:.2f}%")
-            sys.stdout.flush()
-
-        # Print a new line after the progress update
-        print()
+            pbar.update_absolute(i)
 
         out = torch.cat(out, 0)
         return (out,)

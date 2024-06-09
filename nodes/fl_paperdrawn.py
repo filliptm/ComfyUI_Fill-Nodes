@@ -1,11 +1,11 @@
+import glfw
+import ctypes
 import torch
 import numpy as np
 from PIL import Image
-import sys
 import OpenGL.GL as gl
-import glfw
-import ctypes
 
+from comfy.utils import ProgressBar
 
 VERTEX_SHADER = """
 #version 330 core
@@ -159,19 +159,13 @@ class FL_PaperDrawn:
         total_images = len(image)
         frame_time = 1.0 / fps
 
+        pbar = ProgressBar(total_images)
         for i, img in enumerate(image, start=1):
             img = self.t2p(img)
             result_img = self.process_image(img, angle_num, samp_num, line_width, vignette, i * frame_time)
             result_img = self.p2t(result_img)
             result.append(result_img)
-
-            # Update the print log
-            progress = i / total_images * 100
-            sys.stdout.write(f"\rProcessing images: {progress:.2f}%")
-            sys.stdout.flush()
-
-        # Print a new line after the progress log
-        print()
+            pbar.update_absolute(i)
 
         return (torch.cat(result, dim=0),)
 

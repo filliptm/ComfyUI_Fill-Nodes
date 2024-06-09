@@ -16,12 +16,12 @@ interesting uses for this
 
 
   -loading up a directory and letting it cycle through all your images in order
-  
+
   -connecting this node to something like IPAdapter, while being set to random, allowing you to cycle through styles via images
-  
+
   -batch processing of any kind on large amounts of images
 
-Image Captioning saver: - takes an input image (single or batch) and saves a matching .txt file with the image with desired captioning. 
+Image Captioning saver: - takes an input image (single or batch) and saves a matching .txt file with the image with desired captioning.
 -
 Both files will be over written for continuous experimentation. Required to have an output attached for monitoring. Will overwrite images and text on each run. Built this node to save Lora captions from my Dataset Creator
 
@@ -63,7 +63,7 @@ Great for developing ideas and writing custom stuff quickly
 
 ![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/db439865-e3c5-4e52-b37c-c3ba601c0840)
 
-Glitch: Video and image effect 
+Glitch: Video and image effect
 -
 Slices up your image or video to make a glitching feel
 
@@ -91,6 +91,16 @@ Ascii: Video and image
 -
 This one allows for a TON of different styles. This node also works with Alt Codes like this: alt+3 = ♥ or alt+219 = █
 If you play with the spacing of 219 you can actually get a pixel art effect. ALSO, the last character in the list will always be applied to the highest luminance areas of the image. This is useful because you can do silly things like leave the last character as a blank space, allowing for negative space to be applied to light areas.
+
+#### SYSTEM vs. LOCAL FONTS
+
+The default font list is populated from the fonts located within the extension/fonts folder. You  can add more fonts to this location and when ComfyUI is started it will load those fonts into the list.
+
+You also have the option to use system fonts. You can set the env var:
+
+`SET FL_USE_SYSTEM_FONTS=true (default: false)`
+
+And the dropdown will populate with all the available system ttf and otf fonts.
 
 <img width="1136" alt="Screenshot 2024-04-29 192646" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/926287e9-e22a-4e64-9e4f-7fd6e096b558">
 

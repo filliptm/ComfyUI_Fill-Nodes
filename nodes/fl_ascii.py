@@ -1,46 +1,61 @@
-from PIL import Image, ImageDraw, ImageFont
-import numpy as np
-import torch
-import sys
+
 import os
+import torch
+import numpy as np
+from matplotlib import font_manager
+from PIL import Image, ImageDraw, ImageFont
+
+from .sup import ROOT_FONTS
+
+from comfy.utils import ProgressBar
+
+def parse_fonts() -> dict:
+    mgr = font_manager.FontManager()
+    return {f"{font.name[0].upper()}/{font.name}": font.fname for font in mgr.ttflist}
 
 class FL_Ascii:
+    # Retrieve the environment variable and convert to lowercase
+    env_var_value = os.getenv("FL_USE_SYSTEM_FONTS", 'false').strip().lower()
+    # Scan the fonts folder for available fonts
+    if env_var_value.strip() in ('true', '1', 't'):
+        FONTS = parse_fonts()
+    else:
+        FONTS = {f"{str(font.stem)}": str(font) for font in ROOT_FONTS.glob("*.[to][tf][f]")}
+    print(f"LOADED {len(FONTS)} FONTS")
+    FONT_NAMES = sorted(FONTS.keys())
+    FONT_NAMES.sort(key=lambda i: i.lower())
+    DESCRIPTION = """
+FL_Ascii is a class that converts an image into ASCII art using specified characters, font, spacing, and font size.
+You can select either local or system fonts based on an environment variable. The class provides customization options
+such as using a sequence of characters or mapping characters based on pixel intensity. The spacing and font size can
+be specified as single values or lists to vary across the image. This tool is useful for creating stylized visual
+representations of images with ASCII characters.
+"""
+
     def __init__(self):
         self.spacing_index = 0
         self.font_size_index = 0
 
     @classmethod
     def INPUT_TYPES(s):
-        # Get the absolute path to the "fonts" folder
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        fonts_folder = os.path.join(current_dir, "..", "fonts")
-
-        # Scan the fonts folder for available fonts
-        font_files = [f for f in os.listdir(fonts_folder) if f.lower().endswith((".ttf", ".otf"))]
-
         return {
             "required": {
                 "image": ("IMAGE",),
                 "spacing": ("INT", {
                     "default": 20,
-                    "min": 4,
-                    "max": 100,
-                    "step": 2,
+                    "min": 1,
+                    "step": 1,
                 }),
                 "font_size": ("INT", {
                     "default": 20,
-                    "min": 4,
-                    "max": 100,
-                    "step": 2,
+                    "min": 1,
+                    "step": 1,
                 }),
                 "characters": ("STRING", {
                     "default": "\._♥♦♣MachineDelusions♣♦♥_./",
                     "description": "characters to use"
                 }),
-                "font": (font_files, {
-                    "default": font_files[0] if font_files else "",
-                    "description": "font file from the fonts folder"
-                }),
+                "font": (s.FONT_NAMES, {"default": "combo+"}),
                 "sequence_toggle": (["off", "on"], {
                     "default": "off",
                     "description": "toggle to type characters in sequence"
@@ -52,10 +67,14 @@ class FL_Ascii:
     FUNCTION = "apply_ascii_art_effect"
     CATEGORY = "🏵️Fill Nodes"
 
-    def apply_ascii_art_effect(self, image: torch.Tensor, spacing: int, font_size: int, characters, font, sequence_toggle):
-        batch_size, height, width, channels = image.shape
+    def apply_ascii_art_effect(self, image: torch.Tensor, spacing: int, font_size: int, characters, font: str, sequence_toggle: str):
+        batch_size = image.shape[0]
         result = torch.zeros_like(image)
 
+        # get the local folder or system font
+        font = self.FONTS[font]
+
+        pbar = ProgressBar(batch_size)
         for b in range(batch_size):
             img_b = image[b] * 255.0
             img_b = Image.fromarray(img_b.numpy().astype('uint8'), 'RGB')
@@ -83,27 +102,17 @@ class FL_Ascii:
             result_b = ascii_art_effect(img_b, current_spacing, current_font_size, characters, font, sequence_toggle)
             result_b = torch.tensor(np.array(result_b)) / 255.0
             result[b] = result_b
-
-            # Update the print log
-            progress = (b + 1) / batch_size * 100
-            sys.stdout.write(f"\rProcessing images: {progress:.2f}%")
-            sys.stdout.flush()
-
-        # Print a new line after the progress log
-        print()
+            pbar.update_absolute(b)
+            print(f"[FL_Ascii] {b+1} of {batch_size}")
 
         return (result,)
 
-
 def ascii_art_effect(image: torch.Tensor, spacing: int, font_size: int, characters, font_file, sequence_toggle):
     small_image = image.resize((image.size[0] // spacing, image.size[1] // spacing), Image.Resampling.NEAREST)
-
     ascii_image = Image.new('RGB', image.size, (0, 0, 0))
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    font_path = os.path.join(current_dir, "..", "fonts", font_file)  # Construct the absolute font path
 
     try:
-        font = ImageFont.truetype(font_path, font_size)
+        font = ImageFont.truetype(font_file, font_size)
     except Exception as e:
         print(f"Error loading font '{font_file}' with size {font_size}: {str(e)}")
         # Fallback to a default font or font size
@@ -111,32 +120,24 @@ def ascii_art_effect(image: torch.Tensor, spacing: int, font_size: int, characte
 
     draw_image = ImageDraw.Draw(ascii_image)
 
-    if sequence_toggle == "on":
-        char_index = 0
-        for i in range(small_image.height):
-            for j in range(small_image.width):
-                r, g, b = small_image.getpixel((j, i))
+    char_index = 0
+    pbar = ProgressBar(small_image.height)
+    for i in range(small_image.height):
+        for j in range(small_image.width):
+            r, g, b = small_image.getpixel((j, i))
+
+            if sequence_toggle == "on":
                 char = characters[char_index % len(characters)]
-                draw_image.text(
-                    (j * spacing, i * spacing),
-                    char,
-                    font=font,
-                    fill=(r, g, b)
-                )
-                char_index += 1
-    else:
-        def get_char(value):
-            return characters[value * len(characters) // 256]
-
-        for i in range(small_image.height):
-            for j in range(small_image.width):
-                r, g, b = small_image.getpixel((j, i))
+            else:
                 k = (r + g + b) // 3
-                draw_image.text(
-                    (j * spacing, i * spacing),
-                    get_char(k),
-                    font=font,
-                    fill=(r, g, b)
-                )
+                char = characters[k * len(characters) // 256]
+            char_index += 1
 
+            draw_image.text(
+                (j * spacing, i * spacing),
+                char,
+                font=font,
+                fill=(r, g, b)
+            )
+        pbar.update_absolute(i)
     return ascii_image

@@ -3,6 +3,8 @@ import numpy as np
 import torch
 from PIL import Image, ImageOps
 
+from comfy.utils import ProgressBar
+
 class FL_DirectoryCrawl:
     @classmethod
     def INPUT_TYPES(cls):
@@ -25,12 +27,14 @@ class FL_DirectoryCrawl:
             raise ValueError("No images found in the specified directory and its subdirectories.")
 
         batch_images = []
-        for img_path in image_paths:
+        pbar = ProgressBar(len(image_paths))
+        for idx, img_path in enumerate(image_paths):
             image = Image.open(img_path)
             image = ImageOps.exif_transpose(image)  # Correct orientation
             image = image.convert("RGB")
             image_np = np.array(image).astype(np.float32) / 255.0
             batch_images.append(image_np)
+            pbar.update_absolute(idx)
 
         batch_images_np = np.stack(batch_images, axis=0)  # Create a numpy array batch
         batch_images_tensor = torch.from_numpy(batch_images_np)  # Convert to tensor

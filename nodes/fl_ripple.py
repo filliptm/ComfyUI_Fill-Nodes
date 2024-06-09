@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from PIL import Image
 import math
-import sys
+from comfy.utils import ProgressBar
 
 class FL_Ripple:
     def __init__(self):
@@ -37,6 +37,7 @@ class FL_Ripple:
     def ripple(self, images, amplitude=10.0, frequency=20.0, phase=0.0, center_x=50.0, center_y=50.0, modulation=0.0):
         out = []
         total_images = len(images)
+        pbar = ProgressBar(total_images)
         for i, img in enumerate(images, start=1):
             p = self.t2p(img)
             width, height = p.size
@@ -69,13 +70,7 @@ class FL_Ripple:
 
             self.modulation_index += 1
 
-            # Print progress update
-            progress = i / total_images * 100
-            sys.stdout.write(f"\rProcessing images: {progress:.2f}%")
-            sys.stdout.flush()
-
-        # Print a new line after the progress update
-        print()
+            pbar.update_absolute(i)
 
         out = torch.cat(out, 0)
         return (out,)
