@@ -2,7 +2,8 @@ import torch
 from PIL import Image
 from kornia.morphology import gradient
 import comfy.model_management
-import sys
+
+from comfy.utils import ProgressBar
 
 class FL_ImagePixelator:
     def __init__(self):
@@ -28,15 +29,15 @@ class FL_ImagePixelator:
             if image.dim() == 4:  # Batch dimension is present
                 output_images = []
                 total_frames = image.shape[0]
+                pbar = ProgressBar(total_frames)
                 for i, single_image in enumerate(image, start=1):
                     single_image = single_image.unsqueeze(0)  # Add batch dimension
                     modulated_scale_factor = self.apply_modulation(scale_factor, modulation, total_frames)
                     single_image = self.apply_pixelation_tensor(single_image, modulated_scale_factor)
                     single_image = self.process(single_image, kernel_size)
                     output_images.append(single_image)
-                    progress = i / total_frames * 100
-                    sys.stdout.write(f"\rProcessing frames: {progress:.2f}%")
-                    sys.stdout.flush()
+                    pbar.update_absolute(i)
+
                 image = torch.cat(output_images, dim=0)  # Concatenate processed images along batch dimension
             elif image.dim() == 3:  # No batch dimension, single image
                 image = image.unsqueeze(0)  # Add batch dimension
@@ -44,19 +45,14 @@ class FL_ImagePixelator:
                 image = self.apply_pixelation_tensor(image, modulated_scale_factor)
                 image = self.process(image, kernel_size)
                 image = image.squeeze(0)  # Remove batch dimension
-                print("Processing single image")
             else:
                 return (None,)
         elif isinstance(image, Image.Image):
             modulated_scale_factor = self.apply_modulation(scale_factor, modulation, 1)
             image = self.apply_pixelation_pil(image, modulated_scale_factor)
             image = self.process(image, kernel_size)
-            print("Processing single PIL image")
         else:
             return (None,)
-
-        # Print a new line after the progress update
-        print()
 
         return (image,)
 

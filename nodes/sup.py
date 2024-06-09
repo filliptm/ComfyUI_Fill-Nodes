@@ -3,7 +3,7 @@ from pathlib import Path
 
 ### GLOBALS
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 ROOT_COMFY = ROOT.parent.parent
 ROOT_FONTS = ROOT / "fonts"
 

@@ -103,7 +103,7 @@ representations of images with ASCII characters.
             result_b = torch.tensor(np.array(result_b)) / 255.0
             result[b] = result_b
             pbar.update_absolute(b)
-            print(f"[FL_Ascii] {b} of {batch_size}")
+            print(f"[FL_Ascii] {b+1} of {batch_size}")
 
         return (result,)
 

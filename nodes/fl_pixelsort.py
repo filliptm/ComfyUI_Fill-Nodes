@@ -2,7 +2,6 @@ import torch
 import numpy as np
 from PIL import Image
 from colorsys import rgb_to_hsv
-import sys
 
 from comfy.utils import ProgressBar
 
@@ -39,21 +38,14 @@ class FL_PixelSort:
     def pixel_sort_saturation(self, images, direction="Horizontal", threshold=0.5, smoothing=0.1, rotation=0):
         out = []
         total_images = len(images)
+        pbar = ProgressBar(total_images)
         for i, img in enumerate(images, start=1):
             p = self.t2p(img)
             sorted_image = self.sort_pixels(p, self.saturation, threshold, smoothing, rotation)
             o = np.array(sorted_image.convert("RGB")).astype(np.float32) / 255.0
             o = torch.from_numpy(o).unsqueeze(0)
             out.append(o)
-
-            # Print progress update
-            progress = i / total_images * 100
-            sys.stdout.write(f"\rProcessing images: {progress:.2f}%")
-            sys.stdout.flush()
-
-        # Print a new line after the progress update
-        print()
-
+            pbar.update_absolute(i)
         out = torch.cat(out, 0)
         return (out,)
 

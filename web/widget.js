@@ -44,11 +44,11 @@ export function node_add_dynamic(nodeType, prefix, dynamic_type='*', index_start
                     if (fromNode) {
                         const parent_link = fromNode.outputs[link_info.origin_slot];
                         node_slot.type = parent_link.type;
-                        node_slot.name = parent_link.name;
+                        node_slot.name = `${slot_idx}_${parent_link.name.toLowerCase()}`;
                         if (match_output) {
                             const slot_out = this.outputs[slot_idx];
                             slot_out.type = parent_link.type;
-                            slot_out.name = `[${parent_link.type}]`;
+                            slot_out.name = `${slot_idx}_${parent_link.type}`;
                         }
                     }
                 }
