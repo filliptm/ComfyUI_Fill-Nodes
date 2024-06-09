@@ -29,6 +29,7 @@ app.registerExtension({
             case "FL_InfiniteZoom":
             case "FL_PaperDrawn":
             case "FL_ImageNotes":
+            case "FL_ImageCollage":
 
                 // node.setSize([200, 58]);
                 node.color = "#16727c";
