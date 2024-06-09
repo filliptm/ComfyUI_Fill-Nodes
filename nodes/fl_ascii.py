@@ -1,18 +1,17 @@
-from PIL import Image, ImageDraw, ImageFont
-import numpy as np
-import torch
-from pathlib import Path
+
 import os
+import torch
+import numpy as np
+from matplotlib import font_manager
+from PIL import Image, ImageDraw, ImageFont
+
+from .sup import ROOT_FONTS
 
 from comfy.utils import ProgressBar
-from matplotlib import font_manager
-
-ROOT = Path(__file__).resolve().parent.parent
-DIR_FONTS = ROOT / "fonts"
 
 def parse_fonts() -> dict:
     mgr = font_manager.FontManager()
-    return {f"+{font.name[0].upper()}/{font.name}": font.fname for font in mgr.ttflist}
+    return {f"{font.name[0].upper()}/{font.name}": font.fname for font in mgr.ttflist}
 
 class FL_Ascii:
     # Retrieve the environment variable and convert to lowercase
@@ -21,10 +20,17 @@ class FL_Ascii:
     if env_var_value.strip() in ('true', '1', 't'):
         FONTS = parse_fonts()
     else:
-        FONTS = {f"{str(font)}": str(font) for font in DIR_FONTS.glob("*.[to][tf][f]")}
+        FONTS = {f"{str(font)}": str(font) for font in ROOT_FONTS.glob("*.[to][tf][f]")}
     print(f"LOADED {len(FONTS)} FONTS")
     FONT_NAMES = sorted(FONTS.keys())
     FONT_NAMES.sort(key=lambda i: i.lower())
+    DESCRIPTION = """
+FL_Ascii is a class that converts an image into ASCII art using specified characters, font, spacing, and font size.
+You can select either local or system fonts based on an environment variable. The class provides customization options
+such as using a sequence of characters or mapping characters based on pixel intensity. The spacing and font size can
+be specified as single values or lists to vary across the image. This tool is useful for creating stylized visual
+representations of images with ASCII characters.
+"""
 
     def __init__(self):
         self.spacing_index = 0
@@ -49,7 +55,7 @@ class FL_Ascii:
                     "default": "\._♥♦♣MachineDelusions♣♦♥_./",
                     "description": "characters to use"
                 }),
-                "font": (s.FONT_NAMES, ),
+                "font": (s.FONT_NAMES, {"default": "combo+"}),
                 "sequence_toggle": (["off", "on"], {
                     "default": "off",
                     "description": "toggle to type characters in sequence"
@@ -97,6 +103,7 @@ class FL_Ascii:
             result_b = torch.tensor(np.array(result_b)) / 255.0
             result[b] = result_b
             pbar.update_absolute(b)
+            print(f"[FL_Ascii] {b} of {batch_size}")
 
         return (result,)
 
@@ -114,16 +121,17 @@ def ascii_art_effect(image: torch.Tensor, spacing: int, font_size: int, characte
     draw_image = ImageDraw.Draw(ascii_image)
 
     char_index = 0
+    pbar = ProgressBar(small_image.height)
     for i in range(small_image.height):
         for j in range(small_image.width):
             r, g, b = small_image.getpixel((j, i))
 
             if sequence_toggle == "on":
                 char = characters[char_index % len(characters)]
-                char_index += 1
             else:
                 k = (r + g + b) // 3
                 char = characters[k * len(characters) // 256]
+            char_index += 1
 
             draw_image.text(
                 (j * spacing, i * spacing),
@@ -131,4 +139,5 @@ def ascii_art_effect(image: torch.Tensor, spacing: int, font_size: int, characte
                 font=font,
                 fill=(r, g, b)
             )
+        pbar.update_absolute(i)
     return ascii_image

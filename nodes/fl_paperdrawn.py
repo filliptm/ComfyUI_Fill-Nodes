@@ -1,9 +1,9 @@
+import glfw
+import ctypes
 import torch
 import numpy as np
 from PIL import Image
 import OpenGL.GL as gl
-import glfw
-import ctypes
 
 from comfy.utils import ProgressBar
 
@@ -159,7 +159,7 @@ class FL_PaperDrawn:
         total_images = len(image)
         frame_time = 1.0 / fps
 
-        pbar = ProgressBar(len(total_images))
+        pbar = ProgressBar(total_images)
         for i, img in enumerate(image, start=1):
             img = self.t2p(img)
             result_img = self.process_image(img, angle_num, samp_num, line_width, vignette, i * frame_time)

@@ -1,4 +1,7 @@
-/*
+/**
+    File: fl_code_node.js
+    Project: ComfyUI_Fill-Nodes
+
     pythongossss to the rescue again
     original: https://github.com/pythongosssss/ComfyUI-Custom-Scripts/blob/main/web/js/betterCombos.js
 */
@@ -8,7 +11,7 @@ import { ComfyWidgets } from "../../../scripts/widgets.js";
 import { $el } from "../../../scripts/ui.js";
 
 app.registerExtension({
-    name: "fl.Combo++",
+    name: "fl.widget.combo+",
     init() {
         const splitBy = /\//;
 
@@ -33,15 +36,6 @@ app.registerExtension({
             `,
             parent: document.body,
         });
-
-        // Ensure hook callbacks are available
-        const getOrSet = (target, name, create) => {
-            if (name in target) return target[name];
-            return (target[name] = create());
-        };
-        const symbol = getOrSet(window, "__fl__", () => Symbol("__fl__"));
-        const store = getOrSet(window, symbol, () => ({}));
-
 
         function buildMenu(widget, values) {
             const lookup = {
@@ -94,13 +88,13 @@ app.registerExtension({
         ComfyWidgets["COMBO"] = function (node) {
             const res = combo.apply(this, arguments);
             let value = res.widget.value;
-            let values = res.widget.options.values;
-            if (values.length > 0 && value[0] !== '+') {
+            if (value !== 'combo+') {
                 return res;
             }
+            let values = res.widget.options.values;
+
 
             let menu = null;
-            console.info(res.widget)
             // Override the option values to check if we should render a menu structure
             Object.defineProperty(res.widget.options, "values", {
                 get() {
@@ -149,6 +143,11 @@ app.registerExtension({
                     value = v;
                 },
             });
+            const first = res.widget.options.values[0];
+            const val = first?.submenu?.options?.[0] ?? undefined;
+            if (val !== undefined) {
+                res.widget.options.value = val.title;
+            }
             return res;
         };
     },
