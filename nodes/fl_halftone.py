@@ -53,7 +53,10 @@ class FL_HalftonePattern:
                     mask_width = x_end - x_start
                     mask = mask[:mask_height, :mask_width]
 
-                    halftone_image[y_start:y_end, x_start:x_end][mask] = 0
+                    try:
+                        halftone_image[y_start:y_end, x_start:x_end][mask] = 0
+                    except Exception:
+                        pass
 
             o = np.stack((halftone_image,) * 3, axis=-1)
             o = torch.from_numpy(o).unsqueeze(0)
