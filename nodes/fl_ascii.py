@@ -20,6 +20,7 @@ class FL_Ascii:
     if env_var_value.strip() in ('true', '1', 't'):
         FONTS = parse_fonts()
     else:
+        FONTS = {f"{str(font)}": str(font) for font in ROOT_FONTS.glob("*.[to][tf][f]")}
         FONTS = {f"{str(font.stem)}": str(font) for font in ROOT_FONTS.glob("*.[to][tf][f]")}
     print(f"LOADED {len(FONTS)} FONTS")
     FONT_NAMES = sorted(FONTS.keys())
