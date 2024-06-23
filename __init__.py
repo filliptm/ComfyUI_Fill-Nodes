@@ -23,6 +23,11 @@ from .nodes.fl_infinitezoom import FL_InfiniteZoom
 from .nodes.fl_paperdrawn import FL_PaperDrawn
 from .nodes.fl_imagenotes import FL_ImageNotes
 from .nodes.fl_imagecollage import FL_ImageCollage
+from .nodes.fl_ksamplersettings import FL_KsamplerSettings
+from .nodes.fl_retroeffect import FL_RetroEffect
+from .nodes.fl_td_ksampler import FL_TD_KSampler
+from .nodes.fl_inpaintcrop import FL_InpaintCrop
+from .nodes.fl_inpaintcrop import FL_Inpaint_Stitch
 
 NODE_CLASS_MAPPINGS = {
     "FL_ImageRandomizer": FL_ImageRandomizer,
@@ -49,7 +54,12 @@ NODE_CLASS_MAPPINGS = {
     "FL_InfiniteZoom": FL_InfiniteZoom,
     "FL_PaperDrawn": FL_PaperDrawn,
     "FL_ImageNotes": FL_ImageNotes,
-    "FL_ImageCollage": FL_ImageCollage
+    "FL_ImageCollage": FL_ImageCollage,
+    "FL_KsamplerSettings": FL_KsamplerSettings,
+    "FL_RetroEffect": FL_RetroEffect,
+    "FL_TD_Sampler": FL_TD_KSampler,
+    "FL_InpaintCrop": FL_InpaintCrop,
+    "FL_Inpaint_Stitch": FL_Inpaint_Stitch
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -77,7 +87,12 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_InfiniteZoom": "FL Infinite Zoom",
     "FL_PaperDrawn": "FL Paper Drawn",
     "FL_ImageNotes": "FL Image Notes",
-    "FL_ImageCollage": "FL Image Collage"
+    "FL_ImageCollage": "FL Image Collage",
+    "FL_KsamplerSettings": "FL Ksampler Settings",
+    "FL_RetroEffect": "FL Retro Effect",
+    "FL_TD_Ksampler": "FL TD Ksampler",
+    "FL_InpaintCrop": "FL Inpaint Crop",
+    "FL_Inpaint_Stitch": "FL Inpaint Stitch"
 }
 
 
