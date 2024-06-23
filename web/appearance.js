@@ -30,6 +30,8 @@ app.registerExtension({
             case "FL_PaperDrawn":
             case "FL_ImageNotes":
             case "FL_ImageCollage":
+            case "FL_InpaintCrop":
+            case "FL_Inpaint_Stitch":
 
                 // node.setSize([200, 58]);
                 node.color = "#16727c";
