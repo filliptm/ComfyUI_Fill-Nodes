@@ -8,3 +8,4 @@ _*
 config.json
 ignore.txt
 .env
+__pycache__
