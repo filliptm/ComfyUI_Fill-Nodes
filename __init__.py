@@ -28,6 +28,13 @@ from .nodes.fl_retroeffect import FL_RetroEffect
 from .nodes.fl_td_ksampler import FL_TD_KSampler
 from .nodes.fl_inpaintcrop import FL_InpaintCrop
 from .nodes.fl_inpaintcrop import FL_Inpaint_Stitch
+from .nodes.fl_sdultimate_slices import FL_SDUltimate_Slices
+from .nodes.fl_batchaligned import FL_BatchAlign
+from .nodes.fl_videocropnstitch import FL_VideoCropMask
+from .nodes.fl_videocropnstitch import FL_VideoRecompose
+from .nodes.fl_separatemasks import FL_SeparateMaskComponents
+from .nodes.fl_pasteoncanvas import FL_PasteOnCanvas
+
 
 NODE_CLASS_MAPPINGS = {
     "FL_ImageRandomizer": FL_ImageRandomizer,
@@ -59,7 +66,13 @@ NODE_CLASS_MAPPINGS = {
     "FL_RetroEffect": FL_RetroEffect,
     "FL_TD_Sampler": FL_TD_KSampler,
     "FL_InpaintCrop": FL_InpaintCrop,
-    "FL_Inpaint_Stitch": FL_Inpaint_Stitch
+    "FL_Inpaint_Stitch": FL_Inpaint_Stitch,
+    "FL_SDUltimate_Slices": FL_SDUltimate_Slices,
+    "FL_BatchAlign": FL_BatchAlign,
+    "FL_VideoRecompose": FL_VideoRecompose,
+    "FL_VideoCropMask": FL_VideoCropMask,
+    "FL_SeparateMaskComponents": FL_SeparateMaskComponents,
+    "FL_PasteOnCanvas": FL_PasteOnCanvas
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -92,7 +105,13 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_RetroEffect": "FL Retro Effect",
     "FL_TD_Ksampler": "FL TD Ksampler",
     "FL_InpaintCrop": "FL Inpaint Crop",
-    "FL_Inpaint_Stitch": "FL Inpaint Stitch"
+    "FL_Inpaint_Stitch": "FL Inpaint Stitch",
+    "FL_SDUltimate_Slices": "FL SDUltimate Slices",
+    "FL_BatchAlign": "FL Batch Align",
+    "FL_VideoCropMask": "FL Video CropMask",
+    "FL_VideoRecompose": "FL Video Recompose",
+    "FL_SeparateMaskComponents": "FL Separate Mask Components",
+    "FL_PasteOnCanvas": "FL Paste On Canvas"
 }
 
 
