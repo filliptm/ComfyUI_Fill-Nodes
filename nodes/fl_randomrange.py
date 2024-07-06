@@ -15,7 +15,7 @@ class FL_RandomNumber:
 
     RETURN_TYPES = ("INT", "FLOAT")
     FUNCTION = "generate_random_number"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/utility"
 
     def generate_random_number(self, min_value=0.0, max_value=1.0, seed=0):
         if min_value > max_value:

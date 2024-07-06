@@ -186,7 +186,7 @@ class FL_Shadertoy:
                              "channel_3": ("IMAGE",)}}
 
     RETURN_TYPES = ("IMAGE",)
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/VFX"
     FUNCTION = "render"
 
     def render(self, width: int, height: int, frame_count: int, fps: int, source: str,

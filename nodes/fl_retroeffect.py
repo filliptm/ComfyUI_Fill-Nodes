@@ -20,7 +20,7 @@ class FL_RetroEffect:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "apply_retro_effect"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/VFX"
 
     def apply_retro_effect(self, images, color_offset, scanline_strength, vignette_strength, noise_strength):
         result = []

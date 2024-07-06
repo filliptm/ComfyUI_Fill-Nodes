@@ -32,7 +32,7 @@ class FL_HexagonalPattern:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "hexagonal_pattern"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/VFX"
 
     def t2p(self, t):
         if t is not None:

@@ -26,7 +26,7 @@ class FL_InpaintCrop:
            }
         }
 
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/utility"
 
     RETURN_TYPES = ("STITCH", "IMAGE", "MASK")
     RETURN_NAMES = ("stitch", "cropped_image", "cropped_mask")
@@ -263,7 +263,7 @@ class FL_Inpaint_Stitch:
             }
         }
 
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/utility"
 
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)

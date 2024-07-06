@@ -17,7 +17,7 @@ class FL_ImageNotes:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "add_notes"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/utility"
 
     def add_notes(self, images, text, bar_height, text_size):
         result = []

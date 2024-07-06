@@ -18,7 +18,7 @@ class FL_ImageCollage:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "create_collage"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/VFX"
 
     def create_collage(self, base_image, tile_image, tile_size, spacing):
         base_batch_size = len(base_image)

@@ -152,7 +152,7 @@ class FL_PaperDrawn:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "apply_shader"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/VFX"
 
     def apply_shader(self, image, angle_num, samp_num, line_width, vignette, fps):
         result = []

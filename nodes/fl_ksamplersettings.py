@@ -115,7 +115,7 @@ class FL_KsamplerSettings:
         "SCHEDULER",
     )
     FUNCTION = "settings"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/utility"
 
     def settings(self, Aspect_Ratio, rotation, batch, Pass_1_steps, Pass_2_steps, Pass_1_CFG, Pass_2_CFG,
                   Pass_2_denoise, scale_factor, sampler, scheduler):

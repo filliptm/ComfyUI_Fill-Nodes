@@ -18,7 +18,7 @@ class FL_HalftonePattern:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "halftone_pattern"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/VFX"
 
     def halftone_pattern(self, images, dot_size=5, dot_spacing=10):
         out = []

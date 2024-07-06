@@ -17,7 +17,7 @@ class FL_ImageRandomizer:
 
     RETURN_TYPES = ("IMAGE", "PATH")  # Adjusted to include image path for preview
     FUNCTION = "select_image"
-    CATEGORY = "🏵️Fill Nodes"  # Adjusted to appear under "Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/utility"  # Adjusted to appear under "Fill Nodes"
 
     def __init__(self):
         self.last_index = -1

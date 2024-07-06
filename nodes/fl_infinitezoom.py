@@ -83,7 +83,7 @@ class FL_InfiniteZoom:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "apply_shader"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/VFX"
 
     def apply_shader(self, images, scale, mirror, mirror_warp, iterations, speed, fps):
         result = []

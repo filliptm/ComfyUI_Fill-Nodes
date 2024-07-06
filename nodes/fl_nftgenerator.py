@@ -19,7 +19,7 @@ class FL_NFTGenerator:
 
     RETURN_TYPES = ("IMAGE", "IMAGE")
     FUNCTION = "generate_nft"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/experiments"
 
     def t2p(self, t):
         if t is not None:

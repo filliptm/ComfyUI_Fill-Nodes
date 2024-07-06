@@ -16,7 +16,7 @@ class FL_DirectoryCrawl:
 
     RETURN_TYPES = ("IMAGE",)  # Output a batch of images
     FUNCTION = "load_image_batch"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/utility"
 
     def load_image_batch(self, directory_path):
         if not directory_path:

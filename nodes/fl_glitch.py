@@ -24,7 +24,7 @@ class FL_Glitch:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "glitch"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/VFX"
 
     def t2p(self, t):
         if t is not None:

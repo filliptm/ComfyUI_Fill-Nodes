@@ -13,19 +13,24 @@ class FL_PromptSelector:
 
     RETURN_TYPES = ("STRING",)
     FUNCTION = "select_prompt"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/utility"
 
     def select_prompt(self, prepend_text, prompts, append_text, index):
+        prepend_text = prepend_text.strip()
         prompt_lines = prompts.split("\n")
+        append_text = append_text.strip()
+
         num_prompts = len(prompt_lines)
 
-        # will wrap around 0--Number of items
-        index %= num_prompts
-
-        # will clamp 0--Number of items
-        # index = max(0, min(len(prompt_lines)-1, index))
+        if index < 0 or index >= num_prompts:
+            raise ValueError(f"Index {index} is out of range. Please provide an index between 0 and {num_prompts - 1}.")
 
         selected_prompt = prompt_lines[index].strip()
-        selected_prompt = f"{prepend_text.strip()} {selected_prompt} {append_text.strip()}"
+
+        if prepend_text:
+            selected_prompt = prepend_text + " " + selected_prompt
+
+        if append_text:
+            selected_prompt = selected_prompt + " " + append_text
 
         return (selected_prompt,)

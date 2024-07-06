@@ -22,7 +22,7 @@ class FL_PixelSort:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "pixel_sort_saturation"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/VFX"
 
     def t2p(self, t):
         if t is not None:

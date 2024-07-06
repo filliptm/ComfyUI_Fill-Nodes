@@ -19,7 +19,7 @@ class FL_PixelArtShader:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "apply_pixel_art_shader"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/VFX"
 
     def apply_pixel_art_shader(self, images, pixel_size, color_depth):
         result = []

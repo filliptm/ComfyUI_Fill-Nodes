@@ -13,7 +13,7 @@ class FL_ImageDimensionDisplay:
 
     RETURN_TYPES = ("STRING",)
     FUNCTION = "display_dimensions"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/utility"
 
     def display_dimensions(self, image):
         # Check the number of dimensions in the image tensor to correctly unpack the dimensions

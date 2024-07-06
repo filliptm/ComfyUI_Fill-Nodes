@@ -22,7 +22,7 @@ class FL_ImagePixelator:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "pixelate_image"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/VFX"
 
     def pixelate_image(self, image, scale_factor, kernel_size, modulation):
         if isinstance(image, torch.Tensor):

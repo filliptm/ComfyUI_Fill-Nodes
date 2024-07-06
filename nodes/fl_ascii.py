@@ -61,19 +61,14 @@ representations of images with ASCII characters.
                     "default": "off",
                     "description": "toggle to type characters in sequence"
                 }),
-                "stroke_width": ("INT", {
-                    "default": 0,
-                    "min": 0,
-                    "step": 1
-                })
-            }
+            },
         }
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "apply_ascii_art_effect"
-    CATEGORY = "🏵️Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/VFX"
 
-    def apply_ascii_art_effect(self, image: torch.Tensor, spacing: int, font_size: int, characters, font: str, sequence_toggle: str, stroke_width: int):
+    def apply_ascii_art_effect(self, image: torch.Tensor, spacing: int, font_size: int, characters, font: str, sequence_toggle: str):
         batch_size = image.shape[0]
         result = torch.zeros_like(image)
 
@@ -105,7 +100,7 @@ representations of images with ASCII characters.
             else:
                 current_font_size = font_size
 
-            result_b = ascii_art_effect(img_b, current_spacing, current_font_size, characters, font, sequence_toggle, stroke_width)
+            result_b = ascii_art_effect(img_b, current_spacing, current_font_size, characters, font, sequence_toggle)
             result_b = torch.tensor(np.array(result_b)) / 255.0
             result[b] = result_b
             pbar.update_absolute(b)
@@ -113,7 +108,7 @@ representations of images with ASCII characters.
 
         return (result,)
 
-def ascii_art_effect(image: torch.Tensor, spacing: int, font_size: int, characters, font_file, sequence_toggle: str, stroke_width: int):
+def ascii_art_effect(image: torch.Tensor, spacing: int, font_size: int, characters, font_file, sequence_toggle):
     small_image = image.resize((image.size[0] // spacing, image.size[1] // spacing), Image.Resampling.NEAREST)
     ascii_image = Image.new('RGB', image.size, (0, 0, 0))
 
@@ -139,16 +134,11 @@ def ascii_art_effect(image: torch.Tensor, spacing: int, font_size: int, characte
                 char = characters[k * len(characters) // 256]
             char_index += 1
 
-            kw = {}
-            if stroke_width>0:
-                kw = {"stroke_width": stroke_width}
-
             draw_image.text(
                 (j * spacing, i * spacing),
                 char,
                 font=font,
-                fill=(r, g, b),
-                **kw
+                fill=(r, g, b)
             )
         pbar.update_absolute(i)
     return ascii_image
