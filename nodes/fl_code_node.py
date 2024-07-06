@@ -34,9 +34,7 @@ FL_CodeNode is designed to execute custom user-provided Python code. The code ca
             # load the referenced file
             code_input = ""
             if not (fname := Path(ROOT / file)).is_file():
-                print(fname)
                 if not (fname := Path(file)).is_file():
-                    print(fname)
                     fname = None
             if fname is not None:
                 try:
@@ -44,7 +42,6 @@ FL_CodeNode is designed to execute custom user-provided Python code. The code ca
                         code_input = f.read()
                 except Exception as e:
                     raise RuntimeError(f"[FL_CodeNode] error loading code file: {e}")
-            print(code_input)
 
         # sanitize?
         # code_input = code_input
