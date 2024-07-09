@@ -18,6 +18,7 @@ class FL_ImageCaptionSaver:
     RETURN_TYPES = ("STRING",)
     FUNCTION = "save_images_with_captions"
     CATEGORY = "🏵️Fill Nodes/utility"
+    OUTPUT_NODE = True
 
     def save_images_with_captions(self, images, folder_name, caption_text, overwrite):
         # Ensure output directory exists
