@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -40,7 +41,17 @@ class FL_ImageNotes:
         new_image.paste(image, (0, bar_height))
 
         draw = ImageDraw.Draw(new_image)
-        font = ImageFont.truetype("arial.ttf", text_size)
+
+        # Determine the font path
+        current_dir = os.path.dirname(__file__)
+        font_path = os.path.join(current_dir, '../fonts/arial.ttf')
+
+        try: # Load the font
+            font = ImageFont.truetype(font_path, text_size)
+        except IOError:
+            # Fallback to default PIL font if the specified font cannot be loaded
+            font = ImageFont.load_default()
+
         text_width, text_height = self.get_text_size(text, font)
         x = (width - text_width) // 2
         y = (bar_height - text_height) // 2
