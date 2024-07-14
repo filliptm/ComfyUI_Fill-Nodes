@@ -10,6 +10,6 @@ Repository = "https://github.com/filliptm/ComfyUI_Fill-Nodes"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
-PublisherId = ""
+PublisherId = "machinedelusions"
 DisplayName = "ComfyUI_Fill-Nodes"
 Icon = ""
