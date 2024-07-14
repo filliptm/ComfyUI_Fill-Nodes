@@ -1,0 +1,15 @@
+[project]
+name = "comfyui_fill-nodes"
+description = "Nodes:FL Image Randomizer. The start of a pack that I will continue to build out to fill the gaps of nodes and functionality that I feel is missing in comfyUI"
+version = "1.0.0"
+license = "LICENSE"
+dependencies = ["librosa", "sounddevice", "glitch_this"]
+
+[project.urls]
+Repository = "https://github.com/filliptm/ComfyUI_Fill-Nodes"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "machinedelusions"
+DisplayName = "ComfyUI_Fill-Nodes"
+Icon = ""
