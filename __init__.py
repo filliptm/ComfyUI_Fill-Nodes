@@ -34,6 +34,8 @@ from .nodes.fl_videocropnstitch import FL_VideoCropMask
 from .nodes.fl_videocropnstitch import FL_VideoRecompose
 from .nodes.fl_separatemasks import FL_SeparateMaskComponents
 from .nodes.fl_pasteoncanvas import FL_PasteOnCanvas
+from .nodes.fl_bullethellgame import FL_BulletHellGame
+from .nodes.fl_tetrisgame import FL_TetrisGame
 
 
 NODE_CLASS_MAPPINGS = {
@@ -72,7 +74,9 @@ NODE_CLASS_MAPPINGS = {
     "FL_VideoRecompose": FL_VideoRecompose,
     "FL_VideoCropMask": FL_VideoCropMask,
     "FL_SeparateMaskComponents": FL_SeparateMaskComponents,
-    "FL_PasteOnCanvas": FL_PasteOnCanvas
+    "FL_PasteOnCanvas": FL_PasteOnCanvas,
+    "FL_BulletHellGame": FL_BulletHellGame,
+    "FL_TetrisGame": FL_TetrisGame
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -111,7 +115,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_VideoCropMask": "FL Video CropMask",
     "FL_VideoRecompose": "FL Video Recompose",
     "FL_SeparateMaskComponents": "FL Separate Mask Components",
-    "FL_PasteOnCanvas": "FL Paste On Canvas"
+    "FL_PasteOnCanvas": "FL Paste On Canvas",
+    "FL_BulletHellGame": "FL BulletHell Game",
+    "FL_TetrisGame": "FL Tetris Game"
 }
 
 

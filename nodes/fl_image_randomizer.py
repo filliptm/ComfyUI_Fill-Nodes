@@ -1,5 +1,4 @@
 import os
-import random
 import numpy as np
 import torch
 from PIL import Image, ImageOps
@@ -10,19 +9,15 @@ class FL_ImageRandomizer:
         return {
             "required": {
                 "directory_path": ("STRING", {"default": ""}),
-                "randomize": ("BOOLEAN", {"default": True}),  # Toggle for randomization
-                "run_trigger": ("INT", {"default": 0}),  # Dummy input for caching issue
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "PATH")  # Adjusted to include image path for preview
+    RETURN_TYPES = ("IMAGE", "PATH")
     FUNCTION = "select_image"
-    CATEGORY = "🏵️Fill Nodes/utility"  # Adjusted to appear under "Fill Nodes"
+    CATEGORY = "🏵️Fill Nodes/utility"
 
-    def __init__(self):
-        self.last_index = -1
-
-    def select_image(self, directory_path, randomize, run_trigger):
+    def select_image(self, directory_path, seed):
         if not directory_path:
             raise ValueError("Directory path is not provided.")
 
@@ -30,11 +25,10 @@ class FL_ImageRandomizer:
         if not images:
             raise ValueError("No images found in the specified directory.")
 
-        if randomize:
-            selected_image_path = random.choice(images)
-        else:
-            self.last_index = (self.last_index + 1) % len(images)
-            selected_image_path = images[self.last_index]
+        num_images = len(images)
+        selected_index = seed % num_images
+
+        selected_image_path = images[selected_index]
 
         image = Image.open(selected_image_path)
         image = ImageOps.exif_transpose(image)
@@ -42,9 +36,9 @@ class FL_ImageRandomizer:
         image_np = np.array(image).astype(np.float32) / 255.0
         image_tensor = torch.from_numpy(image_np)[None,]
 
-        return (image_tensor, selected_image_path)  # Return both data points
+        return (image_tensor, selected_image_path)
 
     def load_images(self, directory):
         supported_formats = ["jpg", "jpeg", "png", "bmp", "gif"]
-        return [os.path.join(directory, f) for f in os.listdir(directory)
-                if os.path.isfile(os.path.join(directory, f)) and f.split('.')[-1].lower() in supported_formats]
+        return sorted([os.path.join(directory, f) for f in os.listdir(directory)
+                if os.path.isfile(os.path.join(directory, f)) and f.split('.')[-1].lower() in supported_formats])
