@@ -140,3 +140,8 @@ Games: - Tetris and Bullet Hell.
 https://github.com/user-attachments/assets/37cb820c-18d7-4ce8-8c5a-8351f73ec4e4
 
 
+SD Ultimate Slice Calculator: - Allows you to select a multiplier, and a slice pattern and automatically calculates dimensions so you don't have to do the math. The image output returns the original images as a pass-through.
+-
+![image](https://github.com/user-attachments/assets/efcc017c-127c-4c1c-940d-cc0848d53cc0)
+
+
