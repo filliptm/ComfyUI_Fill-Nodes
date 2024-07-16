@@ -1,4 +1,5 @@
 import os
+import re
 from PIL import Image
 
 from comfy.utils import ProgressBar
@@ -11,7 +12,7 @@ class FL_ImageCaptionSaver:
                 "images": ("IMAGE", {}),
                 "folder_name": ("STRING", {"default": "output_folder"}),
                 "caption_text": ("STRING", {"default": "Your caption here"}),
-                "overwrite": ("BOOLEAN", {"default": True})  # New overwrite toggle
+                "overwrite": ("BOOLEAN", {"default": True})
             }
         }
 
@@ -20,9 +21,16 @@ class FL_ImageCaptionSaver:
     CATEGORY = "🏵️Fill Nodes/utility"
     OUTPUT_NODE = True
 
+    def sanitize_text(self, text):
+        # Allow only alphanumeric characters, spaces, and basic punctuation
+        return re.sub(r'[^a-zA-Z0-9\s.,!?-]', '', text)
+
     def save_images_with_captions(self, images, folder_name, caption_text, overwrite):
         # Ensure output directory exists
         os.makedirs(folder_name, exist_ok=True)
+
+        # Sanitize the caption text
+        sanitized_caption = self.sanitize_text(caption_text)
 
         saved_files = []
         pbar = ProgressBar(len(images))
@@ -46,10 +54,10 @@ class FL_ImageCaptionSaver:
             image.save(image_file_name)
             saved_files.append(image_file_name)
 
-            # Save text file
+            # Save sanitized text file
             with open(text_file_name, "w") as text_file:
-                text_file.write(caption_text)
+                text_file.write(sanitized_caption)
 
             pbar.update_absolute(i)
 
-        return (f"Saved {len(images)} images and captions in '{folder_name}'",)
+        return (f"Saved {len(images)} images and sanitized captions in '{folder_name}'",)
