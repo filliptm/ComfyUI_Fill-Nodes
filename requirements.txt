@@ -1,6 +1,7 @@
-librosa
-sounddevice
-glitch_this
-PyOpenGL
 glfw
-scipy >=1.13.1
+glitch_this
+librosa
+matplotlib
+PyOpenGL
+scipy>=1.13.1
+sounddevice
