@@ -1,0 +1,8 @@
+librosa
+sounddevice
+glitch_this
+PyOpenGL
+glfw
+scipy >=1.13.1
+requests
+aiohttp
