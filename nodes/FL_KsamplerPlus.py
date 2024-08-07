@@ -7,6 +7,7 @@ import logging
 import numpy as np
 from PIL import Image
 import torch.nn.functional as F
+import latent_preview
 
 
 class FL_KsamplerPlus:
@@ -33,7 +34,6 @@ class FL_KsamplerPlus:
             },
             "optional": {
                 "latent_image": ("LATENT",),
-                "vae": ("VAE",),
                 "image": ("IMAGE",),
             }
         }
@@ -145,24 +145,28 @@ class FL_KsamplerPlus:
                 return section, y_start, y_end, x_start, x_end, cropped_positive, cropped_negative
 
             total_slices = x_slices * y_slices
-            all_slices = [(y, x) for y in range(y_slices) for x in range(x_slices)]
-
             for i in range(0, total_slices, batch_size):
-                batch_slices = all_slices[i:min(i + batch_size, total_slices)]
+                batch_slices = [(y, x) for y in range(y_slices) for x in range(x_slices)][
+                               i:min(i + batch_size, total_slices)]
                 batch_sections = [process_slice(y, x) for y, x in batch_slices]
 
                 batch_latents = torch.cat([section for section, _, _, _, _, _, _ in batch_sections], dim=0)
-                batch_positives = sum([pos for _, _, _, _, _, pos, _ in batch_sections], [])
-                batch_negatives = sum([neg for _, _, _, _, _, _, neg in batch_sections], [])
 
-                processed_batch = common_ksampler(model, seed + i, steps, cfg, sampler_name, scheduler,
-                                                  batch_positives, batch_negatives,
-                                                  {"samples": batch_latents}, denoise=denoise)[0]
+                if use_sliced_conditioning:
+                    batch_positive = [cond for _, _, _, _, _, cond, _ in batch_sections]
+                    batch_negative = [cond for _, _, _, _, _, _, cond in batch_sections]
+                else:
+                    batch_positive = [positive] * len(batch_sections)
+                    batch_negative = [negative] * len(batch_sections)
 
-                processed_sections = torch.split(processed_batch["samples"], b, dim=0)
+                # Process each slice in the batch individually
+                for j, (slice_latent, slice_positive, slice_negative) in enumerate(
+                        zip(torch.split(batch_latents, 1), batch_positive, batch_negative)):
+                    processed_slice = common_ksampler(model, seed + i + j, steps, cfg, sampler_name, scheduler,
+                                                      slice_positive, slice_negative,
+                                                      {"samples": slice_latent}, denoise=denoise)[0]
 
-                for (_, y_start, y_end, x_start, x_end, _, _), processed_section in zip(batch_sections,
-                                                                                        processed_sections):
+                    _, y_start, y_end, x_start, x_end, _, _ = batch_sections[j]
                     is_top = y_start == 0
                     is_left = x_start == 0
                     is_bottom = y_end == h
@@ -170,14 +174,14 @@ class FL_KsamplerPlus:
                     blend_mask = create_blend_mask(y_end - y_start, x_end - x_start,
                                                    overlap_height, overlap_width,
                                                    is_top, is_left, is_bottom, is_right)
-                    blend_mask = blend_mask.unsqueeze(0).unsqueeze(0).expand_as(processed_section)
+                    blend_mask = blend_mask.unsqueeze(0).unsqueeze(0).expand_as(processed_slice["samples"])
 
-                    processed_section = processed_section.to(device=device)
+                    processed_slice = processed_slice["samples"].to(device=device)
                     blend_mask = blend_mask.to(device=device)
 
                     samples[:, :, y_start:y_end, x_start:x_end] = (
                             samples[:, :, y_start:y_end, x_start:x_end] * (1 - blend_mask) +
-                            processed_section * blend_mask
+                            processed_slice * blend_mask
                     )
 
                 if device.type == 'cuda':
@@ -193,3 +197,9 @@ class FL_KsamplerPlus:
         except Exception as e:
             logging.error(f"Error in FL_UltimateUpscale: {str(e)}")
             raise
+
+    @classmethod
+    def IS_CHANGED(s, model, positive, negative, x_slices, y_slices, overlap, batch_size, seed, steps, cfg,
+                   sampler_name, scheduler, denoise, input_type, use_sliced_conditioning, latent_image=None, image=None,
+                   vae=None):
+        return float("NaN")
