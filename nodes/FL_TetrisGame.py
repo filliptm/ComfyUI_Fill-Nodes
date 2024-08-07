@@ -1,4 +1,4 @@
-class FL_BulletHellGame:
+class FL_TetrisGame:
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {}}
