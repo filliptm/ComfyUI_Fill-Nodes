@@ -2,7 +2,6 @@
 __pycache__/
 *.py[cod]
 *$py.class
-_*
 *.code-workspace
 .vscode/
 config.json
@@ -13,7 +12,7 @@ __pycache__
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[cod]
+
 *$py.class
 
 # C extensions
@@ -59,7 +58,7 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
-*.py,cover
+#*.py,cover
 .hypothesis/
 .pytest_cache/
 cover/
