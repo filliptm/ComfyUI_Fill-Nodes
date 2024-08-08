@@ -48,6 +48,8 @@ from .nodes.FL_DiscordWebhook import FL_SendToDiscordWebhook
 from .nodes.FL_HF_Character import FL_HF_Character
 from .nodes.FL_CaptionToCSV import FL_CaptionToCSV
 from .nodes.FL_KsamplerPlus import FL_KsamplerPlus
+from .nodes.FL_KsamplerBasic import FL_KsamplerBasic
+from .nodes.FL_KsamplerFractals import FL_FractalKSampler
 
 
 
@@ -103,6 +105,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_HF_Character": FL_HF_Character,
     "FL_CaptionToCSV": FL_CaptionToCSV,
     "FL_KsamplerPlus": FL_KsamplerPlus,
+    "FL_KsamplerBasic": FL_KsamplerBasic,
+    "FL_FractalKSampler": FL_FractalKSampler,
 
 }
 
@@ -157,6 +161,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_HF_Character": "FL HF Character",
     "FL_CaptionToCSV": "FL Caption To CSV",
     "FL_KsamplerPlus": "FL Ksampler Plus",
+    "FL_KsamplerBasic": "FL KSampler Basic",
+    "FL_FractalKSampler": "FL_FractalKSampler",
 
 }
 

@@ -9,7 +9,6 @@ from PIL import Image
 import torch.nn.functional as F
 import latent_preview
 
-
 class FL_KsamplerPlus:
     @classmethod
     def INPUT_TYPES(s):
@@ -29,19 +28,19 @@ class FL_KsamplerPlus:
                 "y_slices": ("INT", {"default": 2, "min": 1, "max": 8}),
                 "overlap": ("FLOAT", {"default": 0.25, "min": 0.0, "max": 0.9, "step": 0.01}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 64}),
-
                 "use_sliced_conditioning": ("BOOLEAN", {"default": True}),
             },
             "optional": {
                 "latent_image": ("LATENT",),
                 "image": ("IMAGE",),
+                "vae": ("VAE",),
             }
         }
 
     RETURN_TYPES = ("MODEL", "CONDITIONING", "CONDITIONING", "LATENT", "VAE", "IMAGE")
-    RETURN_NAMES = ("model", "positive", "negative", "latent", "vae", "image")
+    RETURN_NAMES = ("model", "positive", "negative", "latent", "image", "vae")
     FUNCTION = "sample"
-    CATEGORY = "🏵️Fill Nodes/Ksamplers"
+    CATEGORY = "FL/Sampling"
 
     @staticmethod
     def crop_tensor(tensor, region):
@@ -89,8 +88,41 @@ class FL_KsamplerPlus:
             cropped.append([emb, cond_dict])
         return cropped
 
-    def sample(self, model, positive, negative, x_slices, y_slices, overlap, batch_size, seed, steps, cfg, sampler_name,
-               scheduler, denoise, input_type, use_sliced_conditioning, latent_image=None, image=None, vae=None):
+    @staticmethod
+    def adjust_conditioning_strength(cond, strength_factor):
+        return [(emb * strength_factor, x) for emb, x in cond]
+
+    @staticmethod
+    def create_blend_mask(height, width, overlap_h, overlap_w, is_top, is_left, is_bottom, is_right, use_sliced_conditioning, device):
+        mask = torch.ones((height, width), device=device)
+        if use_sliced_conditioning:
+            power = 0.3  # Adjust this value to control the blend smoothness
+            if overlap_h > 0:
+                if not is_top:
+                    mask[:overlap_h, :] *= torch.pow(torch.linspace(0, 1, overlap_h, device=device), power)[:, None]
+                if not is_bottom:
+                    mask[-overlap_h:, :] *= torch.pow(torch.linspace(1, 0, overlap_h, device=device), power)[:, None]
+            if overlap_w > 0:
+                if not is_left:
+                    mask[:, :overlap_w] *= torch.pow(torch.linspace(0, 1, overlap_w, device=device), power)[None, :]
+                if not is_right:
+                    mask[:, -overlap_w:] *= torch.pow(torch.linspace(1, 0, overlap_w, device=device), power)[None, :]
+        else:
+            if overlap_h > 0:
+                if not is_top:
+                    mask[:overlap_h, :] *= torch.linspace(0, 1, overlap_h, device=device)[:, None]
+                if not is_bottom:
+                    mask[-overlap_h:, :] *= torch.linspace(1, 0, overlap_h, device=device)[:, None]
+            if overlap_w > 0:
+                if not is_left:
+                    mask[:, :overlap_w] *= torch.linspace(0, 1, overlap_w, device=device)[None, :]
+                if not is_right:
+                    mask[:, -overlap_w:] *= torch.linspace(1, 0, overlap_w, device=device)[None, :]
+        return mask
+
+    def sample(self, model, positive, negative, seed, steps, cfg, sampler_name, scheduler, denoise, input_type,
+               x_slices, y_slices, overlap, batch_size, use_sliced_conditioning, latent_image=None, image=None,
+               vae=None):
         try:
             device = comfy.model_management.get_torch_device()
 
@@ -101,27 +133,17 @@ class FL_KsamplerPlus:
             elif input_type == "image" and (image is None or vae is None):
                 raise ValueError("Both image and VAE are required when input type is set to image")
 
+            # Force batch size to 1 when sliced conditioning is used
+            if use_sliced_conditioning:
+                batch_size = 1
+
             b, c, h, w = latent_image["samples"].shape
             base_slice_height = h // y_slices
             base_slice_width = w // x_slices
             overlap_height = int(base_slice_height * overlap)
             overlap_width = int(base_slice_width * overlap)
 
-            samples = torch.zeros_like(latent_image["samples"], device=device)
-
-            def create_blend_mask(height, width, overlap_h, overlap_w, is_top, is_left, is_bottom, is_right):
-                mask = torch.ones((height, width), device=device)
-                if overlap_h > 0:
-                    if not is_top:
-                        mask[:overlap_h, :] *= torch.linspace(0, 1, overlap_h, device=device)[:, None]
-                    if not is_bottom:
-                        mask[-overlap_h:, :] *= torch.linspace(1, 0, overlap_h, device=device)[:, None]
-                if overlap_w > 0:
-                    if not is_left:
-                        mask[:, :overlap_w] *= torch.linspace(0, 1, overlap_w, device=device)[None, :]
-                    if not is_right:
-                        mask[:, -overlap_w:] *= torch.linspace(1, 0, overlap_w, device=device)[None, :]
-                return mask
+            samples = None  # We'll initialize this later when we know the correct number of channels
 
             def process_slice(y, x):
                 y_start = max(0, y * base_slice_height - overlap_height)
@@ -136,8 +158,11 @@ class FL_KsamplerPlus:
                     init_size = (w * 8, h * 8)
                     canvas_size = init_size
                     tile_size = ((x_end - x_start) * 8, (y_end - y_start) * 8)
-                    cropped_positive = self.crop_cond(positive, region, init_size, canvas_size, tile_size)
-                    cropped_negative = self.crop_cond(negative, region, init_size, canvas_size, tile_size)
+                    strength_factor = 1.2  # Adjust this value to increase or decrease conditioning strength
+                    cropped_positive = self.adjust_conditioning_strength(
+                        self.crop_cond(positive, region, init_size, canvas_size, tile_size), strength_factor)
+                    cropped_negative = self.adjust_conditioning_strength(
+                        self.crop_cond(negative, region, init_size, canvas_size, tile_size), strength_factor)
                 else:
                     cropped_positive = positive
                     cropped_negative = negative
@@ -145,43 +170,52 @@ class FL_KsamplerPlus:
                 return section, y_start, y_end, x_start, x_end, cropped_positive, cropped_negative
 
             total_slices = x_slices * y_slices
+            all_slices = [(y, x) for y in range(y_slices) for x in range(x_slices)]
+
             for i in range(0, total_slices, batch_size):
-                batch_slices = [(y, x) for y in range(y_slices) for x in range(x_slices)][
-                               i:min(i + batch_size, total_slices)]
+                batch_slices = all_slices[i:min(i + batch_size, total_slices)]
                 batch_sections = [process_slice(y, x) for y, x in batch_slices]
 
                 batch_latents = torch.cat([section for section, _, _, _, _, _, _ in batch_sections], dim=0)
 
                 if use_sliced_conditioning:
-                    batch_positive = [cond for _, _, _, _, _, cond, _ in batch_sections]
-                    batch_negative = [cond for _, _, _, _, _, _, cond in batch_sections]
+                    batch_positive = batch_sections[0][
+                        5]  # Since batch_size is 1, we can directly use the first (and only) element
+                    batch_negative = batch_sections[0][6]
                 else:
-                    batch_positive = [positive] * len(batch_sections)
-                    batch_negative = [negative] * len(batch_sections)
+                    batch_positive = positive * len(batch_sections)
+                    batch_negative = negative * len(batch_sections)
 
-                # Process each slice in the batch individually
-                for j, (slice_latent, slice_positive, slice_negative) in enumerate(
-                        zip(torch.split(batch_latents, 1), batch_positive, batch_negative)):
-                    processed_slice = common_ksampler(model, seed + i + j, steps, cfg, sampler_name, scheduler,
-                                                      slice_positive, slice_negative,
-                                                      {"samples": slice_latent}, denoise=denoise)[0]
+                processed_batch = common_ksampler(model, seed + i, steps, cfg, sampler_name, scheduler,
+                                                  batch_positive, batch_negative,
+                                                  {"samples": batch_latents}, denoise=denoise)[0]
 
-                    _, y_start, y_end, x_start, x_end, _, _ = batch_sections[j]
+                processed_sections = torch.split(processed_batch["samples"], b, dim=0)
+
+                # Initialize samples tensor if it hasn't been initialized yet
+                if samples is None:
+                    processed_channels = processed_sections[0].shape[1]
+                    samples = torch.zeros((b, processed_channels, h, w), device=device)
+
+                for (_, y_start, y_end, x_start, x_end, _, _), processed_section in zip(batch_sections,
+                                                                                        processed_sections):
                     is_top = y_start == 0
                     is_left = x_start == 0
                     is_bottom = y_end == h
                     is_right = x_end == w
-                    blend_mask = create_blend_mask(y_end - y_start, x_end - x_start,
-                                                   overlap_height, overlap_width,
-                                                   is_top, is_left, is_bottom, is_right)
-                    blend_mask = blend_mask.unsqueeze(0).unsqueeze(0).expand_as(processed_slice["samples"])
+                    blend_mask = self.create_blend_mask(y_end - y_start, x_end - x_start,
+                                                        overlap_height, overlap_width,
+                                                        is_top, is_left, is_bottom, is_right,
+                                                        use_sliced_conditioning, device)
 
-                    processed_slice = processed_slice["samples"].to(device=device)
+                    blend_mask = blend_mask.unsqueeze(0).unsqueeze(0).expand_as(processed_section)
+
+                    processed_section = processed_section.to(device=device)
                     blend_mask = blend_mask.to(device=device)
 
                     samples[:, :, y_start:y_end, x_start:x_end] = (
                             samples[:, :, y_start:y_end, x_start:x_end] * (1 - blend_mask) +
-                            processed_slice * blend_mask
+                            processed_section * blend_mask
                     )
 
                 if device.type == 'cuda':
@@ -195,11 +229,5 @@ class FL_KsamplerPlus:
             return (model, positive, negative, {"samples": samples}, vae, output_image)
 
         except Exception as e:
-            logging.error(f"Error in FL_UltimateUpscale: {str(e)}")
+            logging.error(f"Error in FL_BasicKSampler: {str(e)}")
             raise
-
-    @classmethod
-    def IS_CHANGED(s, model, positive, negative, x_slices, y_slices, overlap, batch_size, seed, steps, cfg,
-                   sampler_name, scheduler, denoise, input_type, use_sliced_conditioning, latent_image=None, image=None,
-                   vae=None):
-        return float("NaN")
