@@ -25,7 +25,7 @@ class FL_TimeLine:
 
     RETURN_TYPES = ("MODEL",)
     FUNCTION = "process_timeline"
-    CATEGORY = "animation"
+    CATEGORY = "🏵️Fill Nodes/WIP"
 
     def process_timeline(self, model, timeline_data, ipadapter_preset, video_width, video_height, interpolation_mode, number_animation_frames, frames_per_second):
         # Parse the timeline data

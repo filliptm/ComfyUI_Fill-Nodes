@@ -21,7 +21,7 @@ class FL_TD_KSampler:
 
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "sample"
-    CATEGORY = "🏵️Fill Nodes/experiments"
+    CATEGORY = "🏵️Fill Nodes/WIP"
 
     def sample(self, model, conditioning_positive, conditioning_negative, latent_image, steps, seed, cfg, sampler_name,
                scheduler, denoise):

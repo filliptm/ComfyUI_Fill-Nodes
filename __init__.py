@@ -132,7 +132,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_PaperDrawn": "FL Paper Drawn",
     "FL_ImageNotes": "FL Image Notes",
     "FL_ImageCollage": "FL Image Collage",
-    "FL_KsamplerSettings": "FL Ksampler Settings",
+    "FL_KsamplerSettings": "FL KSampler Settings",
     "FL_RetroEffect": "FL Retro Effect",
     "FL_TD_Ksampler": "FL TD Ksampler",
     "FL_InpaintCrop": "FL Inpaint Crop",
@@ -160,9 +160,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_SendToDiscordWebhook": "FL Kytra Discord Webhook",
     "FL_HF_Character": "FL HF Character",
     "FL_CaptionToCSV": "FL Caption To CSV",
-    "FL_KsamplerPlus": "FL Ksampler Plus",
+    "FL_KsamplerPlus": "FL KSampler Plus",
     "FL_KsamplerBasic": "FL KSampler Basic",
-    "FL_FractalKSampler": "FL_FractalKSampler",
+    "FL_FractalKSampler": "FL Fractal KSampler",
 
 }
 

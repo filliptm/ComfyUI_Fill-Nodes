@@ -19,7 +19,7 @@ class GradientImageGenerator:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "generate_gradient"
-    CATEGORY = "image/generation"
+    CATEGORY = "🏵️Fill Nodes/experments"
 
     def generate_gradient(self, width, height, color_mode, interpolation, gradient_colors):
         # Parse gradient colors

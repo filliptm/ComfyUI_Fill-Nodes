@@ -32,15 +32,15 @@ class FL_KsamplerPlus:
             },
             "optional": {
                 "latent_image": ("LATENT",),
-                "image": ("IMAGE",),
                 "vae": ("VAE",),
+                "image": ("IMAGE",),
             }
         }
 
     RETURN_TYPES = ("MODEL", "CONDITIONING", "CONDITIONING", "LATENT", "VAE", "IMAGE")
-    RETURN_NAMES = ("model", "positive", "negative", "latent", "image", "vae")
+    RETURN_NAMES = ("model", "positive", "negative", "latent", "vae", "image")
     FUNCTION = "sample"
-    CATEGORY = "FL/Sampling"
+    CATEGORY = "🏵️Fill Nodes/Ksamplers"
 
     @staticmethod
     def crop_tensor(tensor, region):
@@ -229,5 +229,5 @@ class FL_KsamplerPlus:
             return (model, positive, negative, {"samples": samples}, vae, output_image)
 
         except Exception as e:
-            logging.error(f"Error in FL_BasicKSampler: {str(e)}")
+            logging.error(f"Error in FL_KsamplerPlus: {str(e)}")
             raise
