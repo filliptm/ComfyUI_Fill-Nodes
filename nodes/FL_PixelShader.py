@@ -5,7 +5,6 @@ from sklearn.cluster import KMeans
 
 from comfy.utils import ProgressBar
 
-
 class FL_PixelArtShader:
     @classmethod
     def INPUT_TYPES(cls):
@@ -72,7 +71,6 @@ class FL_PixelArtShader:
         mask = mask.resize(target_size, Image.LANCZOS)
         return mask.convert('L') if mask.mode != 'L' else mask
 
-
 def extract_palette(image, n_colors):
     image = image.convert('RGB')
     pixels = np.array(image).reshape(-1, 3)
@@ -81,46 +79,40 @@ def extract_palette(image, n_colors):
     colors = kmeans.cluster_centers_
     return torch.from_numpy(colors.astype(np.float32) / 255.0).to("cuda")
 
-
 def pixel_art_effect(image, pixel_size, color_depth, use_aspect_ratio, palette, mask=None):
     image = torch.tensor(np.array(image)).float().to("cuda") / 255.0
     height, width = image.shape[0], image.shape[1]
-    uv_x = torch.linspace(0, 1, width, device="cuda")
-    uv_y = torch.linspace(0, 1, height, device="cuda")
-    uv_grid = torch.stack(torch.meshgrid(uv_y, uv_x), dim=-1)
-    output_tensor = evaluate_shader(image, uv_grid, pixel_size, color_depth, use_aspect_ratio)
+
+    if use_aspect_ratio:
+        aspect_ratio = width / height
+        pixel_size_x, pixel_size_y = pixel_size, pixel_size / aspect_ratio
+    else:
+        pixel_size_x = pixel_size_y = pixel_size
+
+    new_width = int(width / pixel_size_x)
+    new_height = int(height / pixel_size_y)
+
+    # Resize the image to create the pixelated effect
+    pixelated = image.permute(2, 0, 1).unsqueeze(0)
+    pixelated = torch.nn.functional.interpolate(pixelated, size=(new_height, new_width), mode='nearest')
+    pixelated = torch.nn.functional.interpolate(pixelated, size=(height, width), mode='nearest')
+    pixelated = pixelated.squeeze(0).permute(1, 2, 0)
+
+    # Apply color depth reduction
+    pixelated = adjust_color(pixelated, color_depth)
+
     if palette is not None:
-        output_tensor = apply_palette(output_tensor, palette)
+        pixelated = apply_palette(pixelated, palette)
+
     if mask is not None:
         mask_tensor = torch.tensor(np.array(mask)).float().to("cuda") / 255.0
         mask_tensor = mask_tensor.unsqueeze(-1).expand(-1, -1, 3)
-        output_tensor = output_tensor * mask_tensor + image * (1 - mask_tensor)
-    return Image.fromarray((output_tensor.cpu().numpy() * 255).astype(np.uint8))
+        pixelated = pixelated * mask_tensor + image * (1 - mask_tensor)
 
-
-def evaluate_shader(image, uv_grid, pixel_size, color_depth, use_aspect_ratio):
-    if use_aspect_ratio:
-        aspect_ratio = image.shape[1] / image.shape[0]
-        pixel_size_x, pixel_size_y = pixel_size, pixel_size * aspect_ratio
-    else:
-        pixel_size_x = pixel_size_y = pixel_size
-    pixelUV_x = torch.floor(uv_grid[..., 1] * pixel_size_x) / pixel_size_x
-    pixelUV_y = torch.floor(uv_grid[..., 0] * pixel_size_y) / pixel_size_y
-    pixelUV = torch.stack((pixelUV_y, pixelUV_x), dim=-1)
-    color = texture_lookup(image, pixelUV)
-    return adjust_color(color, color_depth)
-
+    return Image.fromarray((pixelated.cpu().numpy() * 255).astype(np.uint8))
 
 def adjust_color(color, color_depth):
     return torch.floor(color * color_depth) / color_depth
-
-
-def texture_lookup(image, uv):
-    uv = torch.clamp(uv, 0.0, 1.0)
-    y = (uv[..., 0] * (image.shape[0] - 1)).long()
-    x = (uv[..., 1] * (image.shape[1] - 1)).long()
-    return image[y, x]
-
 
 def apply_palette(image, palette):
     original_shape = image.shape
