@@ -10,6 +10,7 @@ class FL_ImageRandomizer:
             "required": {
                 "directory_path": ("STRING", {"default": ""}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+                "search_subdirectories": ("BOOLEAN", {"default": False}),
             }
         }
 
@@ -17,11 +18,11 @@ class FL_ImageRandomizer:
     FUNCTION = "select_image"
     CATEGORY = "🏵️Fill Nodes/utility"
 
-    def select_image(self, directory_path, seed):
+    def select_image(self, directory_path, seed, search_subdirectories=False):
         if not directory_path:
             raise ValueError("Directory path is not provided.")
 
-        images = self.load_images(directory_path)
+        images = self.load_images(directory_path, search_subdirectories)
         if not images:
             raise ValueError("No images found in the specified directory.")
 
@@ -38,7 +39,17 @@ class FL_ImageRandomizer:
 
         return (image_tensor, selected_image_path)
 
-    def load_images(self, directory):
+    def load_images(self, directory, search_subdirectories=False):
         supported_formats = ["jpg", "jpeg", "png", "bmp", "gif"]
-        return sorted([os.path.join(directory, f) for f in os.listdir(directory)
-                if os.path.isfile(os.path.join(directory, f)) and f.split('.')[-1].lower() in supported_formats])
+        image_paths = []
+
+        if search_subdirectories:
+            for root, _, files in os.walk(directory):
+                for f in files:
+                    if f.split('.')[-1].lower() in supported_formats:
+                        image_paths.append(os.path.join(root, f))
+        else:
+            image_paths = sorted([os.path.join(directory, f) for f in os.listdir(directory)
+                                  if os.path.isfile(os.path.join(directory, f)) and f.split('.')[-1].lower() in supported_formats])
+
+        return sorted(image_paths)
