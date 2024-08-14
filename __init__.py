@@ -14,7 +14,7 @@ from .nodes.FL_HalfTone import FL_HalftonePattern
 from .nodes.FL_RandomRange import FL_RandomNumber
 from .nodes.FL_PromptSelector import FL_PromptSelector
 from .nodes.FL_Shader import FL_Shadertoy
-from .nodes.FL_PixelShader import FL_PixelArtShader
+from .nodes.FL_PixelArt import FL_PixelArtShader
 from .nodes.FL_InfiniteZoom import FL_InfiniteZoom
 from .nodes.FL_PaperDrawn import FL_PaperDrawn
 from .nodes.FL_ImageNotes import FL_ImageNotes
@@ -50,6 +50,7 @@ from .nodes.FL_CaptionToCSV import FL_CaptionToCSV
 from .nodes.FL_KsamplerPlus import FL_KsamplerPlus
 from .nodes.FL_KsamplerBasic import FL_KsamplerBasic
 from .nodes.FL_KsamplerFractals import FL_FractalKSampler
+from .nodes.FL_UpscaleModel import FL_UpscaleModel
 
 
 
@@ -107,6 +108,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_KsamplerPlus": FL_KsamplerPlus,
     "FL_KsamplerBasic": FL_KsamplerBasic,
     "FL_FractalKSampler": FL_FractalKSampler,
+    "FL_UpscaleModel": FL_UpscaleModel,
 
 }
 
@@ -163,6 +165,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_KsamplerPlus": "FL KSampler Plus",
     "FL_KsamplerBasic": "FL KSampler Basic",
     "FL_FractalKSampler": "FL Fractal KSampler",
+    "FL_UpscaleModel": "FL Upscale Model",
 
 }
 
