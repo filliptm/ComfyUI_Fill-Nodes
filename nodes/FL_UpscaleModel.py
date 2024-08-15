@@ -1,6 +1,7 @@
 import torch
 import comfy
 from comfy_extras.nodes_upscale_model import ImageUpscaleWithModel
+from tqdm import tqdm
 
 
 class FL_UpscaleModel:
@@ -31,7 +32,7 @@ class FL_UpscaleModel:
                 "batch_size": ("INT", {
                     "default": 1,
                     "min": 1,
-                    "max": 50,
+                    "max": 100,
                     "step": 1,
                 }),
             }
@@ -53,6 +54,9 @@ class FL_UpscaleModel:
         total_images = len(image_list)
 
         upscaled_list = []
+
+        # Create a tqdm progress bar
+        pbar = tqdm(total=total_images, desc="Processing frames", unit="frame")
 
         for i in range(0, total_images, batch_size):
             batch = torch.cat(image_list[i:i + batch_size]).to(dtype)
@@ -84,7 +88,15 @@ class FL_UpscaleModel:
 
             upscaled_list.extend(list(torch.split(upscaled_batch, 1)))
 
+            # Update the progress bar
+            pbar.update(len(batch))
+
+        # Close the progress bar
+        pbar.close()
+
         # Combine all processed images back into a single batch
         final_upscaled = torch.cat(upscaled_list)
+
+        print(f"Upscaling complete. Processed {total_images} frames in batches of {batch_size}.")
 
         return (final_upscaled,)
