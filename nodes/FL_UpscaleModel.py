@@ -2,9 +2,10 @@ import torch
 import comfy
 from comfy_extras.nodes_upscale_model import ImageUpscaleWithModel
 
+
 class FL_UpscaleModel:
     rescale_methods = ["nearest-exact", "bilinear", "area", "bicubic", "lanczos"]
-    precision_options = ["16", "32"]  # Removed "8" as it's not standard
+    precision_options = ["16", "32"]
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "upscale"
@@ -27,10 +28,16 @@ class FL_UpscaleModel:
                 }),
                 "rescale_method": (cls.rescale_methods,),
                 "precision": (cls.precision_options,),
+                "batch_size": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                    "max": 50,
+                    "step": 1,
+                }),
             }
         }
 
-    def upscale(self, upscale_model, image, downscale_by, rescale_method, precision):
+    def upscale(self, upscale_model, image, downscale_by, rescale_method, precision, batch_size):
         original_device = image.device
         original_dtype = image.dtype
 
@@ -40,35 +47,44 @@ class FL_UpscaleModel:
             dtype = torch.float32
 
         upscale_model = upscale_model.to(dtype).to(original_device)
-        image = image.to(dtype)
 
-        with torch.no_grad():
-            if dtype == torch.float16:
-                with torch.autocast(device_type=original_device.type, dtype=dtype):
-                    upscaled = self.__imageScaler.upscale(upscale_model, image)[0]
-            else:
-                upscaled = self.__imageScaler.upscale(upscale_model, image)[0]
+        # Split the input batch into a list of individual images
+        image_list = list(torch.split(image, 1))
+        total_images = len(image_list)
 
-        if downscale_by < 1.0:
-            target_height = round(upscaled.shape[1] * downscale_by)
-            target_width = round(upscaled.shape[2] * downscale_by)
+        upscaled_list = []
 
-            # upscaled is already in [B, H, W, C] format
-            # We need to change it to [B, C, H, W] for interpolate
-            upscaled = upscaled.permute(0, 3, 1, 2)
+        for i in range(0, total_images, batch_size):
+            batch = torch.cat(image_list[i:i + batch_size]).to(dtype)
 
-            upscaled = torch.nn.functional.interpolate(
-                upscaled,
-                size=(target_height, target_width),
-                mode=rescale_method if rescale_method != "lanczos" else "bicubic",
-                align_corners=False if rescale_method in ["bilinear", "bicubic"] else None
-            )
+            with torch.no_grad():
+                if dtype == torch.float16:
+                    with torch.autocast(device_type=original_device.type, dtype=dtype):
+                        upscaled_batch = self.__imageScaler.upscale(upscale_model, batch)[0]
+                else:
+                    upscaled_batch = self.__imageScaler.upscale(upscale_model, batch)[0]
 
-            # Change back to [B, H, W, C]
-            upscaled = upscaled.permute(0, 2, 3, 1)
+            if downscale_by < 1.0:
+                target_height = round(upscaled_batch.shape[1] * downscale_by)
+                target_width = round(upscaled_batch.shape[2] * downscale_by)
 
-        # Only clamp and convert if necessary
-        if dtype != original_dtype or downscale_by < 1.0:
-            upscaled = upscaled.clamp(0, 1).to(original_dtype).to(original_device)
+                upscaled_batch = upscaled_batch.permute(0, 3, 1, 2)
 
-        return (upscaled,)
+                upscaled_batch = torch.nn.functional.interpolate(
+                    upscaled_batch,
+                    size=(target_height, target_width),
+                    mode=rescale_method if rescale_method != "lanczos" else "bicubic",
+                    align_corners=False if rescale_method in ["bilinear", "bicubic"] else None
+                )
+
+                upscaled_batch = upscaled_batch.permute(0, 2, 3, 1)
+
+            if dtype != original_dtype or downscale_by < 1.0:
+                upscaled_batch = upscaled_batch.clamp(0, 1).to(original_dtype).to(original_device)
+
+            upscaled_list.extend(list(torch.split(upscaled_batch, 1)))
+
+        # Combine all processed images back into a single batch
+        final_upscaled = torch.cat(upscaled_list)
+
+        return (final_upscaled,)
