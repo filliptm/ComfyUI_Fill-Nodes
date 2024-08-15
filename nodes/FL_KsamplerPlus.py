@@ -9,6 +9,7 @@ from PIL import Image
 import torch.nn.functional as F
 import latent_preview
 
+
 class FL_KsamplerPlus:
     @classmethod
     def INPUT_TYPES(s):
@@ -93,31 +94,24 @@ class FL_KsamplerPlus:
         return [(emb * strength_factor, x) for emb, x in cond]
 
     @staticmethod
-    def create_blend_mask(height, width, overlap_h, overlap_w, is_top, is_left, is_bottom, is_right, use_sliced_conditioning, device):
+    def create_blend_mask(height, width, overlap_h, overlap_w, is_top, is_left, is_bottom, is_right, device):
         mask = torch.ones((height, width), device=device)
-        if use_sliced_conditioning:
-            power = 0.3  # Adjust this value to control the blend smoothness
-            if overlap_h > 0:
-                if not is_top:
-                    mask[:overlap_h, :] *= torch.pow(torch.linspace(0, 1, overlap_h, device=device), power)[:, None]
-                if not is_bottom:
-                    mask[-overlap_h:, :] *= torch.pow(torch.linspace(1, 0, overlap_h, device=device), power)[:, None]
-            if overlap_w > 0:
-                if not is_left:
-                    mask[:, :overlap_w] *= torch.pow(torch.linspace(0, 1, overlap_w, device=device), power)[None, :]
-                if not is_right:
-                    mask[:, -overlap_w:] *= torch.pow(torch.linspace(1, 0, overlap_w, device=device), power)[None, :]
-        else:
-            if overlap_h > 0:
-                if not is_top:
-                    mask[:overlap_h, :] *= torch.linspace(0, 1, overlap_h, device=device)[:, None]
-                if not is_bottom:
-                    mask[-overlap_h:, :] *= torch.linspace(1, 0, overlap_h, device=device)[:, None]
-            if overlap_w > 0:
-                if not is_left:
-                    mask[:, :overlap_w] *= torch.linspace(0, 1, overlap_w, device=device)[None, :]
-                if not is_right:
-                    mask[:, -overlap_w:] *= torch.linspace(1, 0, overlap_w, device=device)[None, :]
+
+        if overlap_h > 0:
+            x = torch.linspace(0, math.pi, overlap_h, device=device)
+            cos = 0.5 * (1 - torch.cos(x))
+            if not is_top:
+                mask[:overlap_h, :] *= cos[:, None]
+            if not is_bottom:
+                mask[-overlap_h:, :] *= cos.flip(0)[:, None]
+        if overlap_w > 0:
+            x = torch.linspace(0, math.pi, overlap_w, device=device)
+            cos = 0.5 * (1 - torch.cos(x))
+            if not is_left:
+                mask[:, :overlap_w] *= cos[None, :]
+            if not is_right:
+                mask[:, -overlap_w:] *= cos.flip(0)[None, :]
+
         return mask
 
     def sample(self, model, positive, negative, seed, steps, cfg, sampler_name, scheduler, denoise, input_type,
@@ -206,7 +200,7 @@ class FL_KsamplerPlus:
                     blend_mask = self.create_blend_mask(y_end - y_start, x_end - x_start,
                                                         overlap_height, overlap_width,
                                                         is_top, is_left, is_bottom, is_right,
-                                                        use_sliced_conditioning, device)
+                                                        device)
 
                     blend_mask = blend_mask.unsqueeze(0).unsqueeze(0).expand_as(processed_section)
 
