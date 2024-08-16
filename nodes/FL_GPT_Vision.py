@@ -1,4 +1,3 @@
-import torch
 import aiohttp
 import asyncio
 from PIL import Image
@@ -8,13 +7,12 @@ import sys
 from tqdm import tqdm
 import base64
 
-
+# removed api key from input for safer use
 class FL_GPT_Vision:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "api_key": ("STRING", {"default": "", "multiline": False, "hidden": True}),
                 "model": (["gpt-4o-mini", "gpt-4o", "gpt-4-vision-preview"],),
                 "system_prompt": ("STRING", {
                     "default": "You are a helpful assistant that describes images accurately and concisely.",
@@ -102,11 +100,12 @@ class FL_GPT_Vision:
         tasks = [self.process_image(session, img, filename, *args) for img, filename in batch]
         return await asyncio.gather(*tasks)
 
-    def generate_captions(self, api_key, model, system_prompt, request_prompt, output_directory, overwrite, max_tokens,
+    def generate_captions(self, model, system_prompt, request_prompt, output_directory, overwrite, max_tokens,
                           temperature, detail, batch_size, images=None, input_directory=None):
+        api_key = os.getenv("OPENAI_API_KEY") #looks for api key in env variable
         try:
             if not api_key:
-                raise ValueError("API key is required")
+                raise ValueError("API key is not set as an environment variable")
 
             if images is None and not input_directory:
                 raise ValueError("Either 'images' or 'input_directory' must be provided")
