@@ -1,20 +1,17 @@
-import torch
 import aiohttp
 import asyncio
 from PIL import Image
 import io
 import base64
-import time
-import random
+import os
 
-
+#removed api key from input for safer use
 class FL_SimpleGPTVision:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "image": ("IMAGE",),
-                "api_key": ("STRING", {"default": "", "multiline": False, "hidden": True}),
                 "model": (["gpt-4o-mini", "gpt-4o", "gpt-4-vision-preview"],),
                 "system_prompt": ("STRING", {
                     "default": "You are a helpful assistant that describes images accurately and concisely.",
@@ -91,9 +88,10 @@ class FL_SimpleGPTVision:
 
         return "Failed to process image after multiple retries due to rate limiting."
 
-    def generate_caption(self, image, api_key, model, system_prompt, request_prompt, max_tokens, temperature, detail):
+    def generate_caption(self, image, model, system_prompt, request_prompt, max_tokens, temperature, detail):
+        api_key = os.getenv("OPENAI_API_KEY") # changed to look for env variable
         if not api_key:
-            return ("API key is required",)
+            return ("API key is not set as an environment variable",)
 
         # Convert tensor to PIL Image
         pil_img = Image.fromarray((image.squeeze().cpu().numpy() * 255).astype('uint8'))
