@@ -21,7 +21,6 @@ from .nodes.FL_ImageNotes import FL_ImageNotes
 from .nodes.FL_ImageCollage import FL_ImageCollage
 from .nodes.FL_KsamplerSettings import FL_KsamplerSettings
 from .nodes.FL_RetroEffect import FL_RetroEffect
-from .nodes.FL_TD_Ksampler import FL_TD_KSampler
 from .nodes.FL_InpaintCrop import FL_InpaintCrop
 from .nodes.FL_InpaintCrop import FL_Inpaint_Stitch
 from .nodes.FL_SD_Slices import FL_SDUltimate_Slices
@@ -79,7 +78,6 @@ NODE_CLASS_MAPPINGS = {
     "FL_ImageCollage": FL_ImageCollage,
     "FL_KsamplerSettings": FL_KsamplerSettings,
     "FL_RetroEffect": FL_RetroEffect,
-    "FL_TD_Sampler": FL_TD_KSampler,
     "FL_InpaintCrop": FL_InpaintCrop,
     "FL_Inpaint_Stitch": FL_Inpaint_Stitch,
     "FL_SDUltimate_Slices": FL_SDUltimate_Slices,
@@ -136,7 +134,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_ImageCollage": "FL Image Collage",
     "FL_KsamplerSettings": "FL KSampler Settings",
     "FL_RetroEffect": "FL Retro Effect",
-    "FL_TD_Ksampler": "FL TD Ksampler",
     "FL_InpaintCrop": "FL Inpaint Crop",
     "FL_Inpaint_Stitch": "FL Inpaint Stitch",
     "FL_SDUltimate_Slices": "FL SDUltimate Slices",
