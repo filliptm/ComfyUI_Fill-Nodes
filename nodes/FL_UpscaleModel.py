@@ -3,10 +3,9 @@ import comfy
 from comfy_extras.nodes_upscale_model import ImageUpscaleWithModel
 from tqdm import tqdm
 
-
 class FL_UpscaleModel:
     rescale_methods = ["nearest-exact", "bilinear", "area", "bicubic", "lanczos"]
-    precision_options = ["16", "32"]
+    precision_options = ["auto", "32", "16", "bfloat16"]
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "upscale"
@@ -42,10 +41,20 @@ class FL_UpscaleModel:
         original_device = image.device
         original_dtype = image.dtype
 
-        if precision == "16":
-            dtype = torch.float16
+        # Determine the appropriate dtype based on precision and device
+        if precision == "auto":
+            dtype = torch.float16 if original_device.type == "cuda" else torch.float32
+        elif precision == "16":
+            dtype = torch.float16 if original_device.type == "cuda" else torch.bfloat16
+        elif precision == "bfloat16":
+            dtype = torch.bfloat16
         else:
             dtype = torch.float32
+
+        # Ensure the chosen dtype is supported on the current device
+        if dtype == torch.float16 and original_device.type != "cuda":
+            print("Warning: float16 is not supported on CPU. Falling back to bfloat16.")
+            dtype = torch.bfloat16
 
         upscale_model = upscale_model.to(dtype).to(original_device)
 
@@ -62,7 +71,7 @@ class FL_UpscaleModel:
             batch = torch.cat(image_list[i:i + batch_size]).to(dtype)
 
             with torch.no_grad():
-                if dtype == torch.float16:
+                if dtype in [torch.float16, torch.bfloat16]:
                     with torch.autocast(device_type=original_device.type, dtype=dtype):
                         upscaled_batch = self.__imageScaler.upscale(upscale_model, batch)[0]
                 else:

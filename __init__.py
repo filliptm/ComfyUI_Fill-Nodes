@@ -50,6 +50,7 @@ from .nodes.FL_KsamplerPlus import FL_KsamplerPlus
 from .nodes.FL_KsamplerBasic import FL_KsamplerBasic
 from .nodes.FL_KsamplerFractals import FL_FractalKSampler
 from .nodes.FL_UpscaleModel import FL_UpscaleModel
+from .nodes.FL_SaveCSV import FL_SaveCSV
 
 
 
@@ -107,6 +108,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_KsamplerBasic": FL_KsamplerBasic,
     "FL_FractalKSampler": FL_FractalKSampler,
     "FL_UpscaleModel": FL_UpscaleModel,
+    "FL_SaveCSV": FL_SaveCSV,
 
 }
 
@@ -163,6 +165,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_KsamplerBasic": "FL KSampler Basic",
     "FL_FractalKSampler": "FL Fractal KSampler",
     "FL_UpscaleModel": "FL Upscale Model",
+    "FL_SaveCSV": "FL Save CSV",
 
 }
 
