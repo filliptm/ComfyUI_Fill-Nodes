@@ -1,7 +1,7 @@
 [project]
 name = "comfyui_fill-nodes"
 description = "VFX nodes, Shaders, Utilities, Mask tools, Prompting Tools, and much more!"
-version = "1.0.3"
+version = "1.0.4"
 license = "LICENSE"
 dependencies = ["librosa", "sounddevice", "glitch_this"]
 
