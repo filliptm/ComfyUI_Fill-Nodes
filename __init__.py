@@ -54,6 +54,7 @@ from .nodes.FL_SaveCSV import FL_SaveCSV
 from. nodes.FL_KSamplerXYZPlot import FL_KSamplerXYZPlot
 from .nodes.FL_SamplerStrings import FL_SamplerStrings
 from .nodes.FL_SchedulerStrings import FL_SchedulerStrings
+from .nodes.FL_ImageCaptionLayoutPDF import FL_ImageCaptionLayoutPDF
 
 
 
@@ -115,6 +116,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_KSamplerXYZPlot": FL_KSamplerXYZPlot,
     "FL_SamplerStrings": FL_SamplerStrings,
     "FL_SchedulerStrings": FL_SchedulerStrings,
+    "FL_ImageCaptionLayoutPDF": FL_ImageCaptionLayoutPDF,
 
 }
 
@@ -174,7 +176,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_SaveCSV": "FL Save CSV",
     "FL_KSamplerXYZPlot": "FL KSampler XYZ Plot",
     "FL_SamplerStrings": "FL Sampler String XYZ",
-    "FL_SchedulerStrings": "FL Scheduler String XYZ"
+    "FL_SchedulerStrings": "FL Scheduler String XYZ",
+    "FL_ImageCaptionLayoutPDF": "FL Image Caption Layout PDF",
 
 }
 

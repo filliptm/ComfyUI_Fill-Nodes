@@ -8,3 +8,4 @@ requests
 aiohttp
 moviepy
 matplotlib
+reportlab

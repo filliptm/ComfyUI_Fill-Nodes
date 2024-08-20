@@ -17,7 +17,6 @@ from PIL import Image
 from huggingface_hub import HfApi, create_repo, repo_exists
 from tqdm import tqdm
 
-
 class FL_HF_Character:
     @classmethod
     def INPUT_TYPES(cls):
@@ -36,6 +35,7 @@ class FL_HF_Character:
                 "lora_file": ("STRING", {"default": ""}),
                 "dataset_zip": ("ZIP",),
                 "caption_layout": ("IMAGE",),
+                "caption_PDF_layout": ("PDF",),
                 "csv_file": ("CSV",),
             }
         }
@@ -47,7 +47,8 @@ class FL_HF_Character:
     def upload_to_hub(self, api_key: str, owner: str, repo_name: str, studio_name: str, project_name: str,
                       character_name: str, create_new_repo: str, repo_type: str,
                       lora_file: str = "", dataset_zip: bytes = None,
-                      caption_layout: torch.Tensor = None, csv_file: bytes = None) -> tuple[str]:
+                      caption_layout: torch.Tensor = None, caption_PDF_layout: bytes = None,
+                      csv_file: bytes = None) -> tuple[str]:
         # Initialize Hugging Face API
         api = HfApi(token=api_key)
 
@@ -62,8 +63,7 @@ class FL_HF_Character:
                 print(f"Repository created or already exists: {repo_url}")
             else:
                 if not repo_exists(repo_id=full_repo_id, token=api_key):
-                    return (
-                    f"Error: Repository {full_repo_id} does not exist. Please create it first or use the 'Create New Repo' option.",)
+                    return (f"Error: Repository {full_repo_id} does not exist. Please create it first or use the 'Create New Repo' option.",)
                 repo_url = f"https://huggingface.co/{full_repo_id}"
                 print(f"Using existing repository: {repo_url}")
 
@@ -77,6 +77,8 @@ class FL_HF_Character:
                 self.upload_zip(api, dataset_zip, f"{base_path}/dataset", full_repo_id, api_key, "Dataset")
             if caption_layout is not None:
                 self.upload_image(api, caption_layout, base_path, full_repo_id, api_key, "caption_layout")
+            if caption_PDF_layout is not None:
+                self.upload_pdf(api, caption_PDF_layout, base_path, full_repo_id, api_key, "caption_PDF_layout")
             if csv_file is not None:
                 self.upload_csv(api, csv_file, base_path, full_repo_id, api_key)
 
@@ -164,6 +166,35 @@ class FL_HF_Character:
         )
         print(f"{image_type} uploaded successfully")
 
+    def upload_pdf(self, api, pdf_data, repo_dir, full_repo_id, api_key, pdf_type):
+        repo_path = f"{repo_dir}/{pdf_type}.pdf"
+
+        pbar = tqdm(total=100, unit='%', desc=f"Uploading {pdf_type} PDF")
+
+        def update_progress():
+            progress = 0
+            while progress < 95:
+                time.sleep(0.5)
+                increment = min(5, 95 - progress)
+                progress += increment
+                pbar.update(increment)
+
+        progress_thread = threading.Thread(target=update_progress)
+        progress_thread.start()
+
+        api.upload_file(
+            path_or_fileobj=pdf_data,
+            path_in_repo=repo_path,
+            repo_id=full_repo_id,
+            token=api_key
+        )
+
+        progress_thread.join()
+        pbar.update(100 - pbar.n)
+        pbar.close()
+
+        print(f"{pdf_type} PDF uploaded successfully to {repo_path}")
+
     def upload_csv(self, api, csv_data, repo_dir, full_repo_id, api_key):
         repo_path = f"{repo_dir}/metadata.csv"
 
@@ -195,5 +226,5 @@ class FL_HF_Character:
 
     @classmethod
     def IS_CHANGED(cls, api_key, owner, repo_name, studio_name, project_name, character_name,
-                   create_new_repo, repo_type, lora_file, dataset_zip, caption_layout, csv_file):
+                   create_new_repo, repo_type, lora_file, dataset_zip, caption_layout, caption_PDF_layout, csv_file):
         return float("NaN")
