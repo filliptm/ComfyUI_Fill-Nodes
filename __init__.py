@@ -56,6 +56,7 @@ from .nodes.FL_SamplerStrings import FL_SamplerStrings
 from .nodes.FL_SchedulerStrings import FL_SchedulerStrings
 from .nodes.FL_ImageCaptionLayoutPDF import FL_ImageCaptionLayoutPDF
 from .nodes.FL_Dalle3 import FL_Dalle3
+from .nodes.FL_SaveImages import FL_SaveImages
 
 
 
@@ -119,6 +120,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_SchedulerStrings": FL_SchedulerStrings,
     "FL_ImageCaptionLayoutPDF": FL_ImageCaptionLayoutPDF,
     "FL_Dalle3": FL_Dalle3,
+    "FL_SaveImages": FL_SaveImages,
 
 }
 
@@ -181,6 +183,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_SchedulerStrings": "FL Scheduler String XYZ",
     "FL_ImageCaptionLayoutPDF": "FL Image Caption Layout PDF",
     "FL_Dalle3": "FL Dalle 3",
+    "FL_SaveImages": "FL Save Images",
 
 }
 
