@@ -55,6 +55,7 @@ from. nodes.FL_KSamplerXYZPlot import FL_KSamplerXYZPlot
 from .nodes.FL_SamplerStrings import FL_SamplerStrings
 from .nodes.FL_SchedulerStrings import FL_SchedulerStrings
 from .nodes.FL_ImageCaptionLayoutPDF import FL_ImageCaptionLayoutPDF
+from .nodes.FL_Dalle3 import FL_Dalle3
 
 
 
@@ -117,6 +118,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_SamplerStrings": FL_SamplerStrings,
     "FL_SchedulerStrings": FL_SchedulerStrings,
     "FL_ImageCaptionLayoutPDF": FL_ImageCaptionLayoutPDF,
+    "FL_Dalle3": FL_Dalle3,
 
 }
 
@@ -178,6 +180,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_SamplerStrings": "FL Sampler String XYZ",
     "FL_SchedulerStrings": "FL Scheduler String XYZ",
     "FL_ImageCaptionLayoutPDF": "FL Image Caption Layout PDF",
+    "FL_Dalle3": "FL Dalle 3",
 
 }
 
