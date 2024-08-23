@@ -1,9 +1,9 @@
 import { app } from "../../../scripts/app.js";
 
 app.registerExtension({
-    name: "Comfy.FL_FileBrowser",
+    name: "Comfy.FL_LoadImage",
     async nodeCreated(node) {
-        if (node.comfyClass === "FL_FileBrowser") {
+        if (node.comfyClass === "FL_LoadImage") {
             addFileBrowserUI(node);
         }
     }
@@ -11,8 +11,8 @@ app.registerExtension({
 
 function addFileBrowserUI(node) {
     // Tweakable variables
-    const DIRECTORY_Y_OFFSET = 20; // Adjust this to move directory items up or down
-    const CLICK_Y_OFFSET = 8; // Adjust this to fine-tune click detection
+    const DIRECTORY_Y_OFFSET = 20;
+    const CLICK_Y_OFFSET = 0;
 
     const rootDirectoryWidget = node.widgets.find(w => w.name === "root_directory");
     const selectedFileWidget = node.widgets.find(w => w.name === "selected_file");
@@ -24,12 +24,25 @@ function addFileBrowserUI(node) {
     const MIN_HEIGHT = 850;
     const TOP_PADDING = 150;
     const BOTTOM_PADDING = 20;
-    const FOLDER_HEIGHT = 25;
-    const INDENT_WIDTH = 15;
-    const TOP_BAR_HEIGHT = 40;
-    const THUMBNAIL_SIZE = 80;
-    const THUMBNAIL_PADDING = 5;
-    const SCROLLBAR_WIDTH = 13;
+    const FOLDER_HEIGHT = 30;
+    const INDENT_WIDTH = 20;
+    const TOP_BAR_HEIGHT = 50;
+    const THUMBNAIL_SIZE = 100;
+    const THUMBNAIL_PADDING = 10;
+    const SCROLLBAR_WIDTH = 12;
+
+    const COLORS = {
+        background: "#1e1e1e",
+        topBar: "#252526",
+        folder: "#2d2d30",
+        folderHover: "#3e3e42",
+        folderSelected: "#0e639c",
+        text: "#cccccc",
+        scrollbar: "#3e3e42",
+        scrollbarHover: "#505050",
+        thumbnailBorder: "#007acc",
+        thumbnailBackground: "#252526"
+    };
 
     let currentDirectory = rootDirectoryWidget.value;
     let selectedFile = selectedFileWidget.value;
@@ -40,6 +53,7 @@ function addFileBrowserUI(node) {
     let scrollOffsetRight = 0;
     let isDraggingLeft = false;
     let isDraggingRight = false;
+    let hoveredFolder = null;
 
     async function updateDirectoryStructure() {
         try {
@@ -116,24 +130,23 @@ function addFileBrowserUI(node) {
     node.onDrawBackground = function(ctx) {
         if (!this.flags.collapsed) {
             const pos = TOP_PADDING - TOP_BAR_HEIGHT;
-            ctx.fillStyle = "#2A2A2A";
+            ctx.fillStyle = COLORS.background;
             ctx.fillRect(0, pos, this.size[0], this.size[1] - pos);
 
             // Draw top bar
-            ctx.fillStyle = "#4A4A4A";
+            ctx.fillStyle = COLORS.topBar;
             ctx.fillRect(0, pos, this.size[0], TOP_BAR_HEIGHT);
 
             // Draw back button
-            ctx.fillStyle = "#4A4A4A";
-            ctx.fillRect(5, pos + 5, 60, TOP_BAR_HEIGHT - 10);
-            ctx.fillStyle = "#FFFFFF";
-            ctx.font = "12px Arial";
-            ctx.fillText("← Back", 15, pos + 26);
+            drawRoundedRect(ctx, 10, pos + 10, 80, TOP_BAR_HEIGHT - 20, 5, COLORS.folder);
+            ctx.fillStyle = COLORS.text;
+            ctx.font = "14px Arial";
+            ctx.fillText("← Back", 30, pos + 32);
 
             // Draw current directory
-            ctx.fillStyle = "#FFFFFF";
+            ctx.fillStyle = COLORS.text;
             ctx.font = "14px Arial";
-            ctx.fillText(currentDirectory, 75, pos + 27);
+            ctx.fillText(currentDirectory, 100, pos + 32);
 
             const midX = this.size[0] / 2;
 
@@ -158,17 +171,31 @@ function addFileBrowserUI(node) {
         }
     };
 
+    function drawRoundedRect(ctx, x, y, width, height, radius, color) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+    }
+
     function drawScrollbar(ctx, x, y, width, height, offset, totalHeight) {
-        ctx.fillStyle = "#555555";
-        ctx.fillRect(x, y, width, height);
+        drawRoundedRect(ctx, x, y, width, height, width / 2, COLORS.scrollbar);
 
         const visibleHeight = height;
         const scrollHeight = Math.max(height * (visibleHeight / totalHeight), 20);
         const maxOffset = Math.max(0, totalHeight - visibleHeight);
         const scrollY = y + (offset / maxOffset) * (height - scrollHeight);
 
-        ctx.fillStyle = "#888888";
-        ctx.fillRect(x, scrollY, width, scrollHeight);
+        drawRoundedRect(ctx, x, scrollY, width, scrollHeight, width / 2, COLORS.scrollbarHover);
     }
 
     function getTotalDirectoryHeight() {
@@ -182,11 +209,20 @@ function addFileBrowserUI(node) {
 
     function drawDirectoryStructure(ctx, x, y, structure, level = 0) {
         const folderIcon = structure.expanded ? "📂" : "📁";
-        ctx.font = "14px Arial";
-        ctx.fillStyle = structure.path === currentDirectory ? "#4a90e2" : "#ffffff";
-
         const xPos = x + INDENT_WIDTH * level;
-        ctx.fillText(`${folderIcon} ${structure.name}`, xPos, y);
+        const yPos = y + FOLDER_HEIGHT / 2;
+
+        const isHovered = structure === hoveredFolder;
+        const isSelected = structure.path === currentDirectory;
+
+        if (isSelected || isHovered) {
+            drawRoundedRect(ctx, xPos - 5, y, node.size[0] / 2 - xPos, FOLDER_HEIGHT, 5, isSelected ? COLORS.folderSelected : COLORS.folderHover);
+        }
+
+        ctx.font = "14px Arial";
+        ctx.fillStyle = COLORS.text;
+        ctx.fillText(`${folderIcon} ${structure.name}`, xPos, yPos);
+
         y += FOLDER_HEIGHT;
 
         if (structure.expanded && structure.children) {
@@ -199,7 +235,7 @@ function addFileBrowserUI(node) {
     }
 
     function drawThumbnails(ctx, x, y, width, height) {
-        ctx.fillStyle = "#3A3A3A";
+        ctx.fillStyle = COLORS.background;
         ctx.fillRect(x, y, width, height);
 
         const thumbnailsPerRow = Math.floor(width / (THUMBNAIL_SIZE + THUMBNAIL_PADDING));
@@ -209,22 +245,23 @@ function addFileBrowserUI(node) {
             const xPos = x + col * (THUMBNAIL_SIZE + THUMBNAIL_PADDING) + THUMBNAIL_PADDING;
             const yPos = y + row * (THUMBNAIL_SIZE + THUMBNAIL_PADDING) + THUMBNAIL_PADDING;
 
+            drawRoundedRect(ctx, xPos, yPos, THUMBNAIL_SIZE, THUMBNAIL_SIZE, 5, COLORS.thumbnailBackground);
+
             if (thumbnails[file]) {
                 ctx.drawImage(thumbnails[file], xPos, yPos, THUMBNAIL_SIZE, THUMBNAIL_SIZE);
-            } else {
-                ctx.fillStyle = "#4A4A4A";
-                ctx.fillRect(xPos, yPos, THUMBNAIL_SIZE, THUMBNAIL_SIZE);
             }
 
             if (file === selectedFile) {
-                ctx.strokeStyle = "#ff0000";
-                ctx.lineWidth = 2;
+                ctx.strokeStyle = COLORS.thumbnailBorder;
+                ctx.lineWidth = 3;
                 ctx.strokeRect(xPos, yPos, THUMBNAIL_SIZE, THUMBNAIL_SIZE);
             }
 
-            ctx.fillStyle = "rgba(255,255,255,0)";
-            ctx.font = "10px Arial";
-            ctx.fillText(file.substring(0, 10) + (file.length > 10 ? "..." : ""), xPos, yPos + THUMBNAIL_SIZE + 12);
+            ctx.fillStyle = COLORS.text;
+            ctx.font = "12px Arial";
+            const fileName = file.substring(0, 15) + (file.length > 15 ? "..." : "");
+            const textWidth = ctx.measureText(fileName).width;
+            ctx.fillText(fileName, xPos + (THUMBNAIL_SIZE - textWidth) / 2, yPos + THUMBNAIL_SIZE + 15);
         });
     }
 
@@ -239,7 +276,7 @@ function addFileBrowserUI(node) {
 
         if (localY >= 0 && localY <= TOP_BAR_HEIGHT) {
             // Click on top bar
-            if (localX >= 5 && localX <= 65 && localY >= 5 && localY <= TOP_BAR_HEIGHT - 5) {
+            if (localX >= 10 && localX <= 90 && localY >= 10 && localY <= TOP_BAR_HEIGHT - 10) {
                 // Click on back button
                 goUpDirectory();
                 return true;
@@ -285,6 +322,10 @@ function addFileBrowserUI(node) {
     };
 
     node.onMouseMove = function(event) {
+        const pos = TOP_PADDING - TOP_BAR_HEIGHT;
+        const localY = event.canvasY - this.pos[1] - pos + CLICK_Y_OFFSET;
+        const localX = event.canvasX - this.pos[0];
+
         if (isDraggingLeft) {
             const totalHeight = getTotalDirectoryHeight();
             const visibleHeight = this.size[1] - TOP_PADDING - BOTTOM_PADDING;
@@ -300,6 +341,19 @@ function addFileBrowserUI(node) {
             this.setDirtyCanvas(true);
             return true;
         }
+
+        // Hover effect for folders
+        const midX = this.size[0] / 2;
+        if (localX < midX - SCROLLBAR_WIDTH && localY > TOP_BAR_HEIGHT) {
+            hoveredFolder = findClickedItem(directoryStructure, localY - TOP_BAR_HEIGHT + scrollOffsetLeft - DIRECTORY_Y_OFFSET);
+            this.setDirtyCanvas(true);
+        } else {
+            if (hoveredFolder) {
+                hoveredFolder = null;
+                this.setDirtyCanvas(true);
+            }
+        }
+
         return false;
     };
 

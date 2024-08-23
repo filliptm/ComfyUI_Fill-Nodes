@@ -8,7 +8,7 @@ from aiohttp import web
 import io
 
 
-class FL_FileBrowser:
+class FL_LoadImage:
     @classmethod
     def INPUT_TYPES(cls):
         return {

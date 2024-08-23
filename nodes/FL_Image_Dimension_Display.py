@@ -12,7 +12,7 @@ class FL_ImageDimensionDisplay:
 
     RETURN_TYPES = ("STRING",)
     FUNCTION = "display_dimensions"
-    CATEGORY = "🏵️Fill Nodes/utility"
+    CATEGORY = "🏵️Fill Nodes/Image"
 
     def display_dimensions(self, image):
         if isinstance(image, torch.Tensor):

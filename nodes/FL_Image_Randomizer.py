@@ -16,7 +16,7 @@ class FL_ImageRandomizer:
 
     RETURN_TYPES = ("IMAGE", "PATH")
     FUNCTION = "select_image"
-    CATEGORY = "🏵️Fill Nodes/utility"
+    CATEGORY = "🏵️Fill Nodes/Image"
 
     def select_image(self, directory_path, seed, search_subdirectories=False):
         if not directory_path:
