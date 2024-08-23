@@ -20,8 +20,8 @@ function addFileBrowserUI(node) {
     rootDirectoryWidget.hidden = false;
     selectedFileWidget.hidden = true;
 
-    const MIN_WIDTH = 730;
-    const MIN_HEIGHT = 850;
+    const MIN_WIDTH = 430;
+    const MIN_HEIGHT = 550;
     const TOP_PADDING = 150;
     const BOTTOM_PADDING = 20;
     const FOLDER_HEIGHT = 30;
