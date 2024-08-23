@@ -120,7 +120,7 @@ function addFileBrowserUI(node) {
             ctx.fillRect(0, pos, this.size[0], this.size[1] - pos);
 
             // Draw top bar
-            ctx.fillStyle = "#3A3A3A";
+            ctx.fillStyle = "#4A4A4A";
             ctx.fillRect(0, pos, this.size[0], TOP_BAR_HEIGHT);
 
             // Draw back button
@@ -128,7 +128,7 @@ function addFileBrowserUI(node) {
             ctx.fillRect(5, pos + 5, 60, TOP_BAR_HEIGHT - 10);
             ctx.fillStyle = "#FFFFFF";
             ctx.font = "12px Arial";
-            ctx.fillText("← Back", 15, pos + 25);
+            ctx.fillText("← Back", 15, pos + 26);
 
             // Draw current directory
             ctx.fillStyle = "#FFFFFF";
@@ -217,12 +217,12 @@ function addFileBrowserUI(node) {
             }
 
             if (file === selectedFile) {
-                ctx.strokeStyle = "#4a90e2";
+                ctx.strokeStyle = "#ff0000";
                 ctx.lineWidth = 2;
                 ctx.strokeRect(xPos, yPos, THUMBNAIL_SIZE, THUMBNAIL_SIZE);
             }
 
-            ctx.fillStyle = "#FFFFFF";
+            ctx.fillStyle = "rgba(255,255,255,0)";
             ctx.font = "10px Arial";
             ctx.fillText(file.substring(0, 10) + (file.length > 10 ? "..." : ""), xPos, yPos + THUMBNAIL_SIZE + 12);
         });
