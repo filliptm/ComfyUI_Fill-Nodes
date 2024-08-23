@@ -47,7 +47,7 @@ class FL_FileBrowser:
 
 
 def get_directory_structure(path):
-    structure = {"name": os.path.basename(path), "children": [], "path": path}
+    structure = {"name": os.path.basename(path), "children": [], "path": path, "expanded": False}
     try:
         with os.scandir(path) as entries:
             for entry in entries:

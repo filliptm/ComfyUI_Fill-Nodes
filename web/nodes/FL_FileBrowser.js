@@ -10,29 +10,36 @@ app.registerExtension({
 });
 
 function addFileBrowserUI(node) {
+    // Tweakable variables
+    const DIRECTORY_Y_OFFSET = 20; // Adjust this to move directory items up or down
+    const CLICK_Y_OFFSET = 8; // Adjust this to fine-tune click detection
+
     const rootDirectoryWidget = node.widgets.find(w => w.name === "root_directory");
     const selectedFileWidget = node.widgets.find(w => w.name === "selected_file");
 
     rootDirectoryWidget.hidden = false;
     selectedFileWidget.hidden = true;
 
-    const MIN_WIDTH = 400;
-    const MIN_HEIGHT = 450;
-    const TOP_PADDING = 140;
+    const MIN_WIDTH = 730;
+    const MIN_HEIGHT = 850;
+    const TOP_PADDING = 150;
     const BOTTOM_PADDING = 20;
-    const FOLDER_HEIGHT = 20;
+    const FOLDER_HEIGHT = 25;
     const INDENT_WIDTH = 15;
-    const TOP_BAR_HEIGHT = 30;
+    const TOP_BAR_HEIGHT = 40;
     const THUMBNAIL_SIZE = 80;
     const THUMBNAIL_PADDING = 5;
+    const SCROLLBAR_WIDTH = 13;
 
     let currentDirectory = rootDirectoryWidget.value;
     let selectedFile = selectedFileWidget.value;
-    let directoryStructure = { name: "root", children: [] };
+    let directoryStructure = { name: "root", children: [], expanded: true, path: currentDirectory };
     let fileList = [];
     let thumbnails = {};
     let scrollOffsetLeft = 0;
     let scrollOffsetRight = 0;
+    let isDraggingLeft = false;
+    let isDraggingRight = false;
 
     async function updateDirectoryStructure() {
         try {
@@ -42,13 +49,29 @@ function addFileBrowserUI(node) {
                 body: JSON.stringify({ path: currentDirectory })
             });
             const data = await response.json();
-            directoryStructure = data.structure;
+            mergeDirectoryStructure(directoryStructure, data.structure);
             fileList = data.files;
             loadThumbnails();
             node.setDirtyCanvas(true);
         } catch (error) {
             console.error("Error updating directory structure:", error);
         }
+    }
+
+    function mergeDirectoryStructure(existing, updated) {
+        existing.name = updated.name;
+        existing.path = updated.path;
+
+        const existingChildren = new Map(existing.children.map(child => [child.name, child]));
+        existing.children = updated.children.map(updatedChild => {
+            const existingChild = existingChildren.get(updatedChild.name);
+            if (existingChild) {
+                mergeDirectoryStructure(existingChild, updatedChild);
+                return existingChild;
+            } else {
+                return { ...updatedChild, expanded: false };
+            }
+        });
     }
 
     async function loadThumbnails() {
@@ -105,44 +128,70 @@ function addFileBrowserUI(node) {
             ctx.fillRect(5, pos + 5, 60, TOP_BAR_HEIGHT - 10);
             ctx.fillStyle = "#FFFFFF";
             ctx.font = "12px Arial";
-            ctx.fillText("← Back", 15, pos + 20);
+            ctx.fillText("← Back", 15, pos + 25);
 
             // Draw current directory
             ctx.fillStyle = "#FFFFFF";
-            ctx.font = "12px Arial";
-            ctx.fillText(currentDirectory, 75, pos + 20);
+            ctx.font = "14px Arial";
+            ctx.fillText(currentDirectory, 75, pos + 27);
 
             const midX = this.size[0] / 2;
 
             // Set up clipping regions for scrolling
             ctx.save();
             ctx.beginPath();
-            ctx.rect(0, TOP_PADDING, midX, this.size[1] - TOP_PADDING - BOTTOM_PADDING);
+            ctx.rect(0, TOP_PADDING, midX - SCROLLBAR_WIDTH, this.size[1] - TOP_PADDING - BOTTOM_PADDING);
             ctx.clip();
-            drawDirectoryStructure(ctx, 10, TOP_PADDING - scrollOffsetLeft, directoryStructure);
+            drawDirectoryStructure(ctx, 10, TOP_PADDING - scrollOffsetLeft + DIRECTORY_Y_OFFSET, directoryStructure);
             ctx.restore();
 
             ctx.save();
             ctx.beginPath();
-            ctx.rect(midX, TOP_PADDING, this.size[0] - midX, this.size[1] - TOP_PADDING - BOTTOM_PADDING);
+            ctx.rect(midX, TOP_PADDING, this.size[0] - midX - SCROLLBAR_WIDTH, this.size[1] - TOP_PADDING - BOTTOM_PADDING);
             ctx.clip();
-            drawThumbnails(ctx, midX, TOP_PADDING - scrollOffsetRight, this.size[0] / 2 - 10, this.size[1] - TOP_PADDING - BOTTOM_PADDING);
+            drawThumbnails(ctx, midX, TOP_PADDING - scrollOffsetRight, this.size[0] / 2 - SCROLLBAR_WIDTH - 10, this.size[1] - TOP_PADDING - BOTTOM_PADDING);
             ctx.restore();
+
+            // Draw scrollbars
+            drawScrollbar(ctx, midX - SCROLLBAR_WIDTH, TOP_PADDING, SCROLLBAR_WIDTH, this.size[1] - TOP_PADDING - BOTTOM_PADDING, scrollOffsetLeft, getTotalDirectoryHeight());
+            drawScrollbar(ctx, this.size[0] - SCROLLBAR_WIDTH, TOP_PADDING, SCROLLBAR_WIDTH, this.size[1] - TOP_PADDING - BOTTOM_PADDING, scrollOffsetRight, getTotalThumbnailHeight());
         }
     };
 
+    function drawScrollbar(ctx, x, y, width, height, offset, totalHeight) {
+        ctx.fillStyle = "#555555";
+        ctx.fillRect(x, y, width, height);
+
+        const visibleHeight = height;
+        const scrollHeight = Math.max(height * (visibleHeight / totalHeight), 20);
+        const maxOffset = Math.max(0, totalHeight - visibleHeight);
+        const scrollY = y + (offset / maxOffset) * (height - scrollHeight);
+
+        ctx.fillStyle = "#888888";
+        ctx.fillRect(x, scrollY, width, scrollHeight);
+    }
+
+    function getTotalDirectoryHeight() {
+        return countItems(directoryStructure) * FOLDER_HEIGHT;
+    }
+
+    function getTotalThumbnailHeight() {
+        const thumbnailsPerRow = Math.floor((node.size[0] / 2 - SCROLLBAR_WIDTH - 10) / (THUMBNAIL_SIZE + THUMBNAIL_PADDING));
+        return Math.ceil(fileList.length / thumbnailsPerRow) * (THUMBNAIL_SIZE + THUMBNAIL_PADDING);
+    }
+
     function drawDirectoryStructure(ctx, x, y, structure, level = 0) {
-        const folderIcon = "📁";
+        const folderIcon = structure.expanded ? "📂" : "📁";
         ctx.font = "14px Arial";
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = structure.path === currentDirectory ? "#4a90e2" : "#ffffff";
 
-        for (const item of structure.children) {
-            const xPos = x + INDENT_WIDTH * level;
-            ctx.fillText(`${folderIcon} ${item.name}`, xPos, y);
-            y += FOLDER_HEIGHT;
+        const xPos = x + INDENT_WIDTH * level;
+        ctx.fillText(`${folderIcon} ${structure.name}`, xPos, y);
+        y += FOLDER_HEIGHT;
 
-            if (item.children) {
-                y = drawDirectoryStructure(ctx, x, y, item, level + 1);
+        if (structure.expanded && structure.children) {
+            for (const child of structure.children) {
+                y = drawDirectoryStructure(ctx, x, y, child, level + 1);
             }
         }
 
@@ -181,8 +230,12 @@ function addFileBrowserUI(node) {
 
     node.onMouseDown = function(event) {
         const pos = TOP_PADDING - TOP_BAR_HEIGHT;
-        const localY = event.canvasY - this.pos[1] - pos;
+        const localY = event.canvasY - this.pos[1] - pos + CLICK_Y_OFFSET;
         const localX = event.canvasX - this.pos[0];
+
+        if (localY < 0 || localY > this.size[1] || localX < 0 || localX > this.size[0]) {
+            return false; // Allow default behavior for dragging the node
+        }
 
         if (localY >= 0 && localY <= TOP_BAR_HEIGHT) {
             // Click on top bar
@@ -193,57 +246,88 @@ function addFileBrowserUI(node) {
             }
         } else if (localY > TOP_BAR_HEIGHT) {
             const midX = this.size[0] / 2;
-            if (localX < midX) {
+            if (localX < midX - SCROLLBAR_WIDTH) {
                 // Click on directory structure
-                const clickedItem = findClickedItem(directoryStructure, localY - TOP_BAR_HEIGHT + scrollOffsetLeft);
+                const clickedItem = findClickedItem(directoryStructure, localY - TOP_BAR_HEIGHT + scrollOffsetLeft - DIRECTORY_Y_OFFSET);
                 if (clickedItem) {
-                    currentDirectory = clickedItem.path;
-                    rootDirectoryWidget.value = currentDirectory;
-                    updateDirectoryStructure();
+                    if (clickedItem.children) {
+                        clickedItem.expanded = !clickedItem.expanded;
+                        this.setDirtyCanvas(true);
+                    }
+                    if (clickedItem.path !== currentDirectory) {
+                        currentDirectory = clickedItem.path;
+                        rootDirectoryWidget.value = currentDirectory;
+                        updateDirectoryStructure();
+                    }
                 }
-            } else {
+                return true;
+            } else if (localX >= midX && localX < this.size[0] - SCROLLBAR_WIDTH) {
                 // Click on thumbnails
-                const thumbnailsPerRow = Math.floor((this.size[0] / 2 - 10) / (THUMBNAIL_SIZE + THUMBNAIL_PADDING));
+                const thumbnailsPerRow = Math.floor((this.size[0] / 2 - SCROLLBAR_WIDTH - 10) / (THUMBNAIL_SIZE + THUMBNAIL_PADDING));
                 const clickedRow = Math.floor((localY - TOP_BAR_HEIGHT + scrollOffsetRight) / (THUMBNAIL_SIZE + THUMBNAIL_PADDING));
                 const clickedCol = Math.floor((localX - midX) / (THUMBNAIL_SIZE + THUMBNAIL_PADDING));
                 const clickedIndex = clickedRow * thumbnailsPerRow + clickedCol;
                 if (clickedIndex >= 0 && clickedIndex < fileList.length) {
                     updateSelectedFile(fileList[clickedIndex]);
                 }
+                return true;
+            } else if (localX >= midX - SCROLLBAR_WIDTH && localX < midX) {
+                // Click on left scrollbar
+                isDraggingLeft = true;
+                return true;
+            } else if (localX >= this.size[0] - SCROLLBAR_WIDTH) {
+                // Click on right scrollbar
+                isDraggingRight = true;
+                return true;
             }
         }
-        return true;
+        return false; // Allow default behavior for dragging the node
     };
 
     node.onMouseMove = function(event) {
-        if (event.dragging && event.button === 2) { // Right mouse button
-            const midX = this.size[0] / 2;
-            if (event.canvasX - this.pos[0] < midX) {
-                scrollOffsetLeft = Math.max(0, scrollOffsetLeft - event.deltay);
-            } else {
-                scrollOffsetRight = Math.max(0, scrollOffsetRight - event.deltay);
-            }
+        if (isDraggingLeft) {
+            const totalHeight = getTotalDirectoryHeight();
+            const visibleHeight = this.size[1] - TOP_PADDING - BOTTOM_PADDING;
+            const maxOffset = Math.max(0, totalHeight - visibleHeight);
+            scrollOffsetLeft = Math.max(0, Math.min(maxOffset, (event.canvasY - this.pos[1] - TOP_PADDING) / visibleHeight * totalHeight));
             this.setDirtyCanvas(true);
+            return true;
+        } else if (isDraggingRight) {
+            const totalHeight = getTotalThumbnailHeight();
+            const visibleHeight = this.size[1] - TOP_PADDING - BOTTOM_PADDING;
+            const maxOffset = Math.max(0, totalHeight - visibleHeight);
+            scrollOffsetRight = Math.max(0, Math.min(maxOffset, (event.canvasY - this.pos[1] - TOP_PADDING) / visibleHeight * totalHeight));
+            this.setDirtyCanvas(true);
+            return true;
         }
+        return false;
+    };
+
+    node.onMouseUp = function(event) {
+        isDraggingLeft = false;
+        isDraggingRight = false;
+        return false;
     };
 
     function findClickedItem(structure, y, currentY = 0) {
-        for (const item of structure.children) {
-            if (y >= currentY && y < currentY + FOLDER_HEIGHT) {
-                return item;
-            }
-            currentY += FOLDER_HEIGHT;
-            if (item.children) {
-                const found = findClickedItem(item, y, currentY);
+        if (y >= currentY && y < currentY + FOLDER_HEIGHT) {
+            return structure;
+        }
+        currentY += FOLDER_HEIGHT;
+
+        if (structure.expanded && structure.children) {
+            for (const child of structure.children) {
+                const found = findClickedItem(child, y, currentY);
                 if (found) return found;
-                currentY += FOLDER_HEIGHT * countItems(item);
+                currentY += FOLDER_HEIGHT * (child.expanded ? countItems(child) : 1);
             }
         }
         return null;
     }
 
     function countItems(item) {
-        return item.children ? item.children.reduce((sum, child) => sum + countItems(child), 1) : 1;
+        if (!item.expanded || !item.children) return 1;
+        return 1 + item.children.reduce((sum, child) => sum + countItems(child), 0);
     }
 
     function updateNodeSize() {
