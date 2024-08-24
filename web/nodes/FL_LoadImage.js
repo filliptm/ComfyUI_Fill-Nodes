@@ -30,6 +30,8 @@ function addFileBrowserUI(node) {
     const THUMBNAIL_SIZE = 100;
     const THUMBNAIL_PADDING = 10;
     const SCROLLBAR_WIDTH = 12;
+    const MIN_THUMBNAIL_SIZE = 50;
+    const MAX_THUMBNAIL_SIZE = 200;
 
     const COLORS = {
         background: "#1e1e1e",
@@ -54,6 +56,8 @@ function addFileBrowserUI(node) {
     let isDraggingLeft = false;
     let isDraggingRight = false;
     let hoveredFolder = null;
+    let scrollStartY = 0;
+    let scrollStartOffset = 0;
 
     async function updateDirectoryStructure() {
         try {
@@ -311,15 +315,20 @@ function addFileBrowserUI(node) {
             } else if (localX >= midX - SCROLLBAR_WIDTH && localX < midX) {
                 // Click on left scrollbar
                 isDraggingLeft = true;
+                scrollStartY = event.canvasY;
+                scrollStartOffset = scrollOffsetLeft;
                 return true;
             } else if (localX >= this.size[0] - SCROLLBAR_WIDTH) {
                 // Click on right scrollbar
                 isDraggingRight = true;
+                scrollStartY = event.canvasY;
+                scrollStartOffset = scrollOffsetRight;
                 return true;
             }
         }
         return false; // Allow default behavior for dragging the node
     };
+
 
     node.onMouseMove = function(event) {
         const pos = TOP_PADDING - TOP_BAR_HEIGHT;
@@ -330,14 +339,18 @@ function addFileBrowserUI(node) {
             const totalHeight = getTotalDirectoryHeight();
             const visibleHeight = this.size[1] - TOP_PADDING - BOTTOM_PADDING;
             const maxOffset = Math.max(0, totalHeight - visibleHeight);
-            scrollOffsetLeft = Math.max(0, Math.min(maxOffset, (event.canvasY - this.pos[1] - TOP_PADDING) / visibleHeight * totalHeight));
+            const scrollbarHeight = visibleHeight * (visibleHeight / totalHeight);
+            const scrollMove = (event.canvasY - scrollStartY) * (totalHeight / visibleHeight);
+            scrollOffsetLeft = Math.max(0, Math.min(maxOffset, scrollStartOffset + scrollMove));
             this.setDirtyCanvas(true);
             return true;
         } else if (isDraggingRight) {
             const totalHeight = getTotalThumbnailHeight();
             const visibleHeight = this.size[1] - TOP_PADDING - BOTTOM_PADDING;
             const maxOffset = Math.max(0, totalHeight - visibleHeight);
-            scrollOffsetRight = Math.max(0, Math.min(maxOffset, (event.canvasY - this.pos[1] - TOP_PADDING) / visibleHeight * totalHeight));
+            const scrollbarHeight = visibleHeight * (visibleHeight / totalHeight);
+            const scrollMove = (event.canvasY - scrollStartY) * (totalHeight / visibleHeight);
+            scrollOffsetRight = Math.max(0, Math.min(maxOffset, scrollStartOffset + scrollMove));
             this.setDirtyCanvas(true);
             return true;
         }
