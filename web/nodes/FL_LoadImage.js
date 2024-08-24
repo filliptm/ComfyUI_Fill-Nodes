@@ -261,11 +261,11 @@ function addFileBrowserUI(node) {
                 ctx.strokeRect(xPos, yPos, THUMBNAIL_SIZE, THUMBNAIL_SIZE);
             }
 
-            ctx.fillStyle = COLORS.text;
-            ctx.font = "12px Arial";
-            const fileName = file.substring(0, 15) + (file.length > 15 ? "..." : "");
-            const textWidth = ctx.measureText(fileName).width;
-            ctx.fillText(fileName, xPos + (THUMBNAIL_SIZE - textWidth) / 2, yPos + THUMBNAIL_SIZE + 15);
+            // ctx.fillStyle = COLORS.text;
+            // ctx.font = "12px Arial";
+            // const fileName = file.substring(0, 15) + (file.length > 15 ? "..." : "");
+            // const textWidth = ctx.measureText(fileName).width;
+            // ctx.fillText(fileName, xPos + (THUMBNAIL_SIZE - textWidth) / 2, yPos + THUMBNAIL_SIZE + 15);
         });
     }
 
