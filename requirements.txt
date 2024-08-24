@@ -9,3 +9,4 @@ aiohttp
 moviepy
 matplotlib
 reportlab
+openai
