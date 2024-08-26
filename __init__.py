@@ -65,6 +65,7 @@ from .nodes.FL_ImagesToPDF import FL_ImagesToPDF
 from .nodes.FL_PDFMerger import FL_PDFMerger
 from .nodes.FL_PDFTextExtractor import FL_PDFTextExtractor
 from .nodes.FL_PDFImageExtractor import FL_PDFImageExtractor
+from .nodes.FL_BulkPDFLoader import FL_BulkPDFLoader
 
 
 
@@ -137,6 +138,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_PDFMerger": FL_PDFMerger,
     "FL_PDFTextExtractor": FL_PDFTextExtractor,
     "FL_PDFImageExtractor": FL_PDFImageExtractor,
+    "FL_BulkPDFLoader": FL_BulkPDFLoader,
 
 }
 
@@ -208,6 +210,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_PDFMerger": "FL PDF Merger",
     "FL_PDFTextExtractor": "FL PDF Text Extractor",
     "FL_PDFImageExtractor": "FL PDF Image Extractor",
+    "FL_BulkPDFLoader": "FL Bulk PDF Loader",
 
 }
 
