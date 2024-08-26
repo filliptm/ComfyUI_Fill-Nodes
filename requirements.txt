@@ -10,3 +10,8 @@ moviepy
 matplotlib
 reportlab
 openai
+PyPDF2
+pdf2image
+PyMuPDF
+reportlab
+PyPDF2

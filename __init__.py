@@ -58,6 +58,13 @@ from .nodes.FL_ImageCaptionLayoutPDF import FL_ImageCaptionLayoutPDF
 from .nodes.FL_Dalle3 import FL_Dalle3
 from .nodes.FL_SaveImages import FL_SaveImages
 from .nodes.FL_LoadImage import FL_LoadImage
+from .nodes.FL_PDFLoader import FL_PDFLoader
+from .nodes.FL_PDFToImage import FL_PDFToImages
+from .nodes.FL_PDFSaver import FL_PDFSaver
+from .nodes.FL_ImagesToPDF import FL_ImagesToPDF
+from .nodes.FL_PDFMerger import FL_PDFMerger
+from .nodes.FL_PDFTextExtractor import FL_PDFTextExtractor
+from .nodes.FL_PDFImageExtractor import FL_PDFImageExtractor
 
 
 
@@ -123,6 +130,13 @@ NODE_CLASS_MAPPINGS = {
     "FL_Dalle3": FL_Dalle3,
     "FL_SaveImages": FL_SaveImages,
     "FL_LoadImage": FL_LoadImage,
+    "FL_PDFLoader": FL_PDFLoader,
+    "FL_PDFToImages": FL_PDFToImages,
+    "FL_PDFSaver": FL_PDFSaver,
+    "FL_ImagesToPDF": FL_ImagesToPDF,
+    "FL_PDFMerger": FL_PDFMerger,
+    "FL_PDFTextExtractor": FL_PDFTextExtractor,
+    "FL_PDFImageExtractor": FL_PDFImageExtractor,
 
 }
 
@@ -187,6 +201,13 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Dalle3": "FL Dalle 3",
     "FL_SaveImages": "FL Save Images",
     "FL_LoadImage": "FL Load Image",
+    "FL_PDFLoader": "FL PDF Loader",
+    "FL_PDFToImages": "FL PDF To Images",
+    "FL_PDFSaver": "FL PDF Saver",
+    "FL_ImagesToPDF": "FL Images To PDF",
+    "FL_PDFMerger": "FL PDF Merger",
+    "FL_PDFTextExtractor": "FL PDF Text Extractor",
+    "FL_PDFImageExtractor": "FL PDF Image Extractor",
 
 }
 
