@@ -15,3 +15,4 @@ pdf2image
 PyMuPDF
 reportlab
 PyPDF2
+ollama
