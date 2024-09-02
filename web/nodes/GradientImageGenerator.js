@@ -1,9 +1,9 @@
 import { app } from "../../../scripts/app.js";
 
 app.registerExtension({
-    name: "Comfy.GradientImageGenerator",
+    name: "Comfy.FL_GradGenerator",
     async nodeCreated(node) {
-        if (node.comfyClass === "GradientImageGenerator") {
+        if (node.comfyClass === "FL_GradGenerator") {
             addGradientImageGenerator(node);
         }
     }

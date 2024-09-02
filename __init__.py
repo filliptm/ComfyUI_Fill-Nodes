@@ -34,7 +34,7 @@ from .nodes.FL_TetrisGame import FL_TetrisGame
 from .nodes.FL_Dither import FL_Dither
 from .nodes.FL_SystemCheck import FL_SystemCheck
 from .nodes.FL_ColorPicker import FL_ColorPicker
-from .nodes.FL_GradGen import GradientImageGenerator
+from .nodes.FL_GradGen import FL_GradGenerator
 from .nodes.FL_MirrorAndAppendCaptions import FL_MirrorAndAppendCaptions
 from .nodes.FL_ImageCaptionLayout import FL_ImageCaptionLayout
 from .nodes.FL_HFHubModelUploader import FL_HFHubModelUploader
@@ -66,6 +66,8 @@ from .nodes.FL_PDFMerger import FL_PDFMerger
 from .nodes.FL_PDFTextExtractor import FL_PDFTextExtractor
 from .nodes.FL_PDFImageExtractor import FL_PDFImageExtractor
 from .nodes.FL_BulkPDFLoader import FL_BulkPDFLoader
+from .nodes.SaveAndDisplayImage import SaveAndDisplayImage
+from .nodes.FL_OllamaCaptioner import FL_OllamaCaptioner
 
 
 
@@ -107,7 +109,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_Dither": FL_Dither,
     "FL_SystemCheck": FL_SystemCheck,
     "FL_ColorPicker": FL_ColorPicker,
-    "GradientImageGenerator": GradientImageGenerator,
+    "FL_GradGenerator": FL_GradGenerator,
     "FL_MirrorAndAppendCaptions": FL_MirrorAndAppendCaptions,
     "FL_ImageCaptionLayout": FL_ImageCaptionLayout,
     "FL_HFHubModelUploader": FL_HFHubModelUploader,
@@ -139,6 +141,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_PDFTextExtractor": FL_PDFTextExtractor,
     "FL_PDFImageExtractor": FL_PDFImageExtractor,
     "FL_BulkPDFLoader": FL_BulkPDFLoader,
+    "SaveAndDisplayImage": SaveAndDisplayImage,
+    "FL_OllamaCaptioner": FL_OllamaCaptioner,
 
 }
 
@@ -179,7 +183,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Dither": "FL Dither",
     "FL_SystemCheck": "FL System Check",
     "FL_ColorPicker": "FL Color Picker",
-    "GradientImageGenerator": "GradientImageGenerator",
+    "FL_GradGenerator": "FL Grad Generator",
     "FL_MirrorAndAppendCaptions": "FL Mirror And Append Captions",
     "FL_ImageCaptionLayout": "FL Image Caption Layout",
     "FL_HFHubModelUploader": "FL HFHub Model Uploader",
@@ -211,6 +215,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_PDFTextExtractor": "FL PDF Text Extractor",
     "FL_PDFImageExtractor": "FL PDF Image Extractor",
     "FL_BulkPDFLoader": "FL Bulk PDF Loader",
+    "SaveAndDisplayImage": "Save And Display Image",
+    "FL_OllamaCaptioner": "FL Ollama Captioner by Cosmic",
 
 }
 

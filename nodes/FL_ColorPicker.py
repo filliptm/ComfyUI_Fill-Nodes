@@ -9,7 +9,7 @@ class FL_ColorPicker:
 
     RETURN_TYPES = ("STRING",)
     FUNCTION = "get_color"
-    CATEGORY = "ui"
+    CATEGORY = "🏵️Fill Nodes/experiments"
 
     def get_color(self, selected_color):
         return (selected_color,)

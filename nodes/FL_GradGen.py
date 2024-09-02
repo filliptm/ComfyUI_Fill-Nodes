@@ -4,7 +4,7 @@ import torch
 from PIL import Image
 
 
-class GradientImageGenerator:
+class FL_GradGenerator:
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -76,7 +76,7 @@ class GradientImageGenerator:
 
 
 NODE_CLASS_MAPPINGS = {
-    "GradientImageGenerator": GradientImageGenerator
+    "GradientImageGenerator": FL_GradGenerator
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
