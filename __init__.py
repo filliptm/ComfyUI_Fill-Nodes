@@ -66,7 +66,7 @@ from .nodes.FL_PDFMerger import FL_PDFMerger
 from .nodes.FL_PDFTextExtractor import FL_PDFTextExtractor
 from .nodes.FL_PDFImageExtractor import FL_PDFImageExtractor
 from .nodes.FL_BulkPDFLoader import FL_BulkPDFLoader
-from .nodes.SaveAndDisplayImage import SaveAndDisplayImage
+from .nodes.FL_SaveAndDisplayImage import FL_SaveAndDisplayImage
 from .nodes.FL_OllamaCaptioner import FL_OllamaCaptioner
 
 
@@ -141,7 +141,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_PDFTextExtractor": FL_PDFTextExtractor,
     "FL_PDFImageExtractor": FL_PDFImageExtractor,
     "FL_BulkPDFLoader": FL_BulkPDFLoader,
-    "SaveAndDisplayImage": SaveAndDisplayImage,
+    "FL_SaveAndDisplayImage": FL_SaveAndDisplayImage,
     "FL_OllamaCaptioner": FL_OllamaCaptioner,
 
 }
@@ -215,7 +215,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_PDFTextExtractor": "FL PDF Text Extractor",
     "FL_PDFImageExtractor": "FL PDF Image Extractor",
     "FL_BulkPDFLoader": "FL Bulk PDF Loader",
-    "SaveAndDisplayImage": "Save And Display Image",
+    "FL_SaveAndDisplayImage": "FL Save And Display Image",
     "FL_OllamaCaptioner": "FL Ollama Captioner by Cosmic",
 
 }

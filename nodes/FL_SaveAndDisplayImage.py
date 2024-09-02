@@ -3,7 +3,7 @@ import folder_paths
 from nodes import SaveImage
 
 
-class SaveAndDisplayImage(SaveImage):
+class FL_SaveAndDisplayImage(SaveImage):
     @classmethod
     def INPUT_TYPES(s):
         return {"required":
