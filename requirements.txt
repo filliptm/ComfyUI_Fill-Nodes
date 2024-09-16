@@ -16,3 +16,4 @@ PyMuPDF
 reportlab
 PyPDF2
 ollama
+opencv-python
