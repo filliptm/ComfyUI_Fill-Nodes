@@ -14,7 +14,7 @@ function addFileBrowserUI(node) {
     const DIRECTORY_Y_OFFSET = 30;
     const CLICK_Y_OFFSET = 0;
     const CLICK_X_OFFSET = -2;
-    const FAVORITES_Y_OFFSET = 200;
+    const FAVORITES_Y_OFFSET = 160;
     const DIVIDER_WIDTH = 13;
 
     const rootDirectoryWidget = node.widgets.find(w => w.name === "root_directory");
@@ -25,7 +25,7 @@ function addFileBrowserUI(node) {
 
     const MIN_WIDTH = 430;
     const MIN_HEIGHT = 550;
-    const TOP_PADDING = 250;
+    const TOP_PADDING = 210;
     const BOTTOM_PADDING = 20;
     const FOLDER_HEIGHT = 30;
     const INDENT_WIDTH = 20;
