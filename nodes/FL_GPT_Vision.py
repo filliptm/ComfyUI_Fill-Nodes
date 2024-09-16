@@ -7,7 +7,6 @@ import sys
 from tqdm import tqdm
 import base64
 
-# removed api key from input for safer use
 class FL_GPT_Vision:
     @classmethod
     def INPUT_TYPES(cls):
@@ -18,12 +17,13 @@ class FL_GPT_Vision:
                     "default": "You are a helpful assistant that describes images accurately and concisely.",
                     "multiline": True}),
                 "request_prompt": ("STRING", {"default": "Describe this image in detail.", "multiline": True}),
-                "output_directory": ("STRING", {"default": ""}),
                 "overwrite": ("BOOLEAN", {"default": False}),
                 "max_tokens": ("INT", {"default": 300, "min": 1, "max": 4096}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0, "step": 0.1}),
                 "detail": (["auto", "low", "high"],),
                 "batch_size": ("INT", {"default": 5, "min": 1, "max": 20}),
+                "upload_resolution": (["512", "768", "1024"],),
+                "output_directory": ("STRING", {"default": ""}),
             },
             "optional": {
                 "images": ("IMAGE",),
@@ -35,9 +35,21 @@ class FL_GPT_Vision:
     RETURN_NAMES = ("message", "output_directory")
     FUNCTION = "generate_captions"
     CATEGORY = "🏵️Fill Nodes/GPT"
+    OUTPUT_NODE = True
+
+    def resize_image(self, img, target_size):
+        width, height = img.size
+        aspect_ratio = width / height
+        if width > height:
+            new_width = target_size
+            new_height = int(target_size / aspect_ratio)
+        else:
+            new_height = target_size
+            new_width = int(target_size * aspect_ratio)
+        return img.resize((new_width, new_height), Image.LANCZOS)
 
     async def process_image(self, session, img, img_filename, output_directory, overwrite, api_key, model,
-                            system_prompt, request_prompt, max_tokens, temperature, detail):
+                            system_prompt, request_prompt, max_tokens, temperature, detail, upload_resolution):
         caption_filename = os.path.splitext(img_filename)[0] + ".txt"
         img_path = os.path.join(output_directory, img_filename)
         caption_path = os.path.join(output_directory, caption_filename)
@@ -45,12 +57,15 @@ class FL_GPT_Vision:
         if not overwrite and os.path.exists(caption_path):
             return None
 
-        # Save the image
+        # Save the original image
         img.save(img_path)
 
-        # Encode image to base64
+        # Resize image for API upload
+        resized_img = self.resize_image(img, int(upload_resolution))
+
+        # Encode resized image to base64
         buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
+        resized_img.save(buffered, format="PNG")
         img_str = base64.b64encode(buffered.getvalue()).decode()
 
         payload = {
@@ -101,8 +116,8 @@ class FL_GPT_Vision:
         return await asyncio.gather(*tasks)
 
     def generate_captions(self, model, system_prompt, request_prompt, output_directory, overwrite, max_tokens,
-                          temperature, detail, batch_size, images=None, input_directory=None):
-        api_key = os.getenv("OPENAI_API_KEY") #looks for api key in env variable
+                          temperature, detail, batch_size, upload_resolution, images=None, input_directory=None):
+        api_key = os.getenv("OPENAI_API_KEY")
         try:
             if not api_key:
                 raise ValueError("API key is not set as an environment variable")
@@ -140,7 +155,7 @@ class FL_GPT_Vision:
                     for batch in tqdm(batches, desc="Processing batches", file=sys.stdout):
                         batch_captions = await self.process_batch(batch, session, output_directory, overwrite, api_key,
                                                                   model, system_prompt, request_prompt, max_tokens,
-                                                                  temperature, detail)
+                                                                  temperature, detail, upload_resolution)
                         all_captions.extend(batch_captions)
                     return all_captions
 
