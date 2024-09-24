@@ -45,17 +45,17 @@ class FL_ImageCaptionSaver:
 
             # Convert tensor to numpy array
             image_np = image_tensor.cpu().numpy()
-            
+
             # Ensure the image is in the correct shape (height, width, channels)
             if image_np.shape[0] == 1:  # If the first dimension is 1, squeeze it
                 image_np = np.squeeze(image_np, axis=0)
-            
+
             # If the image is grayscale (2D), convert to RGB
             if len(image_np.shape) == 2:
                 image_np = np.stack((image_np,) * 3, axis=-1)
             elif image_np.shape[2] == 1:  # If it's (height, width, 1)
                 image_np = np.repeat(image_np, 3, axis=2)
-            
+
             # Ensure values are in 0-255 range
             image_np = (image_np * 255).clip(0, 255).astype(np.uint8)
 

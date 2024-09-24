@@ -69,6 +69,8 @@ from .nodes.FL_BulkPDFLoader import FL_BulkPDFLoader
 from .nodes.FL_SaveAndDisplayImage import FL_SaveAndDisplayImage
 from .nodes.FL_OllamaCaptioner import FL_OllamaCaptioner
 from .nodes.FL_ImageAdjuster import FL_ImageAdjuster
+from .nodes.FL_Caption_Saver_V2 import FL_CaptionSaver_V2
+from .nodes.FL_PathTypeChecker import FL_PathTypeChecker
 
 
 
@@ -145,6 +147,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_SaveAndDisplayImage": FL_SaveAndDisplayImage,
     "FL_OllamaCaptioner": FL_OllamaCaptioner,
     "FL_ImageAdjuster": FL_ImageAdjuster,
+    "FL_CaptionSaver_V2": FL_CaptionSaver_V2,
+    "FL_PathTypeChecker": FL_PathTypeChecker,
 
 }
 
@@ -220,6 +224,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_SaveAndDisplayImage": "FL Save And Display Image",
     "FL_OllamaCaptioner": "FL Ollama Captioner by Cosmic",
     "FL_ImageAdjuster": "FL_ImageAdjuster",
+    "FL_CaptionSaver_V2": "FL Caption Saver V2",
+    "FL_PathTypeChecker": "FL Path Type Checker",
 
 }
 
