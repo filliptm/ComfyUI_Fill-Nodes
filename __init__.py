@@ -71,6 +71,7 @@ from .nodes.FL_OllamaCaptioner import FL_OllamaCaptioner
 from .nodes.FL_ImageAdjuster import FL_ImageAdjuster
 from .nodes.FL_Caption_Saver_V2 import FL_CaptionSaver_V2
 from .nodes.FL_PathTypeChecker import FL_PathTypeChecker
+from .nodes.FL_SaveWebpImages import FL_SaveWebPImage
 
 
 
@@ -149,6 +150,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_ImageAdjuster": FL_ImageAdjuster,
     "FL_CaptionSaver_V2": FL_CaptionSaver_V2,
     "FL_PathTypeChecker": FL_PathTypeChecker,
+    "FL_SaveWebPImage(SaveImage)": FL_SaveWebPImage,
 
 }
 
@@ -223,9 +225,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_BulkPDFLoader": "FL Bulk PDF Loader",
     "FL_SaveAndDisplayImage": "FL Save And Display Image",
     "FL_OllamaCaptioner": "FL Ollama Captioner by Cosmic",
-    "FL_ImageAdjuster": "FL_ImageAdjuster",
+    "FL_ImageAdjuster": "FL Image Adjuster",
     "FL_CaptionSaver_V2": "FL Caption Saver V2",
     "FL_PathTypeChecker": "FL Path Type Checker",
+    "FL_SaveWebPImage(SaveImage)": "FL Save WebP Image",
 
 }
 
