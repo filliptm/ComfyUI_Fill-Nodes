@@ -16,5 +16,4 @@ PyMuPDF
 reportlab
 PyPDF2
 ollama
-fitz
 kornia
