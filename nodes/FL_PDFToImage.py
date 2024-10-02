@@ -1,8 +1,10 @@
 import io
+import zlib
 import torch
 from PIL import Image
 import numpy as np
-from pdf2image import convert_from_bytes  # pdf2image is used instead of fitz
+from PyPDF2 import PdfReader
+
 
 class FL_PDFToImages:
     @classmethod
@@ -34,17 +36,52 @@ class FL_PDFToImages:
     def _process_single_pdf(self, pdf, dpi):
         try:
             pdf_content = pdf['content']
-
-            # Convert the PDF to images using pdf2image
-            pil_images = convert_from_bytes(pdf_content, dpi=dpi)
-
+            pdf_reader = PdfReader(io.BytesIO(pdf_content))
             images = []
-            for img in pil_images:
-                # Convert PIL Image to numpy array and then to tensor in the format [B, H, W, C]
-                img_np = np.array(img).astype(np.float32) / 255.0
-                img_tensor = torch.from_numpy(img_np).unsqueeze(0)  # Add batch dimension
 
-                images.append(img_tensor)
+            for page_num, page in enumerate(pdf_reader.pages):
+                if '/XObject' in page['/Resources']:
+                    xObject = page['/Resources']['/XObject'].get_object()
+                    for obj in xObject:
+                        if xObject[obj]['/Subtype'] == '/Image':
+                            base_image = xObject[obj]
+                            filter_type = base_image.get('/Filter')
+
+                            # Handle combined filters like ASCII85Decode and FlateDecode
+                            if filter_type == ['/ASCII85Decode', '/FlateDecode']:
+                                # First decode ASCII85
+                                decoded_data = base_image.get_data()  # PyPDF2 handles this
+
+                                # Recreate the image using the decompressed data
+                                img = Image.frombytes(
+                                    "RGB",
+                                    (base_image.get('/Width'), base_image.get('/Height')),
+                                    decoded_data
+                                )
+                            elif filter_type == '/DCTDecode':
+                                # JPEG format
+                                img = Image.open(io.BytesIO(base_image.get_data()))
+                            elif filter_type == '/FlateDecode':
+                                # PNG-like format
+                                img = Image.frombytes(
+                                    "RGB",
+                                    (base_image.get('/Width'), base_image.get('/Height')),
+                                    base_image.get_data()
+                                )
+                            elif filter_type == '/JPXDecode':
+                                # JPEG2000 format (rare)
+                                img = Image.open(io.BytesIO(base_image.get_data()))
+                            elif filter_type == '/LZWDecode':
+                                # LZWDecode compression (used for certain images)
+                                img = Image.open(io.BytesIO(base_image.get_data()))
+                            else:
+                                print(f"Encountered unsupported image filter: {filter_type}")
+                                raise RuntimeError(f"Unsupported image format or filter: {filter_type}")
+
+                            # Convert image to tensor
+                            img_np = np.array(img.convert("RGB")).astype(np.float32) / 255.0
+                            img_tensor = torch.from_numpy(img_np).unsqueeze(0)  # Add batch dimension
+                            images.append(img_tensor)
 
             return images
 

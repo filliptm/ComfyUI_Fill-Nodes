@@ -2,7 +2,8 @@ import io
 import torch
 from PIL import Image
 import numpy as np
-from pdf2image import convert_from_bytes
+from PyPDF2 import PdfReader
+
 
 class FL_PDFImageExtractor:
     @classmethod
@@ -23,22 +24,53 @@ class FL_PDFImageExtractor:
 
     def extract_images(self, pdf, min_width, min_height):
         try:
-            pdf_content = pdf['content']
-
-            # Convert the PDF to images using pdf2image
-            pil_images = convert_from_bytes(pdf_content)
-
+            pdf_reader = PdfReader(io.BytesIO(pdf['content']))
             extracted_images = []
-            for img in pil_images:
-                # Filter out images that don't meet the size criteria
-                if img.width >= min_width and img.height >= min_height:
-                    # Convert PIL Image to numpy array
-                    img_np = np.array(img.convert("RGB")).astype(np.float32) / 255.0
 
-                    # Convert to tensor in the format [1, H, W, C]
-                    img_tensor = torch.from_numpy(img_np).unsqueeze(0)
+            for page_num, page in enumerate(pdf_reader.pages):
+                if '/XObject' in page['/Resources']:
+                    xObject = page['/Resources']['/XObject'].get_object()
+                    for obj in xObject:
+                        if xObject[obj]['/Subtype'] == '/Image':
+                            base_image = xObject[obj]
+                            filter_type = base_image.get('/Filter')
 
-                    extracted_images.append(img_tensor)
+                            # Get decoded image data directly from PyPDF2
+                            if filter_type == ['/ASCII85Decode', '/FlateDecode']:
+                                decoded_data = base_image.get_data()  # PyPDF2 automatically decodes this
+
+                                # Recreate the image using the decompressed data
+                                img = Image.frombytes(
+                                    "RGB",
+                                    (base_image.get('/Width'), base_image.get('/Height')),
+                                    decoded_data
+                                )
+                            elif filter_type == '/DCTDecode':
+                                # JPEG format
+                                img = Image.open(io.BytesIO(base_image.get_data()))
+                            elif filter_type == '/FlateDecode':
+                                # PNG-like format
+                                img = Image.frombytes(
+                                    "RGB",
+                                    (base_image.get('/Width'), base_image.get('/Height')),
+                                    base_image.get_data()
+                                )
+                            elif filter_type == '/JPXDecode':
+                                # JPEG2000 format (rare)
+                                img = Image.open(io.BytesIO(base_image.get_data()))
+                            elif filter_type == '/LZWDecode':
+                                # LZWDecode compression (used for certain images)
+                                img = Image.open(io.BytesIO(base_image.get_data()))
+                            else:
+                                print(f"Encountered unsupported image filter: {filter_type}")
+                                raise RuntimeError(f"Unsupported image format or filter: {filter_type}")
+
+                            # Check image size and convert to tensor
+                            if img.width >= min_width and img.height >= min_height:
+                                img_np = np.array(img.convert("RGB")).astype(np.float32) / 255.0
+                                img_tensor = torch.from_numpy(img_np).unsqueeze(0)
+
+                                extracted_images.append(img_tensor)
 
             if not extracted_images:
                 # Return a dummy tensor if no images were extracted
