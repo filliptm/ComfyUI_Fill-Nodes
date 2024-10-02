@@ -1,9 +1,8 @@
 import io
-import fitz  # PyMuPDF
 import torch
 from PIL import Image
 import numpy as np
-
+from pdf2image import convert_from_bytes
 
 class FL_PDFImageExtractor:
     @classmethod
@@ -24,28 +23,22 @@ class FL_PDFImageExtractor:
 
     def extract_images(self, pdf, min_width, min_height):
         try:
-            doc = fitz.open(stream=pdf['content'], filetype="pdf")
+            pdf_content = pdf['content']
+
+            # Convert the PDF to images using pdf2image
+            pil_images = convert_from_bytes(pdf_content)
+
             extracted_images = []
+            for img in pil_images:
+                # Filter out images that don't meet the size criteria
+                if img.width >= min_width and img.height >= min_height:
+                    # Convert PIL Image to numpy array
+                    img_np = np.array(img.convert("RGB")).astype(np.float32) / 255.0
 
-            for page_num in range(len(doc)):
-                page = doc[page_num]
-                image_list = page.get_images(full=True)
+                    # Convert to tensor in the format [1, H, W, C]
+                    img_tensor = torch.from_numpy(img_np).unsqueeze(0)
 
-                for img_index, img in enumerate(image_list):
-                    xref = img[0]
-                    base_image = doc.extract_image(xref)
-                    image_bytes = base_image["image"]
-
-                    image = Image.open(io.BytesIO(image_bytes))
-
-                    if image.width >= min_width and image.height >= min_height:
-                        # Convert PIL Image to numpy array
-                        img_np = np.array(image.convert("RGB")).astype(np.float32) / 255.0
-
-                        # Convert to tensor in the format [1, H, W, C]
-                        img_tensor = torch.from_numpy(img_np).unsqueeze(0)
-
-                        extracted_images.append(img_tensor)
+                    extracted_images.append(img_tensor)
 
             if not extracted_images:
                 # Return a dummy tensor if no images were extracted

@@ -1,9 +1,8 @@
 import io
-import fitz  # PyMuPDF
 import torch
 from PIL import Image
 import numpy as np
-
+from pdf2image import convert_from_bytes  # pdf2image is used instead of fitz
 
 class FL_PDFToImages:
     @classmethod
@@ -36,23 +35,12 @@ class FL_PDFToImages:
         try:
             pdf_content = pdf['content']
 
+            # Convert the PDF to images using pdf2image
+            pil_images = convert_from_bytes(pdf_content, dpi=dpi)
+
             images = []
-
-            # Open the PDF
-            doc = fitz.open(stream=pdf_content, filetype="pdf")
-
-            for page in doc:
-                # Set the resolution
-                zoom = dpi / 72  # 72 is the default DPI for PDF
-                mat = fitz.Matrix(zoom, zoom)
-
-                # Render page to an image
-                pix = page.get_pixmap(matrix=mat)
-
-                # Convert to PIL Image
-                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-
-                # Convert PIL Image to tensor in the format [B, H, W, C]
+            for img in pil_images:
+                # Convert PIL Image to numpy array and then to tensor in the format [B, H, W, C]
                 img_np = np.array(img).astype(np.float32) / 255.0
                 img_tensor = torch.from_numpy(img_np).unsqueeze(0)  # Add batch dimension
 
