@@ -7,7 +7,7 @@ class FL_MadLibGenerator:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "MadLib": ("STRING", {"multiline": True}),
+                "template": ("STRING", {"multiline": True}),
                 "delimiter_1": ("STRING", {"default": "(1)"}),
                 "delimiter_2": ("STRING", {"default": "(2)"}),
                 "delimiter_3": ("STRING", {"default": "(3)"}),
