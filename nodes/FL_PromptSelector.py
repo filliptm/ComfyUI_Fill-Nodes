@@ -13,7 +13,7 @@ class FL_PromptSelector:
 
     RETURN_TYPES = ("STRING",)
     FUNCTION = "select_prompt"
-    CATEGORY = "🏵️Fill Nodes/utility"
+    CATEGORY = "🏵️Fill Nodes/Prompting"
 
     def select_prompt(self, prepend_text, prompts, append_text, index):
         prepend_text = prepend_text.strip()

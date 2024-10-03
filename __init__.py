@@ -72,6 +72,7 @@ from .nodes.FL_ImageAdjuster import FL_ImageAdjuster
 from .nodes.FL_Caption_Saver_V2 import FL_CaptionSaver_V2
 from .nodes.FL_PathTypeChecker import FL_PathTypeChecker
 from .nodes.FL_SaveWebpImages import FL_SaveWebPImage
+from .nodes.FL_MadLibGenerator import FL_MadLibGenerator
 
 
 
@@ -151,6 +152,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_CaptionSaver_V2": FL_CaptionSaver_V2,
     "FL_PathTypeChecker": FL_PathTypeChecker,
     "FL_SaveWebPImage(SaveImage)": FL_SaveWebPImage,
+    "FL_MadLibGenerator": FL_MadLibGenerator,
 
 }
 
@@ -229,6 +231,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_CaptionSaver_V2": "FL Caption Saver V2",
     "FL_PathTypeChecker": "FL Path Type Checker",
     "FL_SaveWebPImage(SaveImage)": "FL Save WebP Image",
+    "FL_MadLibGenerator": "FL MadLib Generator",
 
 }
 
