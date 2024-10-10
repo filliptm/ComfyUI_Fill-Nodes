@@ -75,7 +75,7 @@ from .nodes.FL_SaveWebpImages import FL_SaveWebPImage
 from .nodes.FL_MadLibGenerator import FL_MadLibGenerator
 from .nodes.FL_Math import FL_Math
 from .nodes.FL_ImageSlicer import FL_ImageSlicer
-
+from .nodes.FL_HF_UploaderAbsolute import FL_HF_UploaderAbsolute
 
 
 
@@ -157,6 +157,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_MadLibGenerator": FL_MadLibGenerator,
     "FL_Math": FL_Math,
     "FL_ImageSlicer": FL_ImageSlicer,
+    "FL_HF_UploaderAbsolute": FL_HF_UploaderAbsolute,
 
 }
 
@@ -238,6 +239,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_MadLibGenerator": "FL MadLib Generator",
     "FL_Math": "FL Math",
     "FL_ImageSlicer": "FL Image Slicer",
+    "FL_HF_UploaderAbsolute": "FL HF Uploader Absolute",
 
 }
 
