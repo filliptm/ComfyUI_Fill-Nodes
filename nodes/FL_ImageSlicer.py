@@ -15,7 +15,7 @@ class FL_ImageSlicer:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "slice_image"
-    CATEGORY = "🏵️Fill Nodes/image"
+    CATEGORY = "🏵️Fill Nodes/Image"
 
     def slice_image(self, image, x_subdivisions, y_subdivisions):
         # Convert from torch tensor to PIL Image

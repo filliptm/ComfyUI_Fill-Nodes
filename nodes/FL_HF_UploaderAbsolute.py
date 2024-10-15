@@ -22,7 +22,6 @@ class FL_HF_UploaderAbsolute:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "api_key": ("STRING", {"multiline": False}),
                 "owner": ("STRING", {"default": ""}),
                 "repo_name": ("STRING", {"default": "my-awesome-model"}),
                 "upload_path": ("STRING", {"default": "folder1/folder2/folder3"}),
@@ -42,11 +41,16 @@ class FL_HF_UploaderAbsolute:
     FUNCTION = "upload_to_hub"
     CATEGORY = "🏵️Fill Nodes/Hugging Face"
 
-    def upload_to_hub(self, api_key: str, owner: str, repo_name: str, upload_path: str,
+    def upload_to_hub(self, owner: str, repo_name: str, upload_path: str,
                       create_new_repo: str, repo_type: str,
                       lora_file: str = "", dataset_zip: bytes = None,
                       caption_layout: torch.Tensor = None, caption_PDF_layout: bytes = None,
                       csv_file: bytes = None) -> tuple[str]:
+        # Get API key from environment variable
+        api_key = os.environ.get("HUGGINGFACE_API_KEY")
+        if not api_key:
+            return ("Error: HUGGINGFACE_API_KEY not found in environment variables.",)
+
         # Initialize Hugging Face API
         api = HfApi(token=api_key)
 
@@ -223,6 +227,6 @@ class FL_HF_UploaderAbsolute:
         print(f"CSV file uploaded successfully to {repo_path}")
 
     @classmethod
-    def IS_CHANGED(cls, api_key, owner, repo_name, upload_path, create_new_repo, repo_type,
+    def IS_CHANGED(cls, owner, repo_name, upload_path, create_new_repo, repo_type,
                    lora_file, dataset_zip, caption_layout, caption_PDF_layout, csv_file):
         return float("NaN")
