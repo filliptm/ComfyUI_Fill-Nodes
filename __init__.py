@@ -77,6 +77,9 @@ from .nodes.FL_Math import FL_Math
 from .nodes.FL_ImageSlicer import FL_ImageSlicer
 from .nodes.FL_HF_UploaderAbsolute import FL_HF_UploaderAbsolute
 from .nodes.FL_ImageBatchListConverter import FL_ImageListToImageBatch, FL_ImageBatchToImageList
+from .nodes.FL_ImageBatchToGrid import FL_ImageBatchToGrid
+from .nodes.FL_ApplyMask import FL_ApplyMask
+from .nodes.FL_ProResVideo import FL_ProResVideo
 
 
 
@@ -161,6 +164,9 @@ NODE_CLASS_MAPPINGS = {
     "FL_HF_UploaderAbsolute": FL_HF_UploaderAbsolute,
     "FL_ImageListToImageBatch": FL_ImageListToImageBatch,
     "FL_ImageBatchToImageList": FL_ImageBatchToImageList,
+    "FL_ImageBatchToGrid": FL_ImageBatchToGrid,
+    "FL_ApplyMask": FL_ApplyMask,
+    "FL_ProResVideo": FL_ProResVideo,
 
 }
 
@@ -245,6 +251,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_HF_UploaderAbsolute": "FL HF Uploader Absolute",
     "FL_ImageListToImageBatch": "FL Image List To Image Batch",
     "FL_ImageBatchToImageList": "FL Image Batch To Image List",
+    "FL_ImageBatchToGrid": "FL Image Batch To Grid",
+    "FL_ApplyMask": "FL Apply Mask",
+    "FL_ProResVideo": "FL ProRes Video",
 
 }
 

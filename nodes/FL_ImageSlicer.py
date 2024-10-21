@@ -8,8 +8,8 @@ class FL_ImageSlicer:
         return {
             "required": {
                 "image": ("IMAGE",),
-                "x_subdivisions": ("INT", {"default": 2, "min": 1, "max": 10, "step": 1}),
-                "y_subdivisions": ("INT", {"default": 2, "min": 1, "max": 10, "step": 1}),
+                "x_subdivisions": ("INT", {"default": 2, "min": 1, "max": 100, "step": 1}),
+                "y_subdivisions": ("INT", {"default": 2, "min": 1, "max": 100, "step": 1}),
             },
         }
 
