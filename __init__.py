@@ -80,6 +80,7 @@ from .nodes.FL_ImageBatchListConverter import FL_ImageListToImageBatch, FL_Image
 from .nodes.FL_ImageBatchToGrid import FL_ImageBatchToGrid
 from .nodes.FL_ApplyMask import FL_ApplyMask
 from .nodes.FL_ProResVideo import FL_ProResVideo
+from .nodes.FL_LoadHTML import FL_LoadHTML
 
 
 
@@ -167,6 +168,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_ImageBatchToGrid": FL_ImageBatchToGrid,
     "FL_ApplyMask": FL_ApplyMask,
     "FL_ProResVideo": FL_ProResVideo,
+    "FL_LoadHTML": FL_LoadHTML,
 
 }
 
@@ -254,6 +256,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_ImageBatchToGrid": "FL Image Batch To Grid",
     "FL_ApplyMask": "FL Apply Mask",
     "FL_ProResVideo": "FL ProRes Video",
+    "FL_LoadHTML": "FL_LoadHTML",
 
 }
 
