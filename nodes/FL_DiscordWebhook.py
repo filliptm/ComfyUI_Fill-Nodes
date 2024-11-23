@@ -2,7 +2,7 @@ import os
 import numpy as np
 import requests
 from PIL import Image
-from moviepy.editor import ImageSequenceClip
+import cv2
 import torch
 import tempfile
 import json
@@ -56,11 +56,25 @@ class FL_SendToDiscordWebhook:
                 }
                 response = requests.post(webhook_url, files=files)
         else:
-            frames = [255.0 * image.cpu().numpy() for image in images]
             file_path = os.path.join(output_dir, f"{filename}.mp4")
 
-            clip = ImageSequenceClip(frames, fps=frame_rate)
-            clip.write_videofile(file_path, codec="libx264", fps=frame_rate)
+            # Get dimensions from first frame
+            height, width = images[0].shape[0], images[0].shape[1]
+
+            # Initialize video writer
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(file_path, fourcc, frame_rate, (width, height))
+
+            # Write frames
+            for image in images:
+                # Convert from torch tensor to numpy array and scale to 0-255
+                frame = (255.0 * image.cpu().numpy()).astype(np.uint8)
+                # OpenCV expects BGR format
+                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                out.write(frame_bgr)
+
+            # Release the video writer
+            out.release()
 
             with open(file_path, 'rb') as file_data:
                 files = {
