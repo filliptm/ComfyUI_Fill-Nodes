@@ -81,7 +81,7 @@ from .nodes.FL_ImageBatchToGrid import FL_ImageBatchToGrid
 from .nodes.FL_ApplyMask import FL_ApplyMask
 from .nodes.FL_ProResVideo import FL_ProResVideo
 from .nodes.FL_Padding import FL_Padding
-
+from. nodes.FL_GoogleDriveDownloader import FL_GoogleDriveDownloader
 
 
 NODE_CLASS_MAPPINGS = {
@@ -169,6 +169,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_ApplyMask": FL_ApplyMask,
     "FL_ProResVideo": FL_ProResVideo,
     "FL_Padding": FL_Padding,
+    "FL_GoogleDriveDownloader": FL_GoogleDriveDownloader,
 
 }
 
@@ -257,6 +258,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_ApplyMask": "FL Apply Mask",
     "FL_ProResVideo": "FL ProRes Video",
     "FL_Padding": "FL Padding",
+    "FL_GoogleDriveDownloader": "FL_GoogleDriveDownloader",
 
 }
 
