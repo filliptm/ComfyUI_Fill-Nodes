@@ -83,6 +83,7 @@ from .nodes.FL_ProResVideo import FL_ProResVideo
 from .nodes.FL_Padding import FL_Padding
 from .nodes.FL_GoogleDriveDownloader import FL_GoogleDriveDownloader
 from .nodes.FL_NodeLoader import FL_NodeLoader
+from .nodes.FL_NodePackLoader import FL_NodePackLoader
 
 
 NODE_CLASS_MAPPINGS = {
@@ -172,6 +173,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_Padding": FL_Padding,
     "FL_GoogleDriveDownloader": FL_GoogleDriveDownloader,
     "FL_NodeLoader": FL_NodeLoader,
+    "FL_NodePackLoader": FL_NodePackLoader,
 
 }
 
@@ -262,6 +264,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Padding": "FL Padding",
     "FL_GoogleDriveDownloader": "FL Google Drive Downloader",
     "FL_NodeLoader": "FL Node Loader",
+    "FL_NodePackLoader": "FL Node Pack Loader",
 
 }
 
