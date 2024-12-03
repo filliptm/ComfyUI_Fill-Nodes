@@ -18,3 +18,4 @@ PyPDF2
 ollama
 kornia
 opencv-python
+gdown
