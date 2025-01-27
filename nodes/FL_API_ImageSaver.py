@@ -10,6 +10,7 @@ class FL_API_ImageSaver:
             "required": {
                 "image": ("IMAGE",),
                 "job_id": ("STRING",),
+                "user_id": ("STRING",),  # Added user_id input
                 "category": ("STRING",),
                 "base_output_dir": ("STRING", {"default": "/absolute/path/to/output"}),
                 "image_format": ("STRING", {
@@ -25,8 +26,8 @@ class FL_API_ImageSaver:
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "STRING")
-    RETURN_NAMES = ("saved_path", "job_id", "category")
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING")  # Added STRING for user_id
+    RETURN_NAMES = ("saved_path", "job_id", "user_id", "category")  # Added user_id
     FUNCTION = "save_categorized_image"
     CATEGORY = "🏵️Fill Nodes/API Tools"
     OUTPUT_NODE = True
@@ -34,6 +35,7 @@ class FL_API_ImageSaver:
     def save_categorized_image(self,
                              image: torch.Tensor,
                              job_id: str,
+                             user_id: str,  # Added user_id parameter
                              category: str,
                              base_output_dir: str,
                              image_format: str = "png",
@@ -48,9 +50,15 @@ class FL_API_ImageSaver:
             if not os.path.exists(category_dir):
                 os.makedirs(category_dir)
 
+            # Create user subdirectory inside category directory
+            user_dir = os.path.join(category_dir, user_id)
+            if not os.path.exists(user_dir):
+                os.makedirs(user_dir)
+
             # Prepare image filename
             filename = f"{job_id}.{image_format}"
-            full_path = os.path.join(category_dir, filename)
+            # Save in user directory instead of category directory
+            full_path = os.path.join(user_dir, filename)
 
             # Convert tensor to PIL Image
             i = 255. * image.cpu().numpy().squeeze()
@@ -65,11 +73,11 @@ class FL_API_ImageSaver:
                 img.save(full_path, 'PNG')
 
             print(f"Image saved successfully: {full_path}")
-            return (full_path, job_id, category)
+            return (full_path, job_id, user_id, category)  # Added user_id to return tuple
 
         except Exception as e:
             raise ValueError(f"Error saving image: {str(e)}")
 
     @classmethod
-    def IS_CHANGED(cls, image, job_id, category, base_output_dir, image_format, image_quality):
+    def IS_CHANGED(cls, image, job_id, user_id, category, base_output_dir, image_format, image_quality):  # Added user_id
         return float("NaN")

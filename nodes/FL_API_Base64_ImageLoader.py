@@ -13,6 +13,7 @@ class FL_API_Base64_ImageLoader:
             "required": {
                 "base64_string": ("STRING", {"default": "", "multiline": True}),
                 "job_id": ("STRING", {"default": ""}),
+                "user_id": ("STRING", {"default": ""}),  # Added user_id field
                 "category": ("STRING", {"default": ""}),
             },
             "optional": {
@@ -23,8 +24,8 @@ class FL_API_Base64_ImageLoader:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "INT", "INT", "STRING", "STRING")
-    RETURN_NAMES = ("image", "width", "height", "job_id", "category")
+    RETURN_TYPES = ("IMAGE", "INT", "INT", "STRING", "STRING", "STRING")  # Added STRING for user_id
+    RETURN_NAMES = ("image", "width", "height", "job_id", "user_id", "category")  # Added user_id
     FUNCTION = "load_base64_image"
     CATEGORY = "🏵️Fill Nodes/API Tools"
 
@@ -58,13 +59,14 @@ class FL_API_Base64_ImageLoader:
                     target_height if target_height != 0 else original_height)
 
     def load_base64_image(self,
-                          base64_string: str,
-                          job_id: str,
-                          category: str,
-                          resize_width: int = 0,
-                          resize_height: int = 0,
-                          maintain_aspect_ratio: bool = True,
-                          auto_clean_base64: bool = True) -> tuple:
+                         base64_string: str,
+                         job_id: str,
+                         user_id: str,  # Added user_id parameter
+                         category: str,
+                         resize_width: int = 0,
+                         resize_height: int = 0,
+                         maintain_aspect_ratio: bool = True,
+                         auto_clean_base64: bool = True) -> tuple:
         try:
             # Clean base64 string if enabled
             if auto_clean_base64:
@@ -100,12 +102,12 @@ class FL_API_Base64_ImageLoader:
             # Reshape to ComfyUI's expected format [batch, height, width, channels]
             image_tensor = torch.from_numpy(image_array).unsqueeze(0)
 
-            return (image_tensor, new_width, new_height, job_id, category)
+            return (image_tensor, new_width, new_height, job_id, user_id, category)  # Added user_id to return tuple
 
         except Exception as e:
             raise ValueError(f"Error loading base64 image: {str(e)}")
 
     @classmethod
-    def IS_CHANGED(cls, base64_string, job_id, category, resize_width, resize_height, maintain_aspect_ratio,
-                   auto_clean_base64):
+    def IS_CHANGED(cls, base64_string, job_id, user_id, category, resize_width, resize_height, maintain_aspect_ratio,
+                   auto_clean_base64):  # Added user_id to IS_CHANGED
         return float("NaN")
