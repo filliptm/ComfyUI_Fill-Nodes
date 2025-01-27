@@ -6,7 +6,7 @@ import io
 import re
 
 
-class FL_Base64ImageLoader:
+class FL_API_Base64_ImageLoader:
     @classmethod
     def INPUT_TYPES(cls):
         return {
