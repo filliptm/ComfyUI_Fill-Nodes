@@ -86,6 +86,7 @@ from .nodes.FL_NodeLoader import FL_NodeLoader
 from .nodes.FL_NodePackLoader import FL_NodePackLoader
 from .nodes.FL_API_Base64_ImageLoader import FL_API_Base64_ImageLoader
 from .nodes.FL_API_ImageSaver import FL_API_ImageSaver
+from .nodes.FL_GoogleDriveImageDownloader import FL_GoogleDriveImageDownloader
 
 
 NODE_CLASS_MAPPINGS = {
@@ -178,6 +179,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_NodePackLoader": FL_NodePackLoader,
     "FL_API_Base64_ImageLoader": FL_API_Base64_ImageLoader,
     "FL_API_ImageSaver": FL_API_ImageSaver,
+    "FL_GoogleDriveImageDownloader": FL_GoogleDriveImageDownloader,
 
 }
 
@@ -271,6 +273,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_NodePackLoader": "FL Node Pack Loader",
     "FL_API_Base64_ImageLoader": "FL API Base64 Image Loader",
     "FL_API_ImageSaver": "FL API Image Saver",
+    "FL_GoogleDriveImageDownloader": "FL Google Drive Image Downloader",
 
 }
 

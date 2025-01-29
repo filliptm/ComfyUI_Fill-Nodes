@@ -18,7 +18,7 @@ class FL_GoogleDriveDownloader:
 
     RETURN_TYPES = ("STRING",)
     FUNCTION = "download_and_extract"
-    CATEGORY = "🏵️Fill Nodes/File Operations"
+    CATEGORY = "🏵️Fill Nodes/Google Drive"
     OUTPUT_NODE=True
 
     def extract_file_id_from_link(self, share_link: str) -> str:
