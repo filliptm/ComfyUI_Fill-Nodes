@@ -13,7 +13,7 @@ class FL_ApplyMask:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "apply_mask"
-    CATEGORY = "🏵️Fill Nodes/image"
+    CATEGORY = "🏵️Fill Nodes/Image"
 
     def apply_mask(self, image, mask):
         # Ensure the image is in the correct format (B, H, W, C)

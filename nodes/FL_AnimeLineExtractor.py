@@ -47,7 +47,7 @@ class FL_AnimeLineExtractor:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "extract_lines"
-    CATEGORY = "🏵️Fill Nodes/Image Processing"
+    CATEGORY = "🏵️Fill Nodes/Image"
 
     def extract_lines(self, image, line_threshold, line_width, detail_level, noise_reduction, invert_output):
         if isinstance(image, torch.Tensor):

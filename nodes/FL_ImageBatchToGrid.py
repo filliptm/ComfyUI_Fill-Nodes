@@ -18,7 +18,7 @@ class FL_ImageBatchToGrid:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "create_grid"
-    CATEGORY = "🏵️Fill Nodes/image"
+    CATEGORY = "🏵️Fill Nodes/Image"
 
     def create_grid(self, images, images_per_row):
         batch_size, height, width, channels = images.shape
