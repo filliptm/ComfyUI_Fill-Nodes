@@ -89,6 +89,7 @@ from .nodes.FL_API_ImageSaver import FL_API_ImageSaver
 from .nodes.FL_GoogleDriveImageDownloader import FL_GoogleDriveImageDownloader
 from .nodes.FL_AnimeLineExtractor import FL_AnimeLineExtractor
 from .nodes.FL_HunyuanDelight import FL_HunyuanDelight
+from .nodes.FL_ClipScanner import FL_ClipScanner
 
 
 NODE_CLASS_MAPPINGS = {
@@ -184,6 +185,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_GoogleDriveImageDownloader": FL_GoogleDriveImageDownloader,
     "FL_AnimeLineExtractor": FL_AnimeLineExtractor,
     "FL_HunyuanDelight": FL_HunyuanDelight,
+    "FL_ClipScanner": FL_ClipScanner,
 
 }
 
@@ -280,6 +282,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_GoogleDriveImageDownloader": "FL Google Drive Image Downloader",
     "FL_AnimeLineExtractor": "FL Anime Line Extractor",
     "FL_HunyuanDelight": "FL Hunyuan Delight",
+    "FL_ClipScanner": "FL Clip Scanner (Kytra)",
 
 }
 
