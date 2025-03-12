@@ -67,7 +67,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![Image Nodes Example](../images/image_nodes_example.png)
+![Image Nodes Example](images/nodes/images_nodes.png)
 
 </details>
 
@@ -91,7 +91,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![Captioning Nodes Example](../images/captioning_nodes_example.png)
+![Captioning Nodes Example](images/nodes/captioning_nodes.png)
 
 </details>
 
@@ -119,7 +119,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![VFX Nodes Example](../images/vfx_nodes_example.png)
+![VFX Nodes Example](images/nodes/VFX_nodes.png)
 
 </details>
 
@@ -148,7 +148,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![Utility Nodes Example](../images/utility_nodes_example.png)
+![Utility Nodes Example](images/nodes/Utility_nodes.png)
 
 </details>
 
@@ -171,7 +171,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![KSamplers Nodes Example](../images/ksamplers_nodes_example.png)
+![KSamplers Nodes Example](images/nodes/ksampler_nodes.png)
 
 </details>
 
@@ -195,7 +195,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![PDF Nodes Example](../images/pdf_nodes_example.png)
+![PDF Nodes Example](images/nodes/pDF_nodes.png)
 
 </details>
 
@@ -215,7 +215,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![GPT Nodes Example](../images/gpt_nodes_example.png)
+![GPT Nodes Example](images/nodes/gpt_nodes.png)
 
 </details>
 
@@ -235,7 +235,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![Experimental Nodes Example](../images/experimental_nodes_example.png)
+![Experimental Nodes Example](images/nodes/experimental.png)
 
 </details>
 
@@ -253,7 +253,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![Prompting Nodes Example](../images/prompting_nodes_example.png)
+![Prompting Nodes Example](images/nodes/prompting.png)
 
 </details>
 
@@ -271,7 +271,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![File Operation Nodes Example](../images/file_operation_nodes_example.png)
+![File Operation Nodes Example](images/nodes/zip.png)
 
 </details>
 
@@ -289,7 +289,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![Google Drive Nodes Example](../images/google_drive_nodes_example.png)
+![Google Drive Nodes Example](images/nodes/googledrive.png)
 
 </details>
 
@@ -307,7 +307,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![API Tool Nodes Example](../images/api_tool_nodes_example.png)
+![API Tool Nodes Example](images/nodes/api.png)
 
 </details>
 
@@ -326,7 +326,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![Hugging Face Nodes Example](../images/hugging_face_nodes_example.png)
+![Hugging Face Nodes Example](images/nodes/HF.png)
 
 </details>
 
@@ -343,7 +343,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![Analysis Nodes Example](../images/analysis_nodes_example.png)
+![Analysis Nodes Example](images/nodes/clip.png)
 
 </details>
 
@@ -361,7 +361,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![Loader Nodes Example](../images/loader_nodes_example.png)
+![Loader Nodes Example](images/nodes/loaders.png)
 
 </details>
 
@@ -378,7 +378,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![Discord Nodes Example](../images/discord_nodes_example.png)
+![Discord Nodes Example](images/nodes/discord.png)
 
 </details>
 
@@ -396,7 +396,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![WIP Nodes Example](../images/wip_nodes_example.png)
+![WIP Nodes Example](images/nodes/wip.png)
 
 </details>
 
@@ -414,7 +414,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![Game Nodes Example](../images/game_nodes_example.png)
+![Game Nodes Example](images/nodes/games.png)
 
 </details>
 
@@ -431,7 +431,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![Math Nodes Example](../images/math_nodes_example.png)
+![Math Nodes Example](images/nodes/math.png)
 
 </details>
 
@@ -450,7 +450,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![Video Nodes Example](../images/video_nodes_example.png)
+![Video Nodes Example](images/nodes/video.png)
 
 </details>
 
@@ -467,7 +467,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 
 ### 📷 Screenshots & Examples
 
-![AI Nodes Example](../images/ai_nodes_example.png)
+![AI Nodes Example](images/nodes/ai.png)
 
 </details>
 
@@ -483,8 +483,6 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 | `FL_NodePackLoader` | Enhanced trigger node that forces processing on every execution regardless of input changes. Uses NaN for change detection to ensure the node always executes when triggered, providing a reliable mechanism for loading node packs. |
 
 ### 📷 Screenshots & Examples
-
-![Utils Example](../images/utils_example.png)
 
 </details>
 
