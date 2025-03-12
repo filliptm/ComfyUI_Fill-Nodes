@@ -1,147 +1,496 @@
-# ComfyUI_Fill-Nodes
+# 🏵️ Fill-Nodes Documentation
 
-Image randomizer from directory, Image Captioning saver.
+![Fill-Nodes Banner](../images/banner.png)
 
-Image randomizer: - A load image directory node that allows you to pull images either in sequence (Per que render) or at random (also per que render)
--
-## Video
+> *A comprehensive collection of custom nodes for ComfyUI providing a wide range of functionality from image manipulation to PDF handling, AI integration, and more.*
 
+## 🔍 Table of Contents
 
-https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/8d222109-cda1-40f8-9558-6f8136e07617
+<div style="columns: 3; column-gap: 20px;">
 
-It uses a dummy int value that you attach a seed to to enure that it will continue to pull new images from your directory even if the seed is fixed. In order to do this right click the node and turn the run trigger
-into an input and connect a seed generator of your choice set to random.
+- [🖼️ Image Nodes](#image-nodes)
+- [📝 Captioning Nodes](#captioning-nodes)
+- [✨ VFX Nodes](#vfx-nodes)
+- [🛠️ Utility Nodes](#utility-nodes)
+- [🎲 KSamplers Nodes](#ksamplers-nodes)
+- [📄 PDF Nodes](#pdf-nodes)
+- [🤖 GPT Nodes](#gpt-nodes)
+- [🧪 Experimental Nodes](#experimental-nodes)
+- [💬 Prompting Nodes](#prompting-nodes)
+- [📂 File Operation Nodes](#file-operation-nodes)
+- [☁️ Google Drive Nodes](#google-drive-nodes)
+- [🔌 API Tool Nodes](#api-tool-nodes)
+- [🤗 Hugging Face Nodes](#hugging-face-nodes)
+- [📊 Analysis Nodes](#analysis-nodes)
+- [⏬ Loader Nodes](#loader-nodes)
+- [💬 Discord Nodes](#discord-nodes)
+- [🚧 Work-in-Progress Nodes](#work-in-progress-nodes)
+- [🎮 Game Nodes](#game-nodes)
+- [🧮 Math Nodes](#math-nodes)
+- [🎬 Video Nodes](#video-nodes)
+- [🧠 AI Nodes](#ai-nodes)
+- [🔧 Utils](#utils)
 
-interesting uses for this
+</div>
 
+---
 
-  -loading up a directory and letting it cycle through all your images in order
+<details>
+<summary><h2 id="image-nodes">🖼️ Image Nodes</h2></summary>
 
-  -connecting this node to something like IPAdapter, while being set to random, allowing you to cycle through styles via images
+> *Nodes for manipulating, analyzing, and working with images.*
 
-  -batch processing of any kind on large amounts of images
+| Node | Description |
+|------|-------------|
+| `FL_AnimeLineExtractor` | Extracts line art from anime-style images |
+| `FL_ApplyMask` | Applies a mask to an image |
+| `FL_Image_Dimension_Display` | Displays image dimensions |
+| `FL_Image_Pixelator` | Creates pixelated versions of images |
+| `FL_Image_Randomizer` | Randomizes aspects of images |
+| `FL_ImageAdjuster` | Adjusts image properties like brightness and contrast |
+| `FL_ImageBatchListConverter` | Converts between image batches and lists |
+| `FL_ImageBatchToGrid` | Arranges image batches into a grid layout |
+| `FL_ImageNotes` | Adds notes to images |
+| `FL_ImageSlicer` | Slices images into smaller pieces |
+| `FL_LoadImage` | Loads images from disk |
+| `FL_SaveAndDisplayImage` | Saves and displays images |
 
-Image Captioning saver: - takes an input image (single or batch) and saves a matching .txt file with the image with desired captioning.
--
-Both files will be over written for continuous experimentation. Required to have an output attached for monitoring. Will overwrite images and text on each run. Built this node to save Lora captions from my Dataset Creator
+### 📷 Screenshots & Examples
 
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/69ab3151-2e16-4b54-b9ae-17e4bf0f0157)
+![Image Nodes Example](../images/image_nodes_example.png)
 
-Dimension Display: - Simply shows the dimension of an image in a string for monitoring. No need for INTS.
--
+</details>
 
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/05286d8f-bf8b-4737-b2f8-635a14f42d7a)
+---
 
+<details>
+<summary><h2 id="captioning-nodes">📝 Captioning Nodes</h2></summary>
 
+> *Nodes for generating, saving, and manipulating image and video captions.*
 
-Pixelator: - Custom effect that bit reduces an image and makes it black and white. See examples
--
+| Node | Description |
+|------|-------------|
+| `FL_Caption_Saver_V2` | Enhanced version of caption saver |
+| `FL_CaptionToCSV` | Converts captions to CSV format |
+| `FL_Image_Caption_Saver` | Saves captions for images |
+| `FL_ImageCaptionLayout` | Creates layouts combining images and captions |
+| `FL_ImageCaptionLayoutPDF` | Creates PDF layouts with images and captions |
+| `FL_MirrorAndAppendCaptions` | Mirrors and appends captions to images |
+| `FL_OllamaCaptioner` | Generates captions using Ollama models |
+| `FL_Video_Caption_Saver` | Saves captions for videos |
 
-current implementation requires you to break batches into a list and back into a batch if you want to use it on video. for VRAM management.
+### 📷 Screenshots & Examples
 
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/6806e256-0f57-48eb-be96-02f880f68de0)
+![Captioning Nodes Example](../images/captioning_nodes_example.png)
 
+</details>
 
-Audio Tools (WIP): - Load audio, scans for BPM, crops audio to desired bars and duration
--
+---
 
-other nodes that are a work in progress take the sliced audio/bpm/fps and hold an image for the duration.
-There is also a VHS converter node that allows you to load audio into the VHS video combine for audio insertion on the fly!
+<details>
+<summary><h2 id="vfx-nodes">✨ VFX Nodes</h2></summary>
 
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/e1b642e2-29d7-442a-a657-a32ca0fac9c4)
+> *Nodes for applying visual effects to images.*
 
-Directory Crawler: - Simple node that loads all images in a directory and any subdirectories as well
--
+| Node | Description |
+|------|-------------|
+| `FL_Ascii` | Converts images to ASCII art |
+| `FL_Dither` | Applies dithering effects to images |
+| `FL_Glitch` | Creates glitch effects |
+| `FL_HalfTone` | Applies halftone patterns to images |
+| `FL_HexagonalPattern` | Creates hexagonal patterns from images |
+| `FL_InfiniteZoom` | Creates infinite zoom effects |
+| `FL_PaperDrawn` | Applies paper drawing effects |
+| `FL_PixelArt` | Transforms images into pixel art style |
+| `FL_PixelSort` | Applies pixel sorting algorithms |
+| `FL_RetroEffect` | Applies retro-style effects |
+| `FL_Ripple` | Creates ripple/wave effects |
+| `FL_Shader` | Applies custom shaders to images |
 
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/7f6862c7-60dc-4561-8b58-72b489903107)
+### 📷 Screenshots & Examples
 
+![VFX Nodes Example](../images/vfx_nodes_example.png)
 
-Raw Code Node: - Simple node that loads Python and allows you to dev inside comfy without having to reload the instance every time
--
-Great for developing ideas and writing custom stuff quickly
+</details>
 
+---
 
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/db439865-e3c5-4e52-b37c-c3ba601c0840)
+<details>
+<summary><h2 id="utility-nodes">🛠️ Utility Nodes</h2></summary>
 
-Glitch: Video and image effect
--
-Slices up your image or video to make a glitching feel
+> *General utility nodes for various tasks.*
 
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/b9bc2f82-19e3-4877-bb98-0801c4ceb96f)
+| Node | Description |
+|------|-------------|
+| `FL_Code_Node` | Runs custom code |
+| `FL_DirectoryCrawl` | Crawls directories for files |
+| `FL_ImageCollage` | Creates collages from multiple images |
+| `FL_InpaintCrop` | Crops images for inpainting |
+| `FL_Padding` | Adds padding to images |
+| `FL_PasteOnCanvas` | Pastes images onto a canvas |
+| `FL_PathTypeChecker` | Checks path types |
+| `FL_RandomRange` | Generates random numbers in a range |
+| `FL_SaveImages` | Saves images to disk |
+| `FL_SaveWebPImage` | Saves images in WebP format |
+| `FL_SD_Slices` | Creates slices for Stable Diffusion processing |
+| `FL_SeparateMaskComponents` | Separates mask components |
+| `FL_SystemCheck` | Performs system checks |
 
-Ripple: Video and image effect
--
-Ripples your video or image
+### 📷 Screenshots & Examples
 
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/660983b1-1090-400b-9c92-4e5d3a1eb2b6)
+![Utility Nodes Example](../images/utility_nodes_example.png)
 
-Pixel Sort: Video and image
--
-CAUTION: This node is a very heavy operation. It takes 5-10 seconds per frame. (WIP)
+</details>
 
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/7ab1785a-fab7-4206-bf9b-fef48896b518)
+---
 
-Hexagon: Video an image
--
-This one is really fun. It masks your image and video in slices, but thats not all! Each slice acts as its own video or image when you start rotating and messing with the parameters.
+<details>
+<summary><h2 id="ksamplers-nodes">🎲 KSamplers Nodes</h2></summary>
 
-![image](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/06ddaae1-2c1e-41c0-af7f-d713f1bc6d91)
+> *Nodes for sampling in the generation process.*
 
-Ascii: Video and image
--
-This one allows for a TON of different styles. This node also works with Alt Codes like this: alt+3 = ♥ or alt+219 = █
-If you play with the spacing of 219 you can actually get a pixel art effect. ALSO, the last character in the list will always be applied to the highest luminance areas of the image. This is useful because you can do silly things like leave the last character as a blank space, allowing for negative space to be applied to light areas.
+| Node | Description |
+|------|-------------|
+| `FL_KsamplerBasic` | Basic KSampler implementation |
+| `FL_KsamplerFractals` | KSampler for fractals |
+| `FL_KsamplerPlus` | Enhanced KSampler with additional features |
+| `FL_KsamplerSettings` | Manages KSampler settings |
+| `FL_KSamplerXYZPlot` | Creates XYZ plots with KSampler |
+| `FL_SamplerStrings` | Manages sampler string options |
+| `FL_SchedulerStrings` | Manages scheduler string options |
 
-#### SYSTEM vs. LOCAL FONTS
+### 📷 Screenshots & Examples
 
-The default font list is populated from the fonts located within the extension/fonts folder. You  can add more fonts to this location and when ComfyUI is started it will load those fonts into the list.
+![KSamplers Nodes Example](../images/ksamplers_nodes_example.png)
 
-You also have the option to use system fonts. You can set the env var:
+</details>
 
-`SET FL_USE_SYSTEM_FONTS=true (default: false)`
+---
 
-And the dropdown will populate with all the available system ttf and otf fonts.
+<details>
+<summary><h2 id="pdf-nodes">📄 PDF Nodes</h2></summary>
 
-<img width="1136" alt="Screenshot 2024-04-29 192646" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/926287e9-e22a-4e64-9e4f-7fd6e096b558">
+> *Nodes for working with PDF files.*
 
-Prompt Selector: - simple prompt selector/randomizer
--
-Great for iterating through a lot of prompts or randomizing a list of things you already know works.
+| Node | Description |
+|------|-------------|
+| `FL_BulkPDFLoader` | Loads multiple PDF files |
+| `FL_ImagesToPDF` | Converts images to PDF |
+| `FL_PDFImageExtractor` | Extracts images from PDF files |
+| `FL_PDFLoader` | Loads PDF files |
+| `FL_PDFMerger` | Merges multiple PDF files |
+| `FL_PDFSaver` | Saves PDF files |
+| `FL_PDFTextExtractor` | Extracts text from PDF files |
+| `FL_PDFToImage` | Converts PDF to images |
 
-<img width="1021" alt="Screenshot 2024-05-15 144223" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/1e96e75a-e9f4-4056-a55a-0ee1cc316dff">
+### 📷 Screenshots & Examples
 
-Random Number Range: - Randomize numbers within a selected range.
--
-Has a lot of uses where you want numbers randomized, but you need them in a specific range for error purposes.
+![PDF Nodes Example](../images/pdf_nodes_example.png)
 
-<img width="683" alt="Screenshot 2024-05-15 144242" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/b2d15b5c-aeda-44d1-b341-075940d83a3f">
+</details>
 
-Half Tone FX: - Creates a black and white half-tone effect.
--
-Lots of fun with this one. Get interesting effects on both images and video.
+---
 
-<img width="953" alt="Screenshot 2024-05-15 144011" src="https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/486e0e4f-ad37-4353-8e92-42e85767f882">
+<details>
+<summary><h2 id="gpt-nodes">🤖 GPT Nodes</h2></summary>
 
-Infinite Zoom: - Creates a zooming effect for both images and video.
--
-![Screenshot 2024-05-27 222117](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/7874b38d-59ad-416d-acbc-ef9cdcc78abd)
+> *Nodes for integrating with GPT and other AI models.*
 
-Paper Drawn: - Filter effect that makes your images and videos look like pencil drawn.
--
-![Screenshot 2024-05-27 222434](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/32fd03ff-5f8b-4d55-b616-6365528fb218)
+| Node | Description |
+|------|-------------|
+| `FL_Dalle3` | Integrates with DALL-E 3 |
+| `FL_GPT_Vision` | Integrates with GPT Vision models |
+| `FL_SimpleGPTVision` | Simplified GPT Vision integration |
+| `FL_GeminiVideoCaptioner` | Captions videos using Gemini models |
 
-Image Notes: - Adds a black bar with a string input to save images with notes.
--
-![Screenshot 2024-06-07 223629](https://github.com/filliptm/ComfyUI_Fill-Nodes/assets/55672949/84123521-6263-498f-ae57-4949f76e67a9)
+### 📷 Screenshots & Examples
 
+![GPT Nodes Example](../images/gpt_nodes_example.png)
 
-Games: - Tetris and Bullet Hell.
--
-https://github.com/user-attachments/assets/37cb820c-18d7-4ce8-8c5a-8351f73ec4e4
+</details>
 
+---
 
-SD Ultimate Slice Calculator: - Allows you to select a multiplier, and a slice pattern and automatically calculates dimensions so you don't have to do the math. The image output returns the original images as a pass-through.
--
-![image](https://github.com/user-attachments/assets/efcc017c-127c-4c1c-940d-cc0848d53cc0)
+<details>
+<summary><h2 id="experimental-nodes">🧪 Experimental Nodes</h2></summary>
 
+> *Experimental nodes with various functionalities.*
 
+| Node | Description |
+|------|-------------|
+| `FL_BatchAligned` | Aligns batches of images |
+| `FL_ColorPicker` | Picks colors from images |
+| `FL_GradGen` | Generates color gradients |
+| `FL_NFTGenerator` | Generates NFT-style images |
+
+### 📷 Screenshots & Examples
+
+![Experimental Nodes Example](../images/experimental_nodes_example.png)
+
+</details>
+
+---
+
+<details>
+<summary><h2 id="prompting-nodes">💬 Prompting Nodes</h2></summary>
+
+> *Nodes for generating and manipulating prompts.*
+
+| Node | Description |
+|------|-------------|
+| `FL_MadLibGenerator` | Generates prompts using MadLib style |
+| `FL_PromptSelector` | Selects prompts from a collection |
+
+### 📷 Screenshots & Examples
+
+![Prompting Nodes Example](../images/prompting_nodes_example.png)
+
+</details>
+
+---
+
+<details>
+<summary><h2 id="file-operation-nodes">📂 File Operation Nodes</h2></summary>
+
+> *Nodes for file operations.*
+
+| Node | Description |
+|------|-------------|
+| `FL_ZipDirectory` | Zips directories |
+| `FL_ZipSave` | Saves files in zip format |
+
+### 📷 Screenshots & Examples
+
+![File Operation Nodes Example](../images/file_operation_nodes_example.png)
+
+</details>
+
+---
+
+<details>
+<summary><h2 id="google-drive-nodes">☁️ Google Drive Nodes</h2></summary>
+
+> *Nodes for integrating with Google Drive.*
+
+| Node | Description |
+|------|-------------|
+| `FL_GoogleDriveDownloader` | Downloads files from Google Drive |
+| `FL_GoogleDriveImageDownloader` | Downloads images from Google Drive |
+
+### 📷 Screenshots & Examples
+
+![Google Drive Nodes Example](../images/google_drive_nodes_example.png)
+
+</details>
+
+---
+
+<details>
+<summary><h2 id="api-tool-nodes">🔌 API Tool Nodes</h2></summary>
+
+> *Nodes for API interactions.*
+
+| Node | Description |
+|------|-------------|
+| `FL_API_Base64_ImageLoader` | Loads Base64-encoded images via API |
+| `FL_API_ImageSaver` | Saves images via API |
+
+### 📷 Screenshots & Examples
+
+![API Tool Nodes Example](../images/api_tool_nodes_example.png)
+
+</details>
+
+---
+
+<details>
+<summary><h2 id="hugging-face-nodes">🤗 Hugging Face Nodes</h2></summary>
+
+> *Nodes for integrating with Hugging Face.*
+
+| Node | Description |
+|------|-------------|
+| `FL_HF_Character` | Creates characters using Hugging Face models |
+| `FL_HF_UploaderAbsolute` | Uploads to Hugging Face with absolute paths |
+| `FL_HFHubModelUploader` | Uploads models to Hugging Face Hub |
+
+### 📷 Screenshots & Examples
+
+![Hugging Face Nodes Example](../images/hugging_face_nodes_example.png)
+
+</details>
+
+---
+
+<details>
+<summary><h2 id="analysis-nodes">📊 Analysis Nodes</h2></summary>
+
+> *Nodes for analyzing images and other data.*
+
+| Node | Description |
+|------|-------------|
+| `FL_ClipScanner` | Scans images using CLIP models |
+
+### 📷 Screenshots & Examples
+
+![Analysis Nodes Example](../images/analysis_nodes_example.png)
+
+</details>
+
+---
+
+<details>
+<summary><h2 id="loader-nodes">⏬ Loader Nodes</h2></summary>
+
+> *Nodes for loading various resources.*
+
+| Node | Description |
+|------|-------------|
+| `FL_NodeLoader` | Loads custom nodes |
+| `FL_UpscaleModel` | Loads upscale models |
+
+### 📷 Screenshots & Examples
+
+![Loader Nodes Example](../images/loader_nodes_example.png)
+
+</details>
+
+---
+
+<details>
+<summary><h2 id="discord-nodes">💬 Discord Nodes</h2></summary>
+
+> *Nodes for Discord integration.*
+
+| Node | Description |
+|------|-------------|
+| `FL_DiscordWebhook` | Sends content to Discord via webhooks |
+
+### 📷 Screenshots & Examples
+
+![Discord Nodes Example](../images/discord_nodes_example.png)
+
+</details>
+
+---
+
+<details>
+<summary><h2 id="work-in-progress-nodes">🚧 Work-in-Progress Nodes</h2></summary>
+
+> *Nodes that are still in development.*
+
+| Node | Description |
+|------|-------------|
+| `FL_HunyuanDelight` | Integration with Hunyuan AI models |
+| `FL_TimeLine` | Timeline management for workflows |
+
+### 📷 Screenshots & Examples
+
+![WIP Nodes Example](../images/wip_nodes_example.png)
+
+</details>
+
+---
+
+<details>
+<summary><h2 id="game-nodes">🎮 Game Nodes</h2></summary>
+
+> *Nodes implementing games.*
+
+| Node | Description |
+|------|-------------|
+| `FL_BulletHellGame` | Implements a bullet hell game |
+| `FL_TetrisGame` | Implements a Tetris game |
+
+### 📷 Screenshots & Examples
+
+![Game Nodes Example](../images/game_nodes_example.png)
+
+</details>
+
+---
+
+<details>
+<summary><h2 id="math-nodes">🧮 Math Nodes</h2></summary>
+
+> *Nodes for mathematical operations.*
+
+| Node | Description |
+|------|-------------|
+| `FL_Math` | Performs various mathematical operations |
+
+### 📷 Screenshots & Examples
+
+![Math Nodes Example](../images/math_nodes_example.png)
+
+</details>
+
+---
+
+<details>
+<summary><h2 id="video-nodes">🎬 Video Nodes</h2></summary>
+
+> *Nodes for video processing.*
+
+| Node | Description |
+|------|-------------|
+| `FL_ProResVideo` | Works with ProRes video format |
+| `FL_SceneCut` | Detects scene cuts in videos |
+| `FL_VideoCropNStitch` | Crops and stitches video frames |
+
+### 📷 Screenshots & Examples
+
+![Video Nodes Example](../images/video_nodes_example.png)
+
+</details>
+
+---
+
+<details>
+<summary><h2 id="ai-nodes">🧠 AI Nodes</h2></summary>
+
+> *Nodes that integrate with various AI models.*
+
+| Node | Description |
+|------|-------------|
+| `FL_HunyuanDelight` | Integration with Hunyuan AI models |
+
+### 📷 Screenshots & Examples
+
+![AI Nodes Example](../images/ai_nodes_example.png)
+
+</details>
+
+---
+
+<details>
+<summary><h2 id="utils">🔧 Utils</h2></summary>
+
+> *Utility nodes for the system.*
+
+| Node | Description |
+|------|-------------|
+| `FL_NodePackLoader` | Loads packs of nodes |
+
+### 📷 Screenshots & Examples
+
+![Utils Example](../images/utils_example.png)
+
+</details>
+
+---
+
+## 🤝 Contributing
+
+If you'd like to contribute to Fill-Nodes, please see our [contribution guidelines](../CONTRIBUTING.md).
+
+## 📜 License
+
+This project is licensed under the [MIT License](../LICENSE).
+
+## 🙏 Acknowledgements
+
+Thanks to all contributors and the ComfyUI community.
+
+<div align="center">
+</div>
