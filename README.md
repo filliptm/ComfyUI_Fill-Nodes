@@ -2,7 +2,7 @@
 
 ![Fill-Nodes Banner](../images/banner.png)
 
-> *A comprehensive collection of custom nodes for ComfyUI providing a wide range of functionality from image manipulation to PDF handling, AI integration, and more.*
+Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends functionality across multiple domains. Features include advanced image processing (pixelation, slicing, masking), visual effects generation (glitch, halftone, pixel art), comprehensive file handling (PDF creation/extraction, Google Drive integration), AI model interfaces (GPT, DALL-E, Hugging Face), utility nodes for workflow enhancement, and specialized tools for video processing, captioning, and batch operations. The pack provides both practical workflow solutions and creative tools within a unified node collection.
 
 ## 🔍 Table of Contents
 
