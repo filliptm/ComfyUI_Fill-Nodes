@@ -411,8 +411,8 @@
 
 | Node | Description |
 |------|-------------|
-| `FL_BulletHellGame` | Skeleton implementation for a bullet hell game within ComfyUI's interface. Currently contains only the basic framework with no actual game implementation yet. |
-| `FL_TetrisGame` | Implements a playable Tetris game within the ComfyUI interface, allowing for entertainment during long processing operations. Provides basic game functionality as a demonstration of interactive node capabilities within the workflow environment. |
+| `FL_BulletHellGame` | Implements a playable bullet hell-style shooter game within the ComfyUI interface where players control a ship with mouse movements and combat enemy ships that fire various bullet patterns. Features include multiple enemy ships with different attack patterns, player-guided bullets that track enemies, level progression, and score tracking. |
+| `FL_TetrisGame` | Implements a fully playable Tetris game within ComfyUI's interface using standard keyboard controls (arrow keys) for movement, rotation, and acceleration. Features include complete tetromino collision detection, line clearing mechanics, game over detection, and a responsive canvas that adjusts to the node's dimensions. |
 
 ### 📷 Screenshots & Examples
 
@@ -491,19 +491,3 @@
 </details>
 
 ---
-
-## 🤝 Contributing
-
-If you'd like to contribute to Fill-Nodes, please see our [contribution guidelines](../CONTRIBUTING.md).
-
-## 📜 License
-
-This project is licensed under the [MIT License](../LICENSE).
-
-## 🙏 Acknowledgements
-
-Thanks to all contributors and the ComfyUI community.
-
-<div align="center">
-<p>Made with 💜 by <a href="https://github.com/NeuroFill">NeuroFill</a></p>
-</div>
