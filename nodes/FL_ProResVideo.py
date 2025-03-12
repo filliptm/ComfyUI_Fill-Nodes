@@ -31,7 +31,7 @@ class FL_ProResVideo:
 
     RETURN_TYPES = ("STRING",)
     FUNCTION = "create_video"
-    CATEGORY = "🏵️Fill Nodes/video"
+    CATEGORY = "🏵️Fill Nodes/Video"
     OUTPUT_NODE = True
 
     def create_video(self, images, fps, filename, save_directory):

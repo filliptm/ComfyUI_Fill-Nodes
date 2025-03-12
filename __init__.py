@@ -1,7 +1,9 @@
 from .nodes.FL_Image_Randomizer import FL_ImageRandomizer
 from .nodes.FL_Image_Caption_Saver import FL_ImageCaptionSaver
 from .nodes.FL_Image_Dimension_Display import FL_ImageDimensionDisplay
+from .nodes.FL_GeminiVideoCaptioner import FL_GeminiVideoCaptioner
 from .nodes.FL_Code_Node import FL_CodeNode
+from .nodes.FL_Video_Caption_Saver import FL_VideoCaptionSaver
 from .nodes.FL_Image_Pixelator import FL_ImagePixelator
 from .nodes.FL_DirectoryCrawl import FL_DirectoryCrawl
 from .nodes.FL_Ascii import FL_Ascii
@@ -90,12 +92,15 @@ from .nodes.FL_GoogleDriveImageDownloader import FL_GoogleDriveImageDownloader
 from .nodes.FL_AnimeLineExtractor import FL_AnimeLineExtractor
 from .nodes.FL_HunyuanDelight import FL_HunyuanDelight
 from .nodes.FL_ClipScanner import FL_ClipScanner
+from .nodes.FL_SceneCut import FL_SceneCut
 
 
 NODE_CLASS_MAPPINGS = {
     "FL_ImageRandomizer": FL_ImageRandomizer,
     "FL_ImageCaptionSaver": FL_ImageCaptionSaver,
+    "FL_VideoCaptionSaver": FL_VideoCaptionSaver,
     "FL_ImageDimensionDisplay": FL_ImageDimensionDisplay,
+    "FL_GeminiVideoCaptioner": FL_GeminiVideoCaptioner,
     "FL_CodeNode": FL_CodeNode,
     "FL_ImagePixelator": FL_ImagePixelator,
     "FL_DirectoryCrawl": FL_DirectoryCrawl,
@@ -186,13 +191,16 @@ NODE_CLASS_MAPPINGS = {
     "FL_AnimeLineExtractor": FL_AnimeLineExtractor,
     "FL_HunyuanDelight": FL_HunyuanDelight,
     "FL_ClipScanner": FL_ClipScanner,
+    "FL_SceneCut": FL_SceneCut,
 
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_ImageRandomizer": "FL Image Randomizer",
     "FL_ImageCaptionSaver": "FL Image Caption Saver",
+    "FL_VideoCaptionSaver": "FL Video Caption Saver",
     "FL_ImageDimensionDisplay": "FL Image Size",
+    "FL_GeminiVideoCaptioner": "FL Gemini Video Captioner",
     "FL_CodeNode": "FL Code Node",
     "FL_ImagePixelator": "FL Image Pixelator",
     "FL_DirectoryCrawl": "FL Directory Crawl",
@@ -283,6 +291,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_AnimeLineExtractor": "FL Anime Line Extractor",
     "FL_HunyuanDelight": "FL Hunyuan Delight",
     "FL_ClipScanner": "FL Clip Scanner (Kytra)",
+    "FL_SceneCut": "FL Scene Cut Detector",
 
 }
 
@@ -306,6 +315,8 @@ ascii_art = """
 
 """
 print(ascii_art)
+
+# Using OpenCV for video processing
 
 WEB_DIRECTORY = "./web"
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]
