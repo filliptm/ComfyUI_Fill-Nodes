@@ -6,32 +6,44 @@
 
 ## 🔍 Table of Contents
 
-<div style="columns: 3; column-gap: 20px;">
-
-- [🖼️ Image Nodes](#image-nodes)
-- [📝 Captioning Nodes](#captioning-nodes)
-- [✨ VFX Nodes](#vfx-nodes)
-- [🛠️ Utility Nodes](#utility-nodes)
-- [🎲 KSamplers Nodes](#ksamplers-nodes)
-- [📄 PDF Nodes](#pdf-nodes)
-- [🤖 GPT Nodes](#gpt-nodes)
-- [🧪 Experimental Nodes](#experimental-nodes)
-- [💬 Prompting Nodes](#prompting-nodes)
-- [📂 File Operation Nodes](#file-operation-nodes)
-- [☁️ Google Drive Nodes](#google-drive-nodes)
-- [🔌 API Tool Nodes](#api-tool-nodes)
-- [🤗 Hugging Face Nodes](#hugging-face-nodes)
-- [📊 Analysis Nodes](#analysis-nodes)
-- [⏬ Loader Nodes](#loader-nodes)
-- [💬 Discord Nodes](#discord-nodes)
-- [🚧 Work-in-Progress Nodes](#work-in-progress-nodes)
-- [🎮 Game Nodes](#game-nodes)
-- [🧮 Math Nodes](#math-nodes)
-- [🎬 Video Nodes](#video-nodes)
-- [🧠 AI Nodes](#ai-nodes)
-- [🔧 Utils](#utils)
-
-</div>
+<table>
+  <tr>
+    <td valign="top">
+      <ul>
+        <li><a href="#image-nodes">🖼️ Image Nodes</a></li>
+        <li><a href="#captioning-nodes">📝 Captioning Nodes</a></li>
+        <li><a href="#vfx-nodes">✨ VFX Nodes</a></li>
+        <li><a href="#utility-nodes">🛠️ Utility Nodes</a></li>
+        <li><a href="#ksamplers-nodes">🎲 KSamplers Nodes</a></li>
+        <li><a href="#pdf-nodes">📄 PDF Nodes</a></li>
+        <li><a href="#gpt-nodes">🤖 GPT Nodes</a></li>
+      </ul>
+    </td>
+    <td valign="top">
+      <ul>
+        <li><a href="#experimental-nodes">🧪 Experimental Nodes</a></li>
+        <li><a href="#prompting-nodes">💬 Prompting Nodes</a></li>
+        <li><a href="#file-operation-nodes">📂 File Operation Nodes</a></li>
+        <li><a href="#google-drive-nodes">☁️ Google Drive Nodes</a></li>
+        <li><a href="#api-tool-nodes">🔌 API Tool Nodes</a></li>
+        <li><a href="#hugging-face-nodes">🤗 Hugging Face Nodes</a></li>
+        <li><a href="#analysis-nodes">📊 Analysis Nodes</a></li>
+      </ul>
+    </td>
+    <td valign="top">
+      <ul>
+        <li><a href="#loader-nodes">⏬ Loader Nodes</a></li>
+        <li><a href="#discord-nodes">💬 Discord Nodes</a></li>
+        <li><a href="#work-in-progress-nodes">🚧 Work-in-Progress Nodes</a></li>
+        <li><a href="#game-nodes">🎮 Game Nodes</a></li>
+        <li><a href="#math-nodes">🧮 Math Nodes</a></li>
+        <li><a href="#video-nodes">🎬 Video Nodes</a></li>
+        <li><a href="#ai-nodes">🧠 AI Nodes</a></li>
+        <li><a href="#utils">🔧 Utils</a></li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -493,4 +505,5 @@ This project is licensed under the [MIT License](../LICENSE).
 Thanks to all contributors and the ComfyUI community.
 
 <div align="center">
+<p>Made with 💜 by <a href="https://github.com/NeuroFill">NeuroFill</a></p>
 </div>
