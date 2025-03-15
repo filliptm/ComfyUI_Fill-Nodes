@@ -21,3 +21,4 @@ kornia
 opencv-python
 gdown
 open_clip_torch
+google-genai
