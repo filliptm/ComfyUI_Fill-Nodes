@@ -94,6 +94,7 @@ from .nodes.FL_AnimeLineExtractor import FL_AnimeLineExtractor
 from .nodes.FL_HunyuanDelight import FL_HunyuanDelight
 from .nodes.FL_ClipScanner import FL_ClipScanner
 from .nodes.FL_SceneCut import FL_SceneCut
+from .nodes.FL_GeminiTextAPI import FL_GeminiTextAPI
 
 
 NODE_CLASS_MAPPINGS = {
@@ -194,6 +195,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_HunyuanDelight": FL_HunyuanDelight,
     "FL_ClipScanner": FL_ClipScanner,
     "FL_SceneCut": FL_SceneCut,
+    "FL_GeminiTextAPI": FL_GeminiTextAPI,
 
 }
 
@@ -295,6 +297,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_HunyuanDelight": "FL Hunyuan Delight",
     "FL_ClipScanner": "FL Clip Scanner (Kytra)",
     "FL_SceneCut": "FL Scene Cut Detector",
+    "FL_GeminiTextAPI": "FL Gemini Text API",
 
 }
 
