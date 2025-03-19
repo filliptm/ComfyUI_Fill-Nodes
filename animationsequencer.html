@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Sequence Animation</title>
+    <style>
+        :root {
+            --background-color: #1e1e1e;
+            --secondary-background: #2d2d2d;
+            --text-color: #e0e0e0;
+            --accent-color: #9b59b6;
+            --accent-hover: #8e44ad;
+            --divider-color: #4a4a4a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--accent-color);
+            margin-bottom: 20px;
+        }
+
+        .container {
+            display: flex;
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        button, input[type="file"], input[type="number"] {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: var(--accent-color);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover, input[type="file"]:hover {
+            background-color: var(--accent-hover);
+        }
+
+        input[type="number"] {
+            width: 60px;
+            background-color: var(--secondary-background);
+        }
+
+        #canvasContainer {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--secondary-background);
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        #animationCanvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        #timelineContainer {
+            width: 300px;
+            overflow-y: auto;
+            background-color: var(--secondary-background);
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            padding: 10px;
+        }
+
+        #timeline {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .timeline-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            padding: 5px;
+            border-radius: 5px;
+            background-color: var(--background-color);
+            transition: background-color 0.3s ease;
+        }
+
+        .timeline-item.current {
+            background-color: var(--accent-color);
+        }
+
+        .timeline-item img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 5px;
+            transition: opacity 0.3s ease;
+        }
+
+        .timeline-item.disabled img {
+            opacity: 0.3;
+        }
+
+        .timeline-item.dragging {
+            opacity: 0.5;
+        }
+
+        .timeline-item.drag-over {
+            border: 2px dashed var(--accent-color);
+        }
+
+        .duration-control {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .duration-control button {
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .duration-control input {
+            width: 40px;
+            height: 30px;
+            text-align: center;
+            font-size: 16px;
+            padding: 2px;
+        }
+
+        #divider {
+            width: 10px;
+            background-color: var(--divider-color);
+            cursor: col-resize;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--secondary-background);
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: var(--text-color);
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-color);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Sequence Animation</h1>
+    <div class="controls">
+        <input type="file" id="fileInput" multiple accept="image/*">
+        <button id="loadBtn">Load Images</button>
+        <button id="playPauseBtn">Play</button>
+        <label for="fpsInput">FPS:</label>
+        <input type="number" id="fpsInput" value="24" min="1" max="60">
+        <button id="exportBtn">Export WebM</button>
+        <label class="switch">
+            <input type="checkbox" id="pingPongToggle">
+            <span class="slider"></span>
+        </label>
+        <label for="pingPongToggle">Ping-pong</label>
+    </div>
+    <div class="container">
+        <div id="canvasContainer">
+            <canvas id="animationCanvas"></canvas>
+        </div>
+        <div id="divider"></div>
+        <div id="timelineContainer">
+            <div id="timeline"></div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const loadBtn = document.getElementById('loadBtn');
+        const timeline = document.getElementById('timeline');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const fpsInput = document.getElementById('fpsInput');
+        const exportBtn = document.getElementById('exportBtn');
+        const pingPongToggle = document.getElementById('pingPongToggle');
+        const canvas = document.getElementById('animationCanvas');
+        const ctx = canvas.getContext('2d');
+        const divider = document.getElementById('divider');
+        const container = document.querySelector('.container');
+        const timelineContainer = document.getElementById('timelineContainer');
+
+        let images = [];
+        let isPlaying = false;
+        let currentFrame = 0;
+        let animationInterval;
+        let mediaRecorder;
+        let recordedChunks = [];
+        let draggedItem = null;
+        let isPingPong = false;
+        let isReverse = false;
+
+        loadBtn.addEventListener('click', loadFiles);
+        playPauseBtn.addEventListener('click', togglePlayPause);
+        fpsInput.addEventListener('change', updateFPS);
+        exportBtn.addEventListener('click', exportWebM);
+        pingPongToggle.addEventListener('change', () => {
+            isPingPong = pingPongToggle.checked;
+        });
+        window.addEventListener('resize', resizeCanvas);
+
+        // Divider resize functionality
+        let isResizing = false;
+        let startX;
+        let startWidth;
+
+        divider.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startX = e.clientX;
+            startWidth = parseInt(getComputedStyle(timelineContainer).width, 10);
+            document.addEventListener('mousemove', resize);
+            document.addEventListener('mouseup', stopResize);
+        });
+
+        function resize(e) {
+            if (isResizing) {
+                const diff = startX - e.clientX;
+                timelineContainer.style.width = `${startWidth + diff}px`;
+                resizeCanvas();
+            }
+        }
+
+        function stopResize() {
+            isResizing = false;
+            document.removeEventListener('mousemove', resize);
+            document.removeEventListener('mouseup', stopResize);
+        }
+
+        function loadFiles() {
+            const files = fileInput.files;
+            const promises = [];
+
+            for (let i = 0; i < files.length; i++) {
+                promises.push(loadImage(files[i]));
+            }
+
+            Promise.all(promises).then(loadedImages => {
+                images = loadedImages.map(img => ({
+                    img: img,
+                    enabled: true,
+                    duration: 1
+                }));
+                createTimeline();
+                if (images.length > 0) {
+                    resizeCanvas();
+                    drawFrame();
+                }
+            });
+        }
+
+        function loadImage(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function createTimeline() {
+            timeline.innerHTML = '';
+            images.forEach((image, index) => {
+                const item = document.createElement('div');
+                item.className = 'timeline-item';
+                item.draggable = true;
+                const img = document.createElement('img');
+                img.src = image.img.src;
+                img.addEventListener('click', () => toggleImage(index));
+                item.appendChild(img);
+
+                const durationControl = document.createElement('div');
+                durationControl.className = 'duration-control';
+                const decreaseBtn = document.createElement('button');
+                decreaseBtn.textContent = '-';
+                decreaseBtn.addEventListener('click', () => updateDuration(index, image.duration - 1));
+                const durationInput = document.createElement('input');
+                durationInput.type = 'number';
+                durationInput.value = image.duration;
+                durationInput.min = 1;
+                durationInput.addEventListener('change', (e) => updateDuration(index, parseInt(e.target.value)));
+                const increaseBtn = document.createElement('button');
+                increaseBtn.textContent = '+';
+                increaseBtn.addEventListener('click', () => updateDuration(index, image.duration + 1));
+
+                durationControl.appendChild(decreaseBtn);
+                durationControl.appendChild(durationInput);
+                durationControl.appendChild(increaseBtn);
+                item.appendChild(durationControl);
+
+                item.addEventListener('dragstart', dragStart);
+                item.addEventListener('dragover', dragOver);
+                item.addEventListener('dragenter', dragEnter);
+                item.addEventListener('dragleave', dragLeave);
+                item.addEventListener('drop', dragDrop);
+                item.addEventListener('dragend', dragEnd);
+
+                timeline.appendChild(item);
+            });
+        }
+
+        function dragStart() {
+            draggedItem = this;
+            setTimeout(() => this.classList.add('dragging'), 0);
+        }
+
+        function dragOver(e) {
+            e.preventDefault();
+        }
+
+        function dragEnter(e) {
+            e.preventDefault();
+            this.classList.add('drag-over');
+        }
+
+        function dragLeave() {
+            this.classList.remove('drag-over');
+        }
+
+        function dragDrop() {
+            this.classList.remove('drag-over');
+            if (this !== draggedItem) {
+                const allItems = [...timeline.querySelectorAll('.timeline-item')];
+                const fromIndex = allItems.indexOf(draggedItem);
+                const toIndex = allItems.indexOf(this);
+
+                if (fromIndex < toIndex) {
+                    timeline.insertBefore(draggedItem, this.nextSibling);
+                } else {
+                    timeline.insertBefore(draggedItem, this);
+                }
+
+                // Update the images array to reflect the new order
+                const [reorderedItem] = images.splice(fromIndex, 1);
+                images.splice(toIndex, 0, reorderedItem);
+            }
+        }
+
+        function dragEnd() {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.timeline-item').forEach(item => item.classList.remove('drag-over'));
+        }
+
+        function toggleImage(index) {
+            images[index].enabled = !images[index].enabled;
+            timeline.children[index].classList.toggle('disabled');
+        }
+
+        function updateDuration(index, duration) {
+            duration = Math.max(1, duration); // Ensure duration is at least 1
+            images[index].duration = duration;
+            const durationInput = timeline.children[index].querySelector('input[type="number"]');
+            durationInput.value = duration;
+        }
+
+        function drawFrame() {
+            if (images.length === 0) return;
+
+            const enabledImages = images.filter(image => image.enabled);
+            if (enabledImages.length === 0) return;
+
+            let frameCount = 0;
+            let currentImageIndex = 0;
+
+            while (frameCount < currentFrame) {
+                frameCount += enabledImages[currentImageIndex].duration;
+                if (frameCount <= currentFrame) {
+                    currentImageIndex = (currentImageIndex + 1) % enabledImages.length;
+                }
+            }
+
+            const image = enabledImages[currentImageIndex];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const scale = Math.min(canvas.width / image.img.width, canvas.height / image.img.height);
+            const x = (canvas.width / 2) - (image.img.width / 2) * scale;
+            const y = (canvas.height / 2) - (image.img.height / 2) * scale;
+
+            ctx.drawImage(image.img, x, y, image.img.width * scale, image.img.height * scale);
+
+            // Update current frame indicator
+            document.querySelectorAll('.timeline-item').forEach(item => item.classList.remove('current'));
+            const currentItem = timeline.children[images.indexOf(enabledImages[currentImageIndex])];
+            currentItem.classList.add('current');
+
+            if (isPingPong) {
+                if (isReverse) {
+                    currentFrame--;
+                    if (currentFrame < 0) {
+                        currentFrame = 1;
+                        isReverse = false;
+                    }
+                } else {
+                    currentFrame++;
+                    if (currentFrame >= getTotalFrames(enabledImages)) {
+                        currentFrame = getTotalFrames(enabledImages) - 2;
+                        isReverse = true;
+                    }
+                }
+            } else {
+                currentFrame = (currentFrame + 1) % getTotalFrames(enabledImages);
+            }
+        }
+
+        function getTotalFrames(images) {
+            return images.reduce((sum, img) => sum + img.duration, 0);
+        }
+
+        function togglePlayPause() {
+            isPlaying = !isPlaying;
+            playPauseBtn.textContent = isPlaying ? 'Pause' : 'Play';
+            if (isPlaying) {
+                startAnimation();
+            } else {
+                stopAnimation();
+            }
+        }
+
+        function startAnimation() {
+            stopAnimation();
+            animationInterval = setInterval(drawFrame, 1000 / parseInt(fpsInput.value));
+        }
+
+        function stopAnimation() {
+            clearInterval(animationInterval);
+        }
+
+        function updateFPS() {
+            if (isPlaying) {
+                startAnimation();
+            }
+        }
+
+        function resizeCanvas() {
+            const container = document.getElementById('canvasContainer');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            if (images.length > 0) {
+                drawFrame();
+            }
+        }
+
+        function exportWebM() {
+            if (images.length === 0) {
+                alert('Please load images first.');
+                return;
+            }
+
+            const fps = parseInt(fpsInput.value);
+            const stream = canvas.captureStream(fps);
+            const options = {
+                mimeType: 'video/webm; codecs=vp9',
+                videoBitsPerSecond: 8000000 // 8 Mbps for high quality
+            };
+
+            mediaRecorder = new MediaRecorder(stream, options);
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                document.body.appendChild(a);
+                a.style = 'display: none';
+                a.href = url;
+                a.download = 'animation.webm';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            };
+
+            recordedChunks = [];
+            mediaRecorder.start();
+
+            const enabledImages = images.filter(image => image.enabled);
+            const totalFrames = getTotalFrames(enabledImages);
+            let recordingDuration = (totalFrames / fps) * 1000;
+
+            if (isPingPong) {
+                recordingDuration *= 2; // Double the duration for ping-pong effect
+            }
+
+            isPlaying = true;
+            playPauseBtn.textContent = 'Recording...';
+            currentFrame = 0;
+            isReverse = false;
+            startAnimation();
+
+            setTimeout(() => {
+                stopAnimation();
+                mediaRecorder.stop();
+                isPlaying = false;
+                playPauseBtn.textContent = 'Play';
+            }, recordingDuration);
+        }
+
+        resizeCanvas();
+    </script>
+</body>
+</html>
