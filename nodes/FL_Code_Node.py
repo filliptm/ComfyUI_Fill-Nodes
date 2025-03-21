@@ -1,6 +1,6 @@
-
 from pathlib import Path
 from .sup import ROOT, AlwaysEqualProxy, parse_dynamic
+
 
 class FL_CodeNode:
 
@@ -9,13 +9,12 @@ class FL_CodeNode:
         return {
             "required": {},
             "optional": {
-                "code_input": ("STRING", {"default": "outputs[0] = 'hello, world!'", "multiline": True, "dynamicPrompts": False}),
+                "code_input": (
+                "STRING", {"default": "outputs[0] = 'hello, world!'", "multiline": True, "dynamicPrompts": False}),
                 "file": ("STRING", {"default": "./res/hello.py", "multiline": False, "dynamicPrompts": False}),
                 "use_file": ("BOOLEAN", {"default": False}),
-                "run_always": ("BOOLEAN", {"default": False}),
-                "editor_theme": (["dark", "light"], {"default": "dark"}),
-                "editor_mode": (["python", "javascript"], {"default": "python"}),
-        }}
+                "run_always": ("BOOLEAN", {"default": False})
+            }}
 
     CATEGORY = "🏵️Fill Nodes/utility"
     RETURN_TYPES = tuple(AlwaysEqualProxy("*") for _ in range(4))
@@ -30,7 +29,7 @@ FL_CodeNode is designed to execute custom user-provided Python code. The code ca
         if run_always:
             return float('nan')
         hash = '$$' + str(kwargs) + '$$' + self.get_exec_string(self, code_input, file, use_file) + '$$'
-        #print(hash)
+        # print(hash)
         return hash
 
     def execute(self, code_input, file, use_file, run_always, **kwargs):
@@ -45,15 +44,15 @@ FL_CodeNode is designed to execute custom user-provided Python code. The code ca
             raise RuntimeError(f"Error executing user code: {e}")
 
         return tuple(outputs[i] for i in range(4))
-    
+
     def get_exec_string(self, code_input, file, use_file):
         if use_file:
             # load the referenced file
             code_input = ""
             if not (fname := Path(ROOT / file)).is_file():
-                #print(fname)
+                # print(fname)
                 if not (fname := Path(file)).is_file():
-                    #print(fname)
+                    # print(fname)
                     fname = None
             if fname is not None:
                 try:
@@ -61,5 +60,5 @@ FL_CodeNode is designed to execute custom user-provided Python code. The code ca
                         code_input = f.read()
                 except Exception as e:
                     raise RuntimeError(f"[FL_CodeNode] error loading code file: {e}")
-            #print(code_input)
+            # print(code_input)
         return code_input
