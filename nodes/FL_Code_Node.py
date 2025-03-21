@@ -12,7 +12,9 @@ class FL_CodeNode:
                 "code_input": ("STRING", {"default": "outputs[0] = 'hello, world!'", "multiline": True, "dynamicPrompts": False}),
                 "file": ("STRING", {"default": "./res/hello.py", "multiline": False, "dynamicPrompts": False}),
                 "use_file": ("BOOLEAN", {"default": False}),
-                "run_always": ("BOOLEAN", {"default": False})
+                "run_always": ("BOOLEAN", {"default": False}),
+                "editor_theme": (["dark", "light"], {"default": "dark"}),
+                "editor_mode": (["python", "javascript"], {"default": "python"}),
         }}
 
     CATEGORY = "🏵️Fill Nodes/utility"

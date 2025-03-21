@@ -1,5 +1,7 @@
 import os
 import time
+import random
+import torch
 import traceback
 from google import genai
 from google.genai import types
@@ -17,6 +19,7 @@ class FL_GeminiTextAPI:
                           {"default": "gemini-2.0-flash"}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 1.0, "step": 0.05}),
                 "max_output_tokens": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 64}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
             },
             "optional": {
                 "system_instructions": ("STRING", {"multiline": True, "default": ""}),
@@ -78,7 +81,7 @@ class FL_GeminiTextAPI:
                 self._log(f"Maximum retries ({max_retries}) reached. Giving up.")
                 return None
 
-    def generate_text(self, prompt, api_key, model, temperature, max_output_tokens,
+    def generate_text(self, prompt, api_key, model, temperature, max_output_tokens, seed,
                       system_instructions="", top_p=0.95, top_k=64):
         """Generate text response from Gemini API using the new client structure"""
         # Reset log messages
@@ -94,12 +97,16 @@ class FL_GeminiTextAPI:
             # Create client instance with API key
             client = genai.Client(api_key=api_key)
 
-            # Configure generation parameters
+            # Set random seeds for reproducibility
+            random.seed(seed)
+            torch.manual_seed(seed)
+
             gen_config = types.GenerateContentConfig(
                 temperature=temperature,
                 max_output_tokens=max_output_tokens,
                 top_p=top_p,
-                top_k=top_k
+                top_k=top_k,
+                candidate_count=1
             )
 
             # Add system instructions if provided
@@ -124,15 +131,12 @@ class FL_GeminiTextAPI:
                 self._log(error_text)
                 return (f"## API Error\n{error_text}\n\n## Debug Log\n" + "\n".join(self.log_messages),)
 
-            # Extract and return the text from the response
-            result_text = response.text
-
+            # Extract and return the raw text from the response
+            result_text = response.text.strip()  # Remove any leading/trailing whitespace
+            
             self._log(f"Received response ({len(result_text)} characters)")
-
-            # Add a header to the response for better readability
-            full_response = f"## Gemini API Response\n\n{result_text}"
-
-            return (full_response,)
+            
+            return (result_text,)
 
         except Exception as e:
             error_message = f"Error: {str(e)}"
