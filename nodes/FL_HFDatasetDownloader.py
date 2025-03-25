@@ -14,7 +14,7 @@ class FL_HFDatasetDownloader:
                     "default": "dataset"
                 }),
                 "local_dir": ("STRING", {
-                    "default": "./downloads",
+                    "default": "./output/HF-Downloads",
                     "multiline": False
                 }),
                 "max_workers": ("INT", {
