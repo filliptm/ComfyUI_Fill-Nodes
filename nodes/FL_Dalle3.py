@@ -15,7 +15,7 @@ class FL_Dalle3:
     def __init__(self):
         self.__client = openai.AsyncOpenAI()
         self.__previous_params = None
-        self.__cache_images = None
+        self.__cache_images = Nonee
         self.__cache_revised_prompts = None
 
     @classmethod

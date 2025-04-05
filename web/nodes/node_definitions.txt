@@ -1,0 +1,4892 @@
+Node: SaveImageWebsocket:
+    @classmethod
+    def INPUT_TYPES
+Category: api/image
+Inputs:
+  Required:
+    - {"images: IMAGE
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: Segment:
+    @classmethod
+    def INPUT_TYPES
+Category: 🧪AILab/🧽RMBG
+Inputs:
+  Required:
+  Optional:
+Outputs:
+  - IMAGE (IMAGE)
+  - MASK (MASK)
+--------------------------------------------------
+Node: for preview
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: AiLab_PreviewBase:
+    def __init__
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: AiLab_Preview
+Category: 🧪AILab/🛠️UTIL/🖼️IMAGE
+Inputs:
+  Required:
+  Optional:
+    - image: IMAGE, {"default": None}
+    - mask: MASK, {"default": None}
+Outputs:
+  - IMAGE (IMAGE)
+  - MASK (MASK)
+--------------------------------------------------
+Node: AiLab_MaskPreview
+Category: 🧪AILab/🛠️UTIL/🖼️IMAGE
+Inputs:
+  Required:
+    - {"mask: MASK
+  Optional:
+Outputs:
+  - MASK (MASK)
+--------------------------------------------------
+Node: AiLab_ImagePreview
+Category: 🧪AILab/🛠️UTIL/🖼️IMAGE
+Inputs:
+  Required:
+    - {"image: IMAGE
+  Optional:
+Outputs:
+  - IMAGE (IMAGE)
+--------------------------------------------------
+Node: AiLab_LoadImage:
+    @classmethod
+    def INPUT_TYPES
+Category: 🧪AILab/🛠️UTIL/🖼️IMAGE
+Inputs:
+  Required:
+    - image: sorted(files
+    - mask_channel: ["alpha, red, green, blue"], {"default": "alpha, tooltip": "Select channel to extract mask from"}
+    - scale_by: FLOAT, {"default": 1.0, min": 0.01, max": 8.0, step": 0.01, tooltip": "Scale image by this factor (ignored if longest_side > 0
+    - longest_side: INT, {"default": 0, min": 0, max": 8192, step": 8, tooltip": "Resize image so longest side equals this value (0 = disabled
+  Optional:
+Outputs:
+  - IMAGE (IMAGE)
+  - MASK (MASK)
+  - MASK_IMAGE (IMAGE)
+  - WIDTH (INT)
+  - HEIGHT (INT)
+--------------------------------------------------
+Node: mappings
+NODE_CLASS_MAPPINGS = {
+    "AiLab_LoadImage": AiLab_LoadImage,
+    "AiLab_Preview": AiLab_Preview,
+    "AiLab_ImagePreview": AiLab_ImagePreview,
+    "AiLab_MaskPreview": AiLab_MaskPreview,
+}
+
+# Node display name mappings
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "AiLab_LoadImage": "Load Image
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: FaceSegment:
+    def __init__
+Category: 🧪AILab/🧽RMBG
+Inputs:
+  Required:
+  Optional:
+Outputs:
+  - IMAGE (IMAGE)
+  - MASK (MASK)
+--------------------------------------------------
+Node: masks
+                    combined_mask = None
+                    for class_name in selected_classes:
+                        mask =
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: FashionSegmentAccessories:
+    @classmethod
+    def INPUT_TYPES
+Category: 🧪AILab/🧽RMBG
+Inputs:
+  Required:
+  Optional:
+    - **{cls_name: BOOLEAN, {"default": False}
+Outputs:
+  - accessories_options (ACCESSORIES_OPTIONS)
+--------------------------------------------------
+Node: FashionSegmentClothing:
+    def __init__
+Category: 🧪AILab/🧽RMBG
+Inputs:
+  Required:
+    - images: IMAGE
+    - accessories_options: ACCESSORIES_OPTIONS
+  Optional:
+    - **{cls_name: BOOLEAN, {"default": False}
+    - process_res: INT, {"default": 512, min": 128, max": 2048, step": 32}
+    - mask_blur: INT, {"default": 0, min": 0, max": 64, step": 1}
+    - mask_offset: INT, {"default": 0, min": -64, max": 64, step": 1}
+    - background_color: ["Alpha, black, white, gray, green, blue, red"], {"default": "Alpha"}
+    - invert_output: BOOLEAN, {"default": False}
+Outputs:
+  - images (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: BodySegment:
+    def __init__
+Category: 🧪AILab/🧽RMBG
+Inputs:
+  Required:
+  Optional:
+Outputs:
+  - IMAGE (IMAGE)
+  - MASK (MASK)
+--------------------------------------------------
+Node: masks
+                combined_mask = np.zeros_like
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: BaseModelLoader:
+    def __init__
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: RMBGModel
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: = getattr
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: InspyrenetModel
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: BENModel
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: BEN2Model
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: RMBG:
+    def __init__
+Category: 🧪AILab/🧽RMBG
+Inputs:
+  Required:
+  Optional:
+Outputs:
+  - IMAGE (IMAGE)
+  - MASK (MASK)
+  - MASK_IMAGE (IMAGE)
+--------------------------------------------------
+Node: BiRefNetModel:
+    def __init__
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: BiRefNetRMBG:
+    def __init__
+Category: 🧪AILab/🧽RMBG
+Inputs:
+  Required:
+  Optional:
+Outputs:
+  - IMAGE (IMAGE)
+  - MASK (MASK)
+--------------------------------------------------
+Node: ClothesSegment:
+    def __init__
+Category: 🧪AILab/🧽RMBG
+Inputs:
+  Required:
+  Optional:
+Outputs:
+  - IMAGE (IMAGE)
+  - MASK (MASK)
+--------------------------------------------------
+Node: _:
+    """
+    An opinionated batch image loader. This is used for loading groups for batch processing.
+
+    Folder structure:
+
+    ```plain
+    groups/
+        baseprompt.txt
+        g1/
+            0001.png
+            0002.png
+            subprompt.txt
+        g2/
+            0003.png
+            0004.png
+            subprompt.txt
+        ...
+    ```
+    """
+
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "groups_dir":
+Category: jamesWalker55
+Description: An opinionated batch image loader. This is used for loading groups for batch processing.
+
+    Folder structure:
+
+    ```plain
+    groups/
+        baseprompt.txt
+        g1/
+            0001.png
+            0002.png
+            subprompt.txt
+        g2/
+            0003.png
+            0004.png
+            subprompt.txt
+        ...
+    ```
+Inputs:
+  Required:
+    - groups_dir: STRING, {"default": "./groups, multiline": False}
+    - groups_id: INT, {"default": 1, min": 0, step": 1, max": 9999}
+    - {"default: *.png
+  Optional:
+Outputs:
+  - STRING
+  - STRING
+  - IMAGE
+  - INT
+  - STRING
+--------------------------------------------------
+Node: GroupedWorkspace:
+    """
+    YAML structure:
+
+    ```yaml
+    positive: |
+      {positive},
+      simple background, white background,
+
+    negative: |
+      {negative},
+      low quality,
+
+    image_pattern: '{frame_id:04d}.png'
+
+    groups:
+      - start_id: 1
+        positive: ...
+        negative: ...
+      - start_id: 5
+        positive: ...
+        negative: ...
+      ...
+    ```
+    """
+
+    _original_definition: dict
+    _base_path: Path
+    _base_pos: str
+    _base_neg: str
+    _image_pattern: str
+    _groups: list[dict]
+
+    def __init__
+Category: Unknown
+Description: YAML structure:
+
+    ```yaml
+    positive: |
+      {positive},
+      simple background, white background,
+
+    negative: |
+      {negative},
+      low quality,
+
+    image_pattern: '{frame_id:04d}.png'
+
+    groups:
+      - start_id: 1
+        positive: ...
+        negative: ...
+      - start_id: 5
+        positive: ...
+        negative: ...
+      ...
+    ```
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: __:
+    """
+    An opinionated batch image loader. This is used for loading groups for batch processing.
+
+    "base_path" controls where the images are loaded relative from. Defaults to the
+    folder containing the definition file.
+    """
+
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "definition_path":
+Category: jamesWalker55
+Description: An opinionated batch image loader. This is used for loading groups for batch processing.
+
+    "base_path" controls where the images are loaded relative from. Defaults to the
+    folder containing the definition file.
+Inputs:
+  Required:
+    - {"default: ./groups.yml
+    - group_id: INT, {"default": 1, min": 0, step": 1, max": 9999}
+    - base_path: STRING, {"default": ""}
+  Optional:
+Outputs:
+  - STRING
+  - STRING
+  - IMAGE
+  - INT
+  - STRING
+  - GROUP_INFO
+--------------------------------------------------
+Node: _:
+    """
+    An opinionated image loader. This is used for loading groups for batch processing.
+
+    "base_path" controls where the images are loaded relative from. Defaults to the
+    folder containing the definition file.
+    """
+
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "definition_path":
+Category: jamesWalker55
+Description: An opinionated image loader. This is used for loading groups for batch processing.
+
+    "base_path" controls where the images are loaded relative from. Defaults to the
+    folder containing the definition file.
+Inputs:
+  Required:
+    - {"default: ./groups.yml
+    - frame_id: INT, {"default": 1, min": 0, step": 1, max": 9999}
+    - base_path: STRING, {"default": ""}
+  Optional:
+Outputs:
+  - STRING
+  - STRING
+  - IMAGE
+  - STRING
+  - GROUP_INFO
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "group_info":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - group_info: GROUP_INFO
+    - key: STRING, {"default": ""}
+  Optional:
+Outputs:
+  - FLOAT
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "format":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - format: STRING, {"default": "%Y-%m-%dT%H:%M:%S"}
+  Optional:
+Outputs:
+  - STRING
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    BLEND_TYPES =
+Category: jamesWalker55
+Inputs:
+  Required:
+    - blend_type: cls.BLEND_TYPES, {"default": "mix"}
+    - factor: FLOAT, {"min": 0, max": 1, step": 0.01, default": 0.5}
+    - image_a: IMAGE
+    - image_b: IMAGE
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "image":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - image: IMAGE
+    - resize_length: INT, {"default": 512, min": 8, step": 8}
+    - crop_rect: CROP_RECT
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "path":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - path: STRING, {"default": "./audio.mp3"}
+    - gain_db: FLOAT, {"default": 0, min": -100, max": 100}
+    - offset_seconds: FLOAT, {"default": 0, min": 0, max": FLOAT_MAX}
+    - duration_seconds: FLOAT, {"default": 0, min": 0, max": FLOAT_MAX}
+    - resample_to_hz: FLOAT, {"default": 0, min": 0, max": FLOAT_MAX}
+    - make_stereo: BOOLEAN, {"default": True}
+  Optional:
+Outputs:
+  - AUDIO
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "paths":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - default: ./frame000001.png\n./frame000002.png\n./frame000003.png
+    - multiline: True
+    - dynamicPrompts: False
+    - ignore_missing_images: ("false, true
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "images":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - images: IMAGE
+    - {"default: ./frame{
+    - start_index: INT, {"default": 0, min": 0, step": 1}
+    - overwrite: ("false, true
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "mask":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - mask: MASK
+    - batch_size: INT, {"default": 1, min": 1, step": 1}
+  Optional:
+Outputs:
+  - MASK_SEQUENCE
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {"required": {}}
+    RETURN_TYPES =
+Category: jamesWalker55
+Inputs:
+  Required:
+  Optional:
+Outputs:
+  - IMAGE
+  - MASK
+--------------------------------------------------
+Node: _:
+    """
+    https://pytorch.org/vision/main/auto_examples/plot_optical_flow.html
+    """
+
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "image_a":
+Category: jamesWalker55
+Description: https://pytorch.org/vision/main/auto_examples/plot_optical_flow.html
+Inputs:
+  Required:
+    - image_a: IMAGE
+    - image_b: IMAGE
+  Optional:
+Outputs:
+  - RAFT_FLOW
+--------------------------------------------------
+Node: _:
+    """
+    https://pytorch.org/vision/main/auto_examples/plot_optical_flow.html
+    """
+
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "raft_flow":
+Category: jamesWalker55
+Description: https://pytorch.org/vision/main/auto_examples/plot_optical_flow.html
+Inputs:
+  Required:
+    - raft_flow: RAFT_FLOW
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: _:
+    """
+    This is a utility function for loading motion flows from an EXR image file.
+    This is intended for use with Blender's vector pass in the Cycles renderer.
+
+    In Blender, enable the vector pass. In the compositor, use "Separate Color" to
+    extract the "Blue" and "Alpha" channels of the vector pass. Then, combine them
+    using "Combine Color" to two of the RGB channels. Finally, render to the "OpenEXR"
+    format.
+
+    https://gist.github.com/andres-fr/4ddbb300d418ed65951ce88766236f9c
+    """
+
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "path":
+Category: jamesWalker55
+Description: This is a utility function for loading motion flows from an EXR image file.
+    This is intended for use with Blender's vector pass in the Cycles renderer.
+
+    In Blender, enable the vector pass. In the compositor, use "Separate Color" to
+    extract the "Blue" and "Alpha" channels of the vector pass. Then, combine them
+    using "Combine Color" to two of the RGB channels. Finally, render to the "OpenEXR"
+    format.
+
+    https://gist.github.com/andres-fr/4ddbb300d418ed65951ce88766236f9c
+Inputs:
+  Required:
+    - path: STRING, {"default": ""}
+    - x_channel: ("R, G, B, A
+    - y_channel: ("R, G, B, A
+    - invert_x: ("false, true
+    - invert_y: ("false, true
+  Optional:
+Outputs:
+  - RAFT_FLOW
+--------------------------------------------------
+Node: RangedConfig:
+    def __init__
+Category: Unknown
+Description: \
+p: |
+  masterpiece, best quality,
+  {sp},
+
+n: |
+  {sn},
+  embedding:EasyNegative, embedding:bad-artist, embedding:bad-hands-5, embedding:bad-image-v2-39000,
+  lowres, ((bad anatomy)), ((bad hands)), text, missing finger, extra digits, fewer digits, blurry, ((mutated hands and fingers)), (poorly drawn face), ((mutation)), ((deformed face)), (ugly), ((bad proportions)), ((extra limbs)), extra face, (double head), (extra head), ((extra feet)), monster, logo, cropped, worst quality, low quality, normal quality, jpeg, humpbacked, long body, long neck, ((jpeg artifacts)),
+
+path: "{i:04d}.png"
+
+example: 0
+
+ranges:
+  1:
+    sp: positive subprompt for 1-4
+    sn: negative subprompt for 1-4
+  5:
+    sp: positive subprompt for 5-...
+    sn: negative subprompt for 5-...
+    example: 1
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "config":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - {"default: 16
+    - ranges_key: STRING, {"default": "ranges, multiline": False}
+    - path_key: STRING, {"default": "path, multiline": False}
+    - batch_idx: INT, {"default": 0, min": 0, step": 1, max": 999999}
+    - i_start: INT, {"default": 1, min": 0, step": 1, max": 999999}
+    - i_stop: INT, {"default": 100, min": 0, step": 1, max": 999999}
+    - inclusive: ("false, true
+  Optional:
+Outputs:
+  - INFO_HASH (INFO_HASH)
+  - IMAGE (IMAGE)
+  - BATCH_I_START (INT)
+  - BATCH_I_STOP (INT)
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "info_hash":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - info_hash: INFO_HASH
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "info_hash_list":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - info_hash_list: INFO_HASH_LIST
+    - i: INT, {"default": 0, step": 1, min": -99999999, max": 99999999}
+  Optional:
+Outputs:
+  - INFO_HASH
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "image_a":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - image_a: IMAGE
+    - image_b: IMAGE
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: _:
+    """
+    Batch-load images in a given folder. To avoid loading too many images at once,
+    you can use `paginate_size` and `paginate_page` to load a subset of the images.
+
+    To disable pagination functionality, leave `paginate_size` and `paginate_page` at 0.
+    """
+
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "image_dir":
+Category: jamesWalker55
+Description: Batch-load images in a given folder. To avoid loading too many images at once,
+    you can use `paginate_size` and `paginate_page` to load a subset of the images.
+
+    To disable pagination functionality, leave `paginate_size` and `paginate_page` at 0.
+Inputs:
+  Required:
+    - image_dir: STRING, {"default": "./images, multiline": False}
+    - glob_pattern: STRING, {"default": "*.png, multiline": False}
+    - paginate_size: INT, {"default": 0, min": 0}
+    - paginate_page: INT, {"default": 0, min": 0}
+  Optional:
+Outputs:
+  - IMAGE (IMAGE)
+  - FRAME_COUNT (INT)
+  - FILENAMES (STRING)
+--------------------------------------------------
+Node: Audio
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "a":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - a: STRING_LIST
+    - b: STRING_LIST
+  Optional:
+Outputs:
+  - STRING_LIST
+--------------------------------------------------
+Node: ResultItem
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "audio":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - audio: AUDIO
+    - path: STRING, {"default": "./audio.mp3"}
+    - overwrite: BOOLEAN, {"default": True}
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "value":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - value: LATENT
+    - {"default: latent
+  Optional:
+Outputs:
+  - LATENT
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "string_list":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - string_list: STRING_LIST
+    - clip: CLIP
+  Optional:
+Outputs:
+  - CONDITIONING
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "default":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - default: IMAGE
+    - path: STRING, {"default": "./image.png"}
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "path_pattern":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - {"default: ./frame{
+    - start_index: INT, {"default": 0, min": 0, step": 1, max": 999999}
+    - stop_index: INT, {"default": 16, min": 1, step": 1, max": 999999}
+    - inclusive: ("false, true
+    - ignore_missing_images: ("false, true
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: LoopImageSequence:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "images":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - images: IMAGE
+    - target_frames: INT, {"default": 16, step": 1}
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55/rc"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "key":
+Category: jamesWalker55/rc
+Inputs:
+  Required:
+    - {"default: input_latent
+    - latent: LATENT
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "mask_sequence_1":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - mask_sequence_1: MASK_SEQUENCE
+    - mask_sequence_2: MASK_SEQUENCE
+  Optional:
+Outputs:
+  - MASK_SEQUENCE
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "samples":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - samples: LATENT
+    - mask_sequence: MASK_SEQUENCE
+  Optional:
+Outputs:
+  - LATENT
+--------------------------------------------------
+Node: CropRect
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "x":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - x: INT, {"default": 0, min": 0, max": MAX_RESOLUTION, step": 1}
+    - y: INT, {"default": 0, min": 0, max": MAX_RESOLUTION, step": 1}
+    - {"default: 512
+  Optional:
+Outputs:
+  - CROP_RECT
+--------------------------------------------------
+Node: _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "original_image":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - original_image: IMAGE
+    - cropped_image: IMAGE
+    - cropped_mask: MASK
+    - crop_rect: CROP_RECT
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: _:
+            CATEGORY = category
+            INPUT_TYPES = lambda: {"required": required_inputs}
+            RETURN_TYPES = tuple
+Category: category
+Description: parses '\\n' literals in a string to actual '\n' characters
+Inputs:
+  Required:
+  Optional:
+Outputs:
+  - tuple(return_types
+--------------------------------------------------
+Node: ReferenceOnlySimple:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "model":
+Category: jamesWalker55
+Inputs:
+  Required:
+    - model: MODEL
+    - reference: LATENT
+    - initial_latent: LATENT
+    - batch_size: INT, {"default": 1, min": 1, max": 64}
+  Optional:
+Outputs:
+  - MODEL
+  - LATENT
+--------------------------------------------------
+Node: _:
+    """
+    Set the strength of the previously-added ControlNet, number of values must be
+    equal to batch size.
+    """
+
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "conditioning":
+Category: jamesWalker55
+Description: Set the strength of the previously-added ControlNet, number of values must be
+    equal to batch size.
+Inputs:
+  Required:
+    - conditioning: CONDITIONING
+    - default: 0.25
+    - multiline: True
+    - dynamicPrompts: False
+  Optional:
+Outputs:
+  - CONDITIONING
+--------------------------------------------------
+Node: ManagerFuncsInComfyUI
+Category: Unknown
+Description: provide unified (node -> node pack) mapping list
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: params are global
+Category: Unknown
+Description: # Coding a Python Function
+You are an expert python coder who specializes in writing custom nodes for ComfyUI.
+
+## Available Python Modules
+It is not required to use any of these libraries, but if you do use any import in your code it must be on this list:
+[[IMPORTS]]
+
+## Input Data
+Here is some important information about the input data:
+- input_data_1: [[INPUT1]]
+- input_data_2: [[INPUT2]]
+[[CONNECTIONS]][[EXAMPLES]][[CODEBLOCK]]
+## Coding Instructions
+- Your job is to code the user's requested node given the inputs and desired output type.
+- Respond with only a brief plan and the code in one function named generated_function that takes two kwargs named 'input_data_1' and 'input_data_2'.
+- All functions you must define should be inner functions of generated_function.
+- You may briefly plan your code in plain text, but after write only the code contents of the function itself inside of a `python` code block.
+- Do include needed available imports in your code before the function.
+- If the request is simple enough to do without imports, like math, just do that.
+- If an input is a Tensor and the output is a Tensor, it should be the same shape unless otherwise specified by the user.
+- Image tensors come in the shape (batch, width, height, rgb_channels), if outputting an image, use the same shape as the input image tensor.
+    - To know the tensor is an image, it will come with the last dimension as 3
+    - An example image tensor for a single 512x786 image: (1, 512, 786, 3)
+    - An animation is a tensor with a larger batch of images of the same shape
+- Your resulting code should be as compute efficient as possible.
+- Make sure to deallocate memory for anything which uses it.
+- You may not use `open` or fetch files from the internet.
+- If there is a code block above, insure that the the generated_function args and kwargs match the example below.
+
+### Example Generated function:
+User: output a list of all prime numbers up to the input number
+```python
+import math
+def generated_function(input_data_1=None, input_data_2=None):
+    def is_prime(n):
+        if n <= 1:
+            return False
+        for i in range(2, int(math.sqrt(n))+1):
+            if n % i == 0:
+                return False
+        return True
+    primes = []
+    num = input_data_1
+    while num > 1:
+        if is_prime(num):
+            primes.append(num)
+        num -= 1
+    return primes
+```
+
+## Write the Code
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: AnyNode:
+    """Ask it to make up any node for you. """
+  
+    NAME = "AnyNode"
+    CATEGORY = "utils"
+  
+    ALLOWED_IMPORTS = {"os", "re", "json", "random", "string", "sys", "math", "datetime", "collections", "itertools", "functools", "numpy", "openai", "traceback", "torch", "time", "sklearn", "torchvision", "matplotlib", "io", "base64", "wave", "google.generativeai", "chromadb", "uuid", "comfy", "scipy", "torchaudio", "torchvision", "cv2", "PIL"}
+    CODING_ATTEMPTS = 3
+  
+    def __init__
+Category: utils
+Description: Ask it to make up any node for you.
+Inputs:
+  Required:
+    - multiline: True
+    - default: gpt-4o
+  Optional:
+    - any: any_type
+    - any2: any_type
+Outputs:
+  - any (any_type)
+  - control (CTRL)
+--------------------------------------------------
+Node: AnyNodeGemini
+Category: Unknown
+Inputs:
+  Required:
+    - multiline: True
+    - default: gemini-1.5-flash
+  Optional:
+    - any: any_type
+    - any2: any_type
+Outputs:
+--------------------------------------------------
+Node: AnyNodeOpenAICompatible
+Category: Unknown
+Inputs:
+  Required:
+    - multiline: True
+    - default: http
+  Optional:
+    - any: any_type
+    - any2: any_type
+    - default: ollama
+Outputs:
+--------------------------------------------------
+Node: AnyNodeAnthropic
+Category: Unknown
+Inputs:
+  Required:
+    - multiline: True
+    - default: claude-3-5-sonnet-20240620
+  Optional:
+    - any: any_type
+    - any2: any_type
+Outputs:
+--------------------------------------------------
+Node: AnyNodeCodeViewer:
+    @classmethod
+    def INPUT_TYPES
+Category: utils
+Inputs:
+  Required:
+    - ctrl: CTRL, {"forceInput": True}
+  Optional:
+    - multiline: True
+    - default: No Comment yet.
+Outputs:
+  - control (CTRL)
+--------------------------------------------------
+Node: ShowText:
+    @classmethod
+    def INPUT_TYPES
+Category: utils
+Inputs:
+  Required:
+    - text: STRING, {"forceInput": True}
+  Optional:
+Outputs:
+  - STRING
+--------------------------------------------------
+Node: ConstrainImage:
+    """
+    A node that constrains an image to a maximum and minimum size while maintaining aspect ratio.
+    """
+
+    @classmethod
+    def INPUT_TYPES
+Category: image
+Description: A node that constrains an image to a maximum and minimum size while maintaining aspect ratio.
+Inputs:
+  Required:
+    - images: IMAGE
+    - max_width: INT, {"default": 1024, min": 0}
+    - max_height: INT, {"default": 1024, min": 0}
+    - min_width: INT, {"default": 0, min": 0}
+    - min_height: INT, {"default": 0, min": 0}
+    - crop_if_required: ["yes, no"], {"default": "no"}
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: AnyType
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: ReroutePrimitive:
+    @classmethod
+    def INPUT_TYPES
+Category: __hidden__
+Inputs:
+  Required:
+    - {"value: any
+  Optional:
+Outputs:
+  - any
+--------------------------------------------------
+Node: MultiPrimitive:
+    @classmethod
+    def INPUT_TYPES
+Category: utils
+Inputs:
+  Required:
+  Optional:
+    - {"value: any
+Outputs:
+  - any
+--------------------------------------------------
+Node: MathExpression:
+
+    @classmethod
+    def INPUT_TYPES
+Category: utils
+Inputs:
+  Required:
+    - words: autocompleteWords
+    - separator: 
+  Optional:
+    - a: any
+    - b: any
+    - c: any
+Outputs:
+  - INT
+  - FLOAT
+--------------------------------------------------
+Node: ConstrainImageforVideo:
+    """
+    A node that constrains an image to a maximum and minimum size while maintaining aspect ratio.
+    """
+
+    @classmethod
+    def INPUT_TYPES
+Category: image
+Description: A node that constrains an image to a maximum and minimum size while maintaining aspect ratio.
+Inputs:
+  Required:
+    - images: IMAGE
+    - max_width: INT, {"default": 1024, min": 0}
+    - max_height: INT, {"default": 1024, min": 0}
+    - min_width: INT, {"default": 0, min": 0}
+    - min_height: INT, {"default": 0, min": 0}
+    - crop_if_required: ["yes, no"], {"default": "no"}
+  Optional:
+Outputs:
+  - IMAGE (IMAGE)
+--------------------------------------------------
+Node: LoraLoaderWithImages
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+  - *getattr(LoraLoader (*LoraLoader.RETURN_TYPES)
+  - RETURN_NAMES (STRING)
+--------------------------------------------------
+Node: CheckpointLoaderSimpleWithImages
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+  - *getattr(CheckpointLoaderSimple (*CheckpointLoaderSimple.RETURN_TYPES)
+  - RETURN_NAMES (STRING)
+--------------------------------------------------
+Node: PlaySound:
+    @classmethod
+    def INPUT_TYPES
+Category: utils
+Inputs:
+  Required:
+    - any: any, {}
+    - mode: ["always, on empty queue"], {}
+    - volume: FLOAT, {"min": 0, max": 1, step": 0.1, default": 0.5}
+    - file: STRING, { "default": "notify.mp3" }
+  Optional:
+Outputs:
+  - any
+--------------------------------------------------
+Node: TextFileNode:
+    RETURN_TYPES =
+Category: utils
+Inputs:
+  Required:
+  Optional:
+Outputs:
+  - STRING
+--------------------------------------------------
+Node: LoadText
+Category: Unknown
+Inputs:
+  Required:
+    - root_dir: list(get_valid_dirs(
+    - source: root_dir
+    - type: set
+    - target: $this.disabled
+    - value: False
+    - url: /pysssss/text-file/{$source.value}
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: SaveText
+Category: Unknown
+Inputs:
+  Required:
+    - root_dir: list(get_valid_dirs(
+    - file: STRING, {"default": "file.txt"}
+    - append: ["append, overwrite, new only"], {}
+    - default: True
+    - source: append
+    - type: set
+    - left: $source.value
+    - op: eq
+    - right: append
+    - target: $this.disabled
+    - value: True
+    - text: STRING, {"forceInput": True, multiline": True}
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: Repeater:
+    @classmethod
+    def INPUT_TYPES
+Category: utils
+Inputs:
+  Required:
+    - source: any, {}
+    - repeats: INT, {"min": 0, max": 5000, default": 2}
+    - output: ["single, multi"], {}
+    - node_mode: ["reuse, create"], {}
+  Optional:
+Outputs:
+  - any
+--------------------------------------------------
+Node: SystemNotification:
+    @classmethod
+    def INPUT_TYPES
+Category: utils
+Inputs:
+  Required:
+    - message: STRING, {"default": "Your notification has triggered."}
+    - any: any, {}
+    - mode: ["always, on empty queue"], {}
+  Optional:
+Outputs:
+  - any
+--------------------------------------------------
+Node: StringFunction:
+    @classmethod
+    def INPUT_TYPES
+Category: utils
+Inputs:
+  Required:
+    - action: ["append, replace"], {}
+    - tidy_tags: ["yes, no"], {}
+  Optional:
+    - text_a: STRING, {"multiline": True, dynamicPrompts": False}
+    - text_b: STRING, {"multiline": True, dynamicPrompts": False}
+    - text_c: STRING, {"multiline": True, dynamicPrompts": False}
+Outputs:
+  - STRING
+--------------------------------------------------
+Node: Yolov8DetectionNode:
+    def __init__
+Category: yolov8
+Inputs:
+  Required:
+    - image: IMAGE
+    - model_name: folder_paths.get_filename_list("yolov8
+  Optional:
+Outputs:
+  - IMAGE
+  - JSON
+--------------------------------------------------
+Node: Yolov8SegNode:
+    def __init__
+Category: yolov8
+Inputs:
+  Required:
+    - image: IMAGE
+    - model_name: folder_paths.get_filename_list("yolov8
+    - class_id: INT, {"default": 0}
+  Optional:
+Outputs:
+  - IMAGE
+  - MASK
+--------------------------------------------------
+Node: is 0
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: IFWhisperSpeech:
+    @classmethod
+    def INPUT_TYPES
+Category: ImpactFrames💥🎞️
+Description: \
+            Electromagnetism is a fundamental force of nature that encompasses the interaction between
+            electrically charged particles. It is described by Maxwell's equations, which unify electricity, magnetism,
+            and light into a single theory. In essence, electric charges produce electric fields that exert forces on
+            other charges, while moving charges (currents) generate magnetic fields. These magnetic fields, in turn,
+            can affect the motion of charges and currents. The interaction between electric and magnetic fields propagates
+            through space as electromagnetic waves, which include visible light, radio waves, and X-rays. Electromagnetic
+            forces are responsible for practically all the phenomena encountered in daily life, excluding gravity.
+Inputs:
+  Required:
+    - text: STRING, {"multiline": True, default": node.sample_text}
+    - file_name: STRING, {"default": node.file_name}
+    - speaker: node.audio_files, {}
+    - torch_compile: BOOLEAN, {"default": False}
+  Optional:
+    - cps: FLOAT, {"default": node.cps, min": 10.0, max": 20.0, step": 0.25}
+    - overlap: FLOAT, {"default": node.overlap, min": 0.0, max": 200.0, step": 0.25}
+Outputs:
+  - audios (AUDIO)
+  - wav_16k_path (STRING)
+  - output_audio (AUDIO)
+--------------------------------------------------
+Node: FL_GradGenerator:
+    @classmethod
+    def INPUT_TYPES
+Category: 🏵️Fill Nodes/experiments
+Inputs:
+  Required:
+    - width: INT, {"default": 512, min": 64, max": 4096}
+    - height: INT, {"default": 512, min": 64, max": 4096}
+    - color_mode: ["RGB, HSV"]
+    - interpolation: ["Linear, Ease In, Ease Out, Ease In-Out"]
+    - gradient_colors: STRING, {"default": "[]"}
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: FL_SaveWebPImage
+Category: 🏵️Fill Nodes/Image
+Inputs:
+  Required:
+    - {"images: IMAGE
+    - filename_prefix: STRING, {"default": "ComfyUI"}
+    - quality: INT, {"default": 80, min": 1, max": 100, step": 1}
+  Optional:
+Outputs:
+  - IMAGE
+  - STRING
+--------------------------------------------------
+Node: EventHandler
+Category: utils
+Inputs:
+  Required:
+    - javascript: STRING, {"default": , multiline": True}
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: DownloadAndLoadGIMMVFIModel:
+    @classmethod
+    def INPUT_TYPES
+Category: GIMM-VFI
+Inputs:
+  Required:
+  Optional:
+    - precision: ["fp32, bf16, fp16"], {"default": "fp32"}
+    - torch_compile: BOOLEAN, {"default": False, tooltip": "Compile part of the model with torch.compile, requires Triton"}
+Outputs:
+  - gimmvfi_model (GIMMVIF_MODEL)
+--------------------------------------------------
+Node: GIMMVFI_interpolate:
+    @classmethod
+    def INPUT_TYPES
+Category: PyramidFlowWrapper
+Inputs:
+  Required:
+    - gimmvfi_model: GIMMVIF_MODEL
+    - images: IMAGE, {"tooltip": "The images to interpolate between"}
+    - ds_factor: FLOAT, {"default": 1.0, min": 0.01, max": 1.0, step": 0.01}
+    - interpolation_factor: INT, {"default": 8, min": 1, max": 100, step": 1}
+    - seed: INT, {"default": 0, min": 0, max": 0xffffffffffffffff}
+  Optional:
+    - output_flows: BOOLEAN, {"default": False, tooltip": "Output the flow tensors"}
+Outputs:
+  - images (IMAGE)
+  - flow_tensors (IMAGE)
+--------------------------------------------------
+Node: Film:
+
+    def __init__
+Category: 😺dzNodes/LayerFilter
+Inputs:
+  Required:
+    - image: IMAGE
+    - center_x: FLOAT, {"default": 0.5, min": 0, max": 1, step": 0.01}
+    - center_y: FLOAT, {"default": 0.5, min": 0, max": 1, step": 0.01}
+    - saturation: FLOAT, {"default": 1, min": 0.01, max": 3, step": 0.01}
+    - vignette_intensity: FLOAT, {"default": 0.5, min": 0, max": 1, step": 0.01}
+    - grain_power: FLOAT, {"default": 0.15, min": 0, max": 1, step": 0.01}
+    - grain_scale: FLOAT, {"default": 1.0, min": 0.1, max": 10, step": 0.1}
+    - grain_sat: FLOAT, {"default": 0.5, min": 0, max": 1, step": 0.01}
+    - grain_shadows: FLOAT, {"default": 0.6, min": 0, max": 1, step": 0.01}
+    - grain_highs: FLOAT, {"default": 0.2, min": 0, max": 1, step": 0.01}
+    - blur_strength: INT, {"default": 90, min": 0, max": 256, step": 1}
+    - blur_focus_spread: FLOAT, {"default": 2.2, min": 0.1, max": 8, step": 0.1}
+    - focal_depth: FLOAT, {"default": 0.9, min": 0.0, max": 1, step": 0.01}
+  Optional:
+    - depth_map: IMAGE
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ExtendCanvasV2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - top: INT, {"default": 0, min": -99999, max": 99999, step": 1}
+    - bottom: INT, {"default": 0, min": -99999, max": 99999, step": 1}
+    - left: INT, {"default": 0, min": -99999, max": 99999, step": 1}
+    - right: INT, {"default": 0, min": -99999, max": 99999, step": 1}
+    - color: STRING, {"default": "#000000"}
+  Optional:
+    - mask: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: DropShadowV3:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode_v2
+    - opacity: INT, {"default": 50, min": 0, max": 100, step": 1}
+    - distance_x: INT, {"default": 25, min": -9999, max": 9999, step": 1}
+    - distance_y: INT, {"default": 25, min": -9999, max": 9999, step": 1}
+    - grow: INT, {"default": 6, min": -9999, max": 9999, step": 1}
+    - blur: INT, {"default": 18, min": 0, max": 1000, step": 1}
+    - shadow_color: STRING, {"default": "#000000"}
+  Optional:
+    - background_image: IMAGE
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ImageMaskScaleAs:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - scale_as: any, {}
+    - fit: fit_mode
+    - method: method_mode
+  Optional:
+    - image: IMAGE
+    - mask: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+  - original_size (BOX)
+  - widht (INT)
+  - height (INT)
+--------------------------------------------------
+Node: LS_ImageMaskScaleAsV2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - scale_as: any, {}
+    - fit: fit_mode
+    - method: method_mode
+    - background_color: STRING, {"default": "#FFFFFF"}
+  Optional:
+    - image: IMAGE
+    - mask: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+  - original_size (BOX)
+  - widht (INT)
+  - height (INT)
+--------------------------------------------------
+Node: ColorAdapter:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - color_ref_image: IMAGE
+    - opacity: INT, {"default": 75, min": 0, max": 100, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ColorCorrectShadowAndHighlight:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - shadow_brightness: FLOAT, {"default": 1, min": 0.0, max": 3, step": 0.01}
+    - shadow_saturation: FLOAT, {"default": 1, min": 0.0, max": 3, step": 0.01}
+    - shadow_hue: INT, {"default": 0, min": -255, max": 255, step": 1}
+    - shadow_level_offset: INT, {"default": 0, min": -99, max": 99, step": 1}
+    - shadow_range: FLOAT, {"default": 0.25, min": 0.01, max": 0.99, step": 0.01}
+    - highlight_brightness: FLOAT, {"default": 1, min": 0.0, max": 3, step": 0.01}
+    - highlight_saturation: FLOAT, {"default": 1, min": 0.0, max": 3, step": 0.01}
+    - highlight_hue: INT, {"default": 0, min": -255, max": 255, step": 1}
+    - highlight_level_offset: INT, {"default": 0, min": -99, max": 99, step": 1}
+    - highlight_range: FLOAT, {"default": 0.25, min": 0.01, max": 0.99, step": 0.01}
+  Optional:
+    - mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: LS_ColorCorrectShadow_And_Highlight_V2:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - shadow_brightness: FLOAT, {"default": 1, min": 0.0, max": 3, step": 0.01}
+    - shadow_saturation: FLOAT, {"default": 1, min": 0.0, max": 3, step": 0.01}
+    - shadow_hue: INT, {"default": 0, min": -255, max": 255, step": 1}
+    - shadow_level_offset: INT, {"default": 0, min": -99, max": 99, step": 1}
+    - shadow_range: FLOAT, {"default": 0.25, min": 0.01, max": 0.99, step": 0.01}
+    - highlight_brightness: FLOAT, {"default": 1, min": 0.0, max": 3, step": 0.01}
+    - highlight_saturation: FLOAT, {"default": 1, min": 0.0, max": 3, step": 0.01}
+    - highlight_hue: INT, {"default": 0, min": -255, max": 255, step": 1}
+    - highlight_level_offset: INT, {"default": 0, min": -99, max": 99, step": 1}
+    - highlight_range: FLOAT, {"default": 0.25, min": 0.01, max": 0.99, step": 0.01}
+  Optional:
+    - mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ColorImageV2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - size: size_list
+    - custom_width: INT, {"default": 512, min": 4, max": 99999, step": 1}
+    - custom_height: INT, {"default": 512, min": 4, max": 99999, step": 1}
+    - color: STRING, {"default": "#000000"}
+  Optional:
+    - size_as: any, {}
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: GradientMap:
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - image: IMAGE
+    - start_color: STRING, {"default": "#015A52"}
+    - mid_color: STRING, {"default": "#02AF9F"}
+    - end_color: STRING, {"default": "#7FFFEC"}
+    - mid_point: FLOAT, {"default": 0.6, min": 0.0, max": 1.0, step": 0.01}
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+  - gradient (IMAGE)
+--------------------------------------------------
+Node: ImageOpacity:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - invert_mask: BOOLEAN, {"default": True}
+  Optional:
+    - mask: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: MaskGrain:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - mask: MASK
+    - grain: INT, {"default": 6, min": 0, max": 127, step": 1}
+    - invert_mask: BOOLEAN, {"default": False}
+  Optional:
+Outputs:
+  - mask (MASK)
+--------------------------------------------------
+Node: ImageChannelSplit:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - mode: channel_mode
+  Optional:
+Outputs:
+  - channel_1 (IMAGE)
+  - channel_2 (IMAGE)
+  - channel_3 (IMAGE)
+  - channel_4 (IMAGE)
+--------------------------------------------------
+Node: LayerImageTransform:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - x: INT, {"default": 0, min": -99999, max": 99999, step": 1}
+    - y: INT, {"default": 0, min": -99999, max": 99999, step": 1}
+    - mirror: mirror_mode
+    - scale: FLOAT, {"default": 1, min": 0.01, max": 100, step": 0.01}
+    - aspect_ratio: FLOAT, {"default": 1, min": 0.01, max": 100, step": 0.01}
+    - rotate: FLOAT, {"default": 0, min": -999999, max": 999999, step": 0.01}
+    - transform_method: method_mode
+    - anti_aliasing: INT, {"default": 2, min": 0, max": 16, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ImageShift:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - shift_x: INT, {"default": 256, min": -9999, max": 9999, step": 1}
+    - shift_y: INT, {"default": 256, min": -9999, max": 9999, step": 1}
+    - cyclic: BOOLEAN, {"default": True}
+    - background_color: STRING, {"default": "#000000"}
+    - border_mask_width: INT, {"default": 20, min": 0, max": 999, step": 1}
+    - border_mask_blur: INT, {"default": 12, min": 0, max": 999, step": 1}
+  Optional:
+    - mask: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+  - border_mask (MASK)
+--------------------------------------------------
+Node: StrokeV2:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode_v2
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - stroke_grow: INT, {"default": 0, min": -999, max": 999, step": 1}
+    - stroke_width: INT, {"default": 8, min": 0, max": 999, step": 1}
+    - blur: INT, {"default": 0, min": 0, max": 100, step": 1}
+    - stroke_color: STRING, {"default": "#FF0000"}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: GaussianBlur:
+
+    def __init__
+Category: 😺dzNodes/LayerFilter
+Inputs:
+  Required:
+    - image: IMAGE
+    - blur: INT, {"default": 20, min": 1, max": 999, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: LS_GaussianBlurV2:
+
+    def __init__
+Category: 😺dzNodes/LayerFilter
+Inputs:
+  Required:
+    - image: IMAGE
+    - blur: FLOAT, {"default": 20, min": 0, max": 1000, step": 0.05}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: SoftLight:
+
+    def __init__
+Category: 😺dzNodes/LayerFilter
+Inputs:
+  Required:
+    - image: IMAGE
+    - soft: FLOAT, {"default": 1, min": 0.2, max": 10, step": 0.01}
+    - threshold: INT, {"default": -10, min": -255, max": 255, step": 1}
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ColorCorrectExposure:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - exposure: INT, {"default": 20, min": -100, max": 100, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ColorCorrectLUTapply:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - LUT: LUT_LIST
+    - color_space: color_space_list
+    - strength: INT, {"default": 100, min": 0, max": 100, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ColorCorrectYUV:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - Y: INT, {"default": 0, min": -255, max": 255, step": 1}
+    - U: INT, {"default": 0, min": -255, max": 255, step": 1}
+    - V: INT, {"default": 0, min": -255, max": 255, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ImageHub:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - output: INT, {"default": 1, min": 1, max": 9, step": 1}
+    - random_output: BOOLEAN, {"default": False}
+  Optional:
+    - input1_image: IMAGE
+    - input1_mask: MASK
+    - input2_image: IMAGE
+    - input2_mask: MASK
+    - input3_image: IMAGE
+    - input3_mask: MASK
+    - input4_image: IMAGE
+    - input4_mask: MASK
+    - input5_image: IMAGE
+    - input5_mask: MASK
+    - input6_image: IMAGE
+    - input6_mask: MASK
+    - input7_image: IMAGE
+    - input7_mask: MASK
+    - input8_image: IMAGE
+    - input8_mask: MASK
+    - input9_image: IMAGE
+    - input9_mask: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: DropShadowV2:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode_v2
+    - opacity: INT, {"default": 50, min": 0, max": 100, step": 1}
+    - distance_x: INT, {"default": 25, min": -9999, max": 9999, step": 1}
+    - distance_y: INT, {"default": 25, min": -9999, max": 9999, step": 1}
+    - grow: INT, {"default": 6, min": -9999, max": 9999, step": 1}
+    - blur: INT, {"default": 18, min": 0, max": 100, step": 1}
+    - shadow_color: STRING, {"default": "#000000"}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ColorOverlayV2:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode_v2
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - color: STRING, {"default": "#FFBF30"}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: MaskStroke:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - mask: MASK
+    - invert_mask: BOOLEAN, {"default": True}
+    - stroke_grow: INT, {"default": 0, min": -999, max": 999, step": 1}
+    - stroke_width: INT, {"default": 20, min": 0, max": 999, step": 1}
+    - blur: INT, {"default": 6, min": 0, max": 100, step": 1}
+  Optional:
+Outputs:
+  - mask (MASK)
+--------------------------------------------------
+Node: AddGrain:
+
+    def __init__
+Category: 😺dzNodes/LayerFilter
+Inputs:
+  Required:
+    - image: IMAGE
+    - grain_power: FLOAT, {"default": 0.5, min": 0, max": 1, step": 0.01}
+    - grain_scale: FLOAT, {"default": 1, min": 0.1, max": 10, step": 0.1}
+    - grain_sat: FLOAT, {"default": 1, min": 0, max": 1, step": 0.01}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: AutoAdjustV2:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - strength: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - brightness: INT, {"default": 0, min": -100, max": 100, step": 1}
+    - contrast: INT, {"default": 0, min": -100, max": 100, step": 1}
+    - saturation: INT, {"default": 0, min": -100, max": 100, step": 1}
+    - red: INT, {"default": 0, min": -100, max": 100, step": 1}
+    - green: INT, {"default": 0, min": -100, max": 100, step": 1}
+    - blue: INT, {"default": 0, min": -100, max": 100, step": 1}
+    - mode: mode_list
+  Optional:
+    - mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: RestoreCropBox:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - croped_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": False}
+    - crop_box: BOX
+  Optional:
+    - croped_mask: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: ColorValuetoRGBValue:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - color_value: any, {}
+  Optional:
+Outputs:
+  - R (INT)
+  - G (INT)
+  - B (INT)
+--------------------------------------------------
+Node: ICMask_Data:
+    def __init__
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: LS_ICMask:
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - first_image: IMAGE
+    - default: #FFFFFF
+  Optional:
+    - first_mask: MASK
+    - second_image: IMAGE
+    - second_mask: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+  - icmask_data (ICMASK_DATA)
+--------------------------------------------------
+Node: LS_ICMask_CropBack:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - { "image: IMAGE
+    - icmask_data: ICMASK_DATA
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: PrintInfo:
+
+  @classmethod
+  def INPUT_TYPES
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - anything: any, {}
+  Optional:
+Outputs:
+  - text (STRING)
+--------------------------------------------------
+Node: ImageScaleByAspectRatioV2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - aspect_ratio: ratio_list
+    - proportional_width: INT, {"default": 1, min": 1, max": 1e8, step": 1}
+    - proportional_height: INT, {"default": 1, min": 1, max": 1e8, step": 1}
+    - fit: fit_mode
+    - method: method_mode
+    - round_to_multiple: multiple_list
+    - scale_to_side: scale_to_list
+    - scale_to_length: INT, {"default": 1024, min": 4, max": 1e8, step": 1}
+    - background_color: STRING, {"default": "#000000"}
+  Optional:
+    - image: IMAGE
+    - mask: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+  - original_size (BOX)
+  - width (INT)
+  - height (INT)
+--------------------------------------------------
+Node: MaskMotionBlur:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - mask: MASK
+    - invert_mask: BOOLEAN, {"default": True}
+    - blur: INT, {"default": 20, min": 1, max": 9999, step": 1}
+    - angle: FLOAT, {"default": 0, min": -360, max": 360, step": 0.1}
+  Optional:
+Outputs:
+  - mask (MASK)
+--------------------------------------------------
+Node: CheckMask:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - mask: MASK
+    - white_point: INT, {"default": 1, min": 1, max": 254, step": 1}
+    - area_percent: INT, {"default": 1, min": 1, max": 99, step": 1}
+  Optional:
+Outputs:
+  - bool (BOOLEAN)
+--------------------------------------------------
+Node: FilmV2:
+
+    def __init__
+Category: 😺dzNodes/LayerFilter
+Inputs:
+  Required:
+    - image: IMAGE
+    - center_x: FLOAT, {"default": 0.5, min": 0, max": 1, step": 0.01}
+    - center_y: FLOAT, {"default": 0.5, min": 0, max": 1, step": 0.01}
+    - saturation: FLOAT, {"default": 1, min": 0.01, max": 3, step": 0.01}
+    - vignette_intensity: FLOAT, {"default": 0.5, min": 0, max": 1, step": 0.01}
+    - grain_method: grain_method_list
+    - grain_power: FLOAT, {"default": 0.15, min": 0, max": 1, step": 0.01}
+    - grain_scale: FLOAT, {"default": 1, min": 0.1, max": 10, step": 0.1}
+    - grain_sat: FLOAT, {"default": 0.5, min": 0, max": 1, step": 0.01}
+    - filmgrainer_shadows: FLOAT, {"default": 0.6, min": 0, max": 1, step": 0.01}
+    - filmgrainer_highs: FLOAT, {"default": 0.2, min": 0, max": 1, step": 0.01}
+    - blur_strength: INT, {"default": 90, min": 0, max": 256, step": 1}
+    - blur_focus_spread: FLOAT, {"default": 2.2, min": 0.1, max": 8, step": 0.1}
+    - focal_depth: FLOAT, {"default": 0.9, min": 0.0, max": 1, step": 0.01}
+  Optional:
+    - depth_map: IMAGE
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ColorBalance:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - cyan_red: FLOAT, {"default": 0, min": -1.0, max": 1.0, step": 0.001}
+    - magenta_green: FLOAT, {"default": 0, min": -1.0, max": 1.0, step": 0.001}
+    - yellow_blue: FLOAT, {"default": 0, min": -1.0, max": 1.0, step": 0.001}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ColorOverlay:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - color: STRING, {"default": "#FFBF30"}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: PixelSpread:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - image: IMAGE
+    - invert_mask: BOOLEAN, {"default": False}
+    - mask_grow: INT, {"default": 0, min": -999, max": 999, step": 1}
+  Optional:
+    - mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: GradientOverlayV2:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode_v2
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - start_color: STRING, {"default": "#FFBF30"}
+    - start_alpha: INT, {"default": 255, min": 0, max": 255, step": 1}
+    - end_color: STRING, {"default": "#FE0000"}
+    - end_alpha: INT, {"default": 255, min": 0, max": 255, step": 1}
+    - angle: INT, {"default": 0, min": -180, max": 180, step": 1}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: SegformerPipeline:
+    def __init__
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: Segformer_B2_Clothes:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - image: IMAGE
+    - face: BOOLEAN, {"default": False}
+    - hair: BOOLEAN, {"default": False}
+    - hat: BOOLEAN, {"default": False}
+    - sunglass: BOOLEAN, {"default": False}
+    - left_arm: BOOLEAN, {"default": False}
+    - right_arm: BOOLEAN, {"default": False}
+    - left_leg: BOOLEAN, {"default": False}
+    - right_leg: BOOLEAN, {"default": False}
+    - upper_clothes: BOOLEAN, {"default": False}
+    - skirt: BOOLEAN, {"default": False}
+    - pants: BOOLEAN, {"default": False}
+    - dress: BOOLEAN, {"default": False}
+    - belt: BOOLEAN, {"default": False}
+    - shoe: BOOLEAN, {"default": False}
+    - bag: BOOLEAN, {"default": False}
+    - scarf: BOOLEAN, {"default": False}
+    - detail_method: method_list
+    - detail_erode: INT, {"default": 12, min": 1, max": 255, step": 1}
+    - detail_dilate: INT, {"default": 6, min": 1, max": 255, step": 1}
+    - FLOAT", {"default: 0.99
+    - process_detail: BOOLEAN, {"default": True}
+    - device: device_list
+    - max_megapixels: FLOAT, {"default": 2.0, min": 1, max": 999, step": 0.1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: SegformerClothesPipelineLoader:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - {   "model: model_list
+    - face: BOOLEAN, {"default": False, label_on": "enabled(脸
+    - hair: BOOLEAN, {"default": False, label_on": "enabled(头发
+    - hat: BOOLEAN, {"default": False, label_on": "enabled(帽子
+    - sunglass: BOOLEAN, {"default": False, label_on": "enabled(墨镜
+    - left_arm: BOOLEAN, {"default": False, label_on": "enabled(左臂
+    - right_arm: BOOLEAN, {"default": False, label_on": "enabled(右臂
+    - left_leg: BOOLEAN, {"default": False, label_on": "enabled(左腿
+    - right_leg: BOOLEAN, {"default": False, label_on": "enabled(右腿
+    - left_shoe: BOOLEAN, {"default": False, label_on": "enabled(左鞋
+    - right_shoe: BOOLEAN, {"default": False, label_on": "enabled(右鞋
+    - upper_clothes: BOOLEAN, {"default": False, label_on": "enabled(上衣
+    - skirt: BOOLEAN, {"default": False, label_on": "enabled(短裙
+    - pants: BOOLEAN, {"default": False, label_on": "enabled(裤子
+    - dress: BOOLEAN, {"default": False, label_on": "enabled(连衣裙
+    - belt: BOOLEAN, {"default": False, label_on": "enabled(腰带
+    - bag: BOOLEAN, {"default": False, label_on": "enabled(背包
+    - scarf: BOOLEAN, {"default": False, label_on": "enabled(围巾
+  Optional:
+Outputs:
+  - segformer_pipeline (SegPipeline)
+--------------------------------------------------
+Node: SegformerFashionPipelineLoader:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - {   "model: model_list
+    - shirt: BOOLEAN, {"default": False, label_on": "enabled(衬衫、罩衫
+    - top: BOOLEAN, {"default": False, label_on": "enabled(上衣、t恤
+    - sweater: BOOLEAN, {"default": False, label_on": "enabled(毛衣
+    - cardigan: BOOLEAN, {"default": False, label_on": "enabled(开襟毛衫
+    - jacket: BOOLEAN, {"default": False, label_on": "enabled(夹克
+    - vest: BOOLEAN, {"default": False, label_on": "enabled(背心
+    - pants: BOOLEAN, {"default": False, label_on": "enabled(裤子
+    - shorts: BOOLEAN, {"default": False, label_on": "enabled(短裤
+    - skirt: BOOLEAN, {"default": False, label_on": "enabled(裙子
+    - coat: BOOLEAN, {"default": False, label_on": "enabled(外套
+    - dress: BOOLEAN, {"default": False, label_on": "enabled(连衣裙
+    - jumpsuit: BOOLEAN, {"default": False, label_on": "enabled(连身裤
+    - cape: BOOLEAN, {"default": False, label_on": "enabled(斗篷
+    - glasses: BOOLEAN, {"default": False, label_on": "enabled(眼镜
+    - hat: BOOLEAN, {"default": False, label_on": "enabled(帽子
+    - hairaccessory: BOOLEAN, {"default": False, label_on": "enabled(头带
+    - tie: BOOLEAN, {"default": False, label_on": "enabled(领带
+    - glove: BOOLEAN, {"default": False, label_on": "enabled(手套
+    - watch: BOOLEAN, {"default": False, label_on": "enabled(手表
+    - belt: BOOLEAN, {"default": False, label_on": "enabled(皮带
+    - legwarmer: BOOLEAN, {"default": False, label_on": "enabled(腿套
+    - tights: BOOLEAN, {"default": False, label_on": "enabled(裤袜
+    - sock: BOOLEAN, {"default": False, label_on": "enabled(袜子
+    - shoe: BOOLEAN, {"default": False, label_on": "enabled(鞋子
+    - bagwallet: BOOLEAN, {"default": False, label_on": "enabled(手包
+    - scarf: BOOLEAN, {"default": False, label_on": "enabled(围巾
+    - umbrella: BOOLEAN, {"default": False, label_on": "enabled(雨伞
+    - hood: BOOLEAN, {"default": False, label_on": "enabled(兜帽
+    - collar: BOOLEAN, {"default": False, label_on": "enabled(衣领
+    - lapel: BOOLEAN, {"default": False, label_on": "enabled(翻领
+    - epaulette: BOOLEAN, {"default": False, label_on": "enabled(肩章
+    - sleeve: BOOLEAN, {"default": False, label_on": "enabled(袖子
+    - pocket: BOOLEAN, {"default": False, label_on": "enabled(口袋
+    - neckline: BOOLEAN, {"default": False, label_on": "enabled(领口
+    - buckle: BOOLEAN, {"default": False, label_on": "enabled(带扣
+    - zipper: BOOLEAN, {"default": False, label_on": "enabled(拉链
+    - applique: BOOLEAN, {"default": False, label_on": "enabled(贴花
+    - bead: BOOLEAN, {"default": False, label_on": "enabled(珠子
+    - bow: BOOLEAN, {"default": False, label_on": "enabled(蝴蝶结
+    - flower: BOOLEAN, {"default": False, label_on": "enabled(花
+    - fringe: BOOLEAN, {"default": False, label_on": "enabled(刘海
+    - ribbon: BOOLEAN, {"default": False, label_on": "enabled(丝带
+    - rivet: BOOLEAN, {"default": False, label_on": "enabled(铆钉
+    - ruffle: BOOLEAN, {"default": False, label_on": "enabled(褶饰
+    - sequin: BOOLEAN, {"default": False, label_on": "enabled(亮片
+    - tassel: BOOLEAN, {"default": False, label_on": "enabled(流苏
+  Optional:
+Outputs:
+  - segformer_pipeline (SegPipeline)
+--------------------------------------------------
+Node: SegformerUltraV2:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - image: IMAGE
+    - segformer_pipeline: SegPipeline
+    - detail_method: method_list
+    - detail_erode: INT, {"default": 8, min": 1, max": 255, step": 1}
+    - detail_dilate: INT, {"default": 6, min": 1, max": 255, step": 1}
+    - black_point: FLOAT, {"default": 0.01, min": 0.01, max": 0.98, step": 0.01, display": "slider"}
+    - white_point: FLOAT, {"default": 0.99, min": 0.02, max": 0.99, step": 0.01, display": "slider"}
+    - process_detail: BOOLEAN, {"default": True}
+    - device: device_list
+    - max_megapixels: FLOAT, {"default": 2.0, min": 1, max": 999, step": 0.1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: LS_HDREffects:
+    @classmethod
+    def INPUT_TYPES
+Category: 😺dzNodes/LayerFilter
+Inputs:
+  Required:
+    - {'image: IMAGE, {'default': None}
+    - hdr_intensity: FLOAT, {'default': 0.5, min': 0.0, max': 5.0, step': 0.01}
+    - shadow_intensity: FLOAT, {'default': 0.25, min': 0.0, max': 1.0, step': 0.01}
+    - highlight_intensity: FLOAT, {'default': 0.75, min': 0.0, max': 1.0, step': 0.01}
+    - gamma_intensity: FLOAT, {'default': 0.25, min': 0.0, max': 1.0, step': 0.01}
+    - contrast: FLOAT, {'default': 0.1, min': 0.0, max': 1.0, step': 0.01}
+    - enhance_color: FLOAT, {'default': 0.25, min': 0.0, max': 1.0, step': 0.01}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: TextImage:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - text: STRING, {"multiline": True, default": "Text"}
+    - font_file: FONT_LIST
+    - spacing: INT, {"default": 0, min": -9999, max": 9999, step": 1}
+    - leading: INT, {"default": 0, min": -9999, max": 9999, step": 1}
+    - horizontal_border: FLOAT, {"default": 5, min": -100, max": 100, step": 0.1}
+    - vertical_border: FLOAT, {"default": 5, min": -100, max": 100, step": 0.1}
+    - scale: FLOAT, {"default": 80, min": 0.1, max": 999, step": 0.01}
+    - variation_range: INT, {"default": 0, min": 0, max": 100, step": 1}
+    - variation_seed: INT, {"default": random_seed, min": 0, max": 999999999999, step": 1}
+    - layout: layout_list
+    - width: INT, {"default": 512, min": 4, max": 999999, step": 1}
+    - height: INT, {"default": 512, min": 4, max": 999999, step": 1}
+    - text_color: STRING, {"default": "#FFA000"}
+    - background_color: STRING, {"default": "#FFFFFF"}
+  Optional:
+    - size_as: any, {}
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: TextJoin:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - text_1: STRING, {"default": , multiline": False, forceInput":False}
+  Optional:
+    - text_2: STRING, {"default": , multiline": False, forceInput":False}
+    - text_3: STRING, {"default": , multiline": False, forceInput":False}
+    - text_4: STRING, {"default": , multiline": False, forceInput":False}
+Outputs:
+  - text (STRING)
+--------------------------------------------------
+Node: LS_TextJoinV2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - text_1: STRING, {"default": , multiline": False, forceInput":True}
+    - delimiter: STRING, {"default": , , multiline": False}
+  Optional:
+    - text_2: STRING, {"default": , multiline": False, forceInput":True}
+    - text_3: STRING, {"default": , multiline": False, forceInput":True}
+    - text_4: STRING, {"default": , multiline": False, forceInput":True}
+Outputs:
+  - text (STRING)
+--------------------------------------------------
+Node: ImageBlendAdvance:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - x_percent: FLOAT, {"default": 50, min": -999, max": 999, step": 0.01}
+    - y_percent: FLOAT, {"default": 50, min": -999, max": 999, step": 0.01}
+    - mirror: mirror_mode
+    - scale: FLOAT, {"default": 1, min": 0.01, max": 100, step": 0.01}
+    - aspect_ratio: FLOAT, {"default": 1, min": 0.01, max": 100, step": 0.01}
+    - rotate: FLOAT, {"default": 0, min": -999999, max": 999999, step": 0.01}
+    - transform_method: method_mode
+    - anti_aliasing: INT, {"default": 0, min": 0, max": 16, step": 1}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: MaskEdgeUltraDetailV2:
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - image: IMAGE
+    - mask: MASK
+    - method: method_list
+    - mask_grow: INT, {"default": 0, min": 0, max": 256, step": 1}
+    - fix_gap: INT, {"default": 0, min": 0, max": 32, step": 1}
+    - fix_threshold: FLOAT, {"default": 0.75, min": 0.01, max": 0.99, step": 0.01}
+    - edge_erode: INT, {"default": 6, min": 1, max": 255, step": 1}
+    - edte_dilate: INT, {"default": 6, min": 1, max": 255, step": 1}
+    - black_point: FLOAT, {"default": 0.01, min": 0.01, max": 0.98, step": 0.01, display": "slider"}
+    - white_point: FLOAT, {"default": 0.99, min": 0.02, max": 0.99, step": 0.01, display": "slider"}
+    - device: device_list
+    - max_megapixels: FLOAT, {"default": 2.0, min": 1, max": 999, step": 0.1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: WaterColor:
+
+    def __init__
+Category: 😺dzNodes/LayerFilter
+Inputs:
+  Required:
+    - image: IMAGE
+    - line_density: INT, {"default": 50, min": 1, max": 100, step": 1}
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: CropByMask:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - mask_for_crop: MASK
+    - invert_mask: BOOLEAN, {"default": False}
+    - detect: detect_mode
+    - top_reserve: INT, {"default": 20, min": -9999, max": 9999, step": 1}
+    - bottom_reserve: INT, {"default": 20, min": -9999, max": 9999, step": 1}
+    - left_reserve: INT, {"default": 20, min": -9999, max": 9999, step": 1}
+    - right_reserve: INT, {"default": 20, min": -9999, max": 9999, step": 1}
+  Optional:
+Outputs:
+  - croped_image (IMAGE)
+  - croped_mask (MASK)
+  - crop_box (BOX)
+  - box_preview (IMAGE)
+--------------------------------------------------
+Node: OuterGlowV2:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode_list
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - brightness: INT, {"default": 5, min": 2, max": 20, step": 1}
+    - glow_range: INT, {"default": 48, min": -9999, max": 9999, step": 1}
+    - blur: INT, {"default": 25, min": 0, max": 9999, step": 1}
+    - light_color: STRING, {"default": "#FFBF30"}
+    - glow_color: STRING, {"default": "#FE0000"}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ChannelShake:
+
+    def __init__
+Category: 😺dzNodes/LayerFilter
+Inputs:
+  Required:
+    - image: IMAGE
+    - distance: INT, {"default": 20, min": 1, max": 999, step": 1}
+    - angle: FLOAT, {"default": 40, min": -360, max": 360, step": 0.1}
+    - mode: channel_mode
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: InnerGlow:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - brightness: INT, {"default": 5, min": 2, max": 20, step": 1}
+    - glow_range: INT, {"default": 48, min": -9999, max": 9999, step": 1}
+    - blur: INT, {"default": 25, min": 0, max": 9999, step": 1}
+    - light_color: STRING, {"default": "#FFBF30"}
+    - glow_color: STRING, {"default": "#FE0000"}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ImageRemoveAlpha:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - RGBA_image: IMAGE
+    - fill_background: BOOLEAN, {"default": False}
+    - background_color: STRING, {"default": "#000000"}
+  Optional:
+    - mask: MASK
+Outputs:
+  - RGB_image (IMAGE)
+--------------------------------------------------
+Node: MaskEdgeUltraDetail:
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - image: IMAGE
+    - mask: MASK
+    - method: method_list
+    - mask_grow: INT, {"default": 0, min": -999, max": 999, step": 1}
+    - fix_gap: INT, {"default": 0, min": 0, max": 32, step": 1}
+    - fix_threshold: FLOAT, {"default": 0.75, min": 0.01, max": 0.99, step": 0.01}
+    - detail_range: INT, {"default": 12, min": 1, max": 256, step": 1}
+    - black_point: FLOAT, {"default": 0.01, min": 0.01, max": 0.98, step": 0.01}
+    - white_point: FLOAT, {"default": 0.99, min": 0.02, max": 0.99, step": 0.01}
+  Optional:
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: Stroke:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - stroke_grow: INT, {"default": 0, min": -999, max": 999, step": 1}
+    - stroke_width: INT, {"default": 8, min": 0, max": 999, step": 1}
+    - blur: INT, {"default": 0, min": 0, max": 100, step": 1}
+    - stroke_color: STRING, {"default": "#FF0000"}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: MaskByColor:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - image: IMAGE
+    - color: COLOR, {"default": "#FFFFFF"}
+    - color_in_HEX: STRING, {"default": ""}
+    - threshold: INT, { "default": 50, min": 0, max": 100, step": 1, }
+    - fix_gap: INT, {"default": 2, min": 0, max": 32, step": 1}
+    - fix_threshold: FLOAT, {"default": 0.75, min": 0.01, max": 0.99, step": 0.01}
+    - invert_mask: BOOLEAN, {"default": False}
+  Optional:
+    - mask: MASK
+Outputs:
+  - mask (MASK)
+--------------------------------------------------
+Node: ShadowAndHighlightMask:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - image: IMAGE
+    - shadow_level_offset: INT, {"default": 0, min": -99, max": 99, step": 1}
+    - shadow_range: FLOAT, {"default": 0.25, min": 0.01, max": 0.99, step": 0.01}
+    - highlight_level_offset: INT, {"default": 0, min": -99, max": 99, step": 1}
+    - highlight_range: FLOAT, {"default": 0.25, min": 0.01, max": 0.99, step": 0.01}
+  Optional:
+    - mask: MASK
+Outputs:
+  - shadow_mask (MASK)
+  - highlight_mask (MASK)
+--------------------------------------------------
+Node: LS_ShadowAndHighlightMaskV2:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - image: IMAGE
+    - shadow_level_offset: INT, {"default": 0, min": -99, max": 99, step": 1}
+    - shadow_range: FLOAT, {"default": 0.25, min": 0.01, max": 0.99, step": 0.01}
+    - highlight_level_offset: INT, {"default": 0, min": -99, max": 99, step": 1}
+    - highlight_range: FLOAT, {"default": 0.25, min": 0.01, max": 0.99, step": 0.01}
+  Optional:
+    - mask: MASK
+Outputs:
+  - shadow_mask (MASK)
+  - highlight_mask (MASK)
+--------------------------------------------------
+Node: MaskInvert:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - mask: MASK
+  Optional:
+Outputs:
+  - mask (MASK)
+--------------------------------------------------
+Node: SimpleTextImage:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - font_file: FONT_LIST
+    - align: ["center, left, right"]
+    - char_per_line: INT, {"default": 80, min": 1, max": 8096, step": 1}
+    - leading: INT, {"default": 8, min": 0, max": 8096, step": 1}
+    - font_size: INT, {"default": 72, min": 1, max": 2500, step": 1}
+    - text_color: STRING, {"default": "#FFFFFF"}
+    - stroke_width: INT, {"default": 0, min": 0, max": 8096, step": 1}
+    - stroke_color: STRING, {"default": "#FF8000"}
+    - x_offset: INT, {"default": 0, min": 0, max": 8096, step": 1}
+    - y_offset: INT, {"default": 0, min": 0, max": 8096, step": 1}
+    - width: INT, {"default": 512, min": 1, max": 8096, step": 1}
+    - height: INT, {"default": 512, min": 1, max": 8096, step": 1}
+  Optional:
+    - size_as: any, {}
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: ColorValuetoGrayValue:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - color_value: any, {}
+  Optional:
+Outputs:
+  - gray(256_level) (INT)
+  - gray(100_level) (INT)
+--------------------------------------------------
+Node: ColorCorrectHSV:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - H: INT, {"default": 0, min": -255, max": 255, step": 1}
+    - S: INT, {"default": 0, min": -255, max": 255, step": 1}
+    - V: INT, {"default": 0, min": -255, max": 255, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: AutoBrightness:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - strength: INT, {"default": 75, min": 0, max": 100, step": 1}
+    - saturation: INT, {"default": 8, min": -255, max": 255, step": 1}
+  Optional:
+    - mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ColorPicker:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - color: COLOR, {"default": "#FFFFFF"}
+    - mode: mode_list
+  Optional:
+Outputs:
+  - value (STRING)
+--------------------------------------------------
+Node: GradientOverlay:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - start_color: STRING, {"default": "#FFBF30"}
+    - start_alpha: INT, {"default": 255, min": 0, max": 255, step": 1}
+    - end_color: STRING, {"default": "#FE0000"}
+    - end_alpha: INT, {"default": 255, min": 0, max": 255, step": 1}
+    - angle: INT, {"default": 0, min": -180, max": 180, step": 1}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ImageScaleRestore:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - scale: FLOAT, {"default": 1, min": 0.01, max": 100, step": 0.01}
+    - method: method_mode
+    - scale_by_longest_side: BOOLEAN, {"default": False}
+    - longest_side: INT, {"default": 1024, min": 4, max": 999999, step": 1}
+  Optional:
+    - mask: MASK
+    - original_size: BOX
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+  - original_size (BOX)
+  - width (INT)
+  - height (INT)
+--------------------------------------------------
+Node: MaskBoxDetect:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - mask: MASK
+    - detect: detect_mode
+    - x_adjust: INT, {"default": 0, min": -9999, max": 9999, step": 1}
+    - y_adjust: INT, {"default": 0, min": -9999, max": 9999, step": 1}
+    - scale_adjust: FLOAT, {"default": 1.0, min": 0.01, max": 100, step": 0.01}
+  Optional:
+Outputs:
+  - box_preview (IMAGE)
+  - x_percent (FLOAT)
+  - y_percent (FLOAT)
+  - width (INT)
+  - height (INT)
+  - x (INT)
+  - y (INT)
+--------------------------------------------------
+Node: SharpAndSoft:
+
+    def __init__
+Category: 😺dzNodes/LayerFilter
+Inputs:
+  Required:
+    - images: IMAGE
+    - enhance: enhance_list
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: OuterGlow:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - brightness: INT, {"default": 5, min": 2, max": 20, step": 1}
+    - glow_range: INT, {"default": 48, min": -9999, max": 9999, step": 1}
+    - blur: INT, {"default": 25, min": 0, max": 9999, step": 1}
+    - light_color: STRING, {"default": "#FFBF30"}
+    - glow_color: STRING, {"default": "#FE0000"}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ExtendCanvas:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - top: INT, {"default": 0, min": 0, max": 99999, step": 1}
+    - bottom: INT, {"default": 0, min": 0, max": 99999, step": 1}
+    - left: INT, {"default": 0, min": 0, max": 99999, step": 1}
+    - right: INT, {"default": 0, min": 0, max": 99999, step": 1}
+    - color: COLOR, {"default": "#000000"}
+  Optional:
+    - mask: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: ImageChannelMerge:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - channel_1: IMAGE
+    - channel_2: IMAGE
+    - channel_3: IMAGE
+    - mode: channel_mode
+  Optional:
+    - channel_4: IMAGE
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ImageToMask:
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - image: IMAGE
+    - channel: channel_list
+    - black_point: INT, {"default": 0, min": 0, max": 255, step": 1, display": "slider"}
+    - white_point: INT, {"default": 255, min": 0, max": 255, step": 1, display": "slider"}
+    - gray_point: FLOAT, {"default": 1.0, min": 0.01, max": 9.99, step": 0.01}
+    - invert_output_mask: BOOLEAN, {"default": False}
+  Optional:
+    - mask: MASK
+Outputs:
+  - mask (MASK)
+--------------------------------------------------
+Node: LightLeak:
+
+    def __init__
+Category: 😺dzNodes/LayerFilter
+Inputs:
+  Required:
+    - image: IMAGE
+    - light: light_list
+    - corner: corner_list
+    - hue: INT, {"default": 0, min": -255, max": 255, step": 1}
+    - saturation: INT, {"default": 0, min": -255, max": 255, step": 1}
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ImageCombineAlpha:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - RGB_image: IMAGE
+    - mask: MASK
+  Optional:
+Outputs:
+  - RGBA_image (IMAGE)
+--------------------------------------------------
+Node: MaskGradient:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - mask: MASK
+    - invert_mask: BOOLEAN, {"default": True}
+    - gradient_side: side
+    - gradient_scale: INT, {"default": 100, min": 1, max": 9999, step": 1}
+    - gradient_offset: INT, {"default": 0, min": -9999, max": 9999, step": 1}
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+  Optional:
+Outputs:
+  - mask (MASK)
+--------------------------------------------------
+Node: DropShadow:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode
+    - opacity: INT, {"default": 50, min": 0, max": 100, step": 1}
+    - distance_x: INT, {"default": 25, min": -9999, max": 9999, step": 1}
+    - distance_y: INT, {"default": 25, min": -9999, max": 9999, step": 1}
+    - grow: INT, {"default": 6, min": -9999, max": 9999, step": 1}
+    - blur: INT, {"default": 18, min": 0, max": 100, step": 1}
+    - shadow_color: STRING, {"default": "#000000"}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ImageBlend:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: BatchSelector:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility/SystemIO
+Inputs:
+  Required:
+    - select: STRING, {"default": "0, }
+  Optional:
+    - images: IMAGE
+    - masks: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: AutoAdjust:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - strength: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - brightness: INT, {"default": 0, min": -100, max": 100, step": 1}
+    - contrast: INT, {"default": 0, min": -100, max": 100, step": 1}
+    - saturation: INT, {"default": 0, min": -100, max": 100, step": 1}
+    - red: INT, {"default": 0, min": -100, max": 100, step": 1}
+    - green: INT, {"default": 0, min": -100, max": 100, step": 1}
+    - blue: INT, {"default": 0, min": -100, max": 100, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ColorImage:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - width: INT, {"default": 512, min": 4, max": 99999, step": 1}
+    - height: INT, {"default": 512, min": 4, max": 99999, step": 1}
+    - color: STRING, {"default": "#000000"}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: TextImage_v2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - text: STRING, {"multiline": True, default": "Text"}
+    - font_file: FONT_LIST
+    - spacing: INT, {"default": 0, min": -9999, max": 9999, step": 1}
+    - leading: INT, {"default": 0, min": -9999, max": 9999, step": 1}
+    - horizontal_border: FLOAT, {"default": 5, min": -100, max": 100, step": 0.1}
+    - vertical_border: FLOAT, {"default": 5, min": -100, max": 100, step": 0.1}
+    - scale: FLOAT, {"default": 80, min": 0.1, max": 999, step": 0.01}
+    - variation_range: INT, {"default": 0, min": 0, max": 100, step": 1}
+    - variation_seed: INT, {"default": random_seed, min": 0, max": 999999999999, step": 1}
+    - layout: layout_list
+    - width: INT, {"default": 512, min": 4, max": 999999, step": 1}
+    - height: INT, {"default": 512, min": 4, max": 999999, step": 1}
+    - text_color: STRING, {"default": "#FFA000"}
+    - background_color: STRING, {"default": "#FFFFFF"}
+  Optional:
+    - size_as: any, {}
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: ColorCorrectLAB:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - L: INT, {"default": 0, min": -255, max": 255, step": 1}
+    - A: INT, {"default": 0, min": -255, max": 255, step": 1}
+    - B: INT, {"default": 0, min": -255, max": 255, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: GradientImageV2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - size: size_list
+    - custom_width: INT, {"default": 512, min": 4, max": 99999, step": 1}
+    - custom_height: INT, {"default": 512, min": 4, max": 99999, step": 1}
+    - angle: INT, {"default": 0, min": -360, max": 360, step": 1}
+    - start_color: STRING, {"default": "#FFFFFF"}
+    - end_color: STRING, {"default": "#000000"}
+  Optional:
+    - size_as: any, {}
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: LS_RoundedRectangle:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - rounded_rect_radius: INT, {"default": 50, min": 0, max": 100, step": 1}
+    - anti_aliasing: INT, {"default": 2, min": 0, max": 16, step": 1}
+    - top: FLOAT, {"default": 8, min": -100, max": 100, step": 0.1}
+    - bottom: FLOAT, {"default": 8, min": -100, max": 100, step": 0.1}
+    - left: FLOAT, {"default": 8, min": -100, max": 100, step": 0.1}
+    - right: FLOAT, {"default": 8, min": -100, max": 100, step": 0.1}
+    - detect: detect_mode
+    - obj_ext_top: FLOAT, {"default": 8, min": -100, max": 100, step": 0.1}
+    - obj_ext_bottom: FLOAT, {"default": 8, min": -100, max": 100, step": 0.1}
+    - obj_ext_left: FLOAT, {"default": 8, min": -100, max": 100, step": 0.1}
+    - obj_ext_right: FLOAT, {"default": 8, min": -100, max": 100, step": 0.1}
+  Optional:
+    - object_mask: MASK
+    - crop_box: BOX
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: ImageScaleByAspectRatio:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - aspect_ratio: ratio_list
+    - proportional_width: INT, {"default": 2, min": 1, max": 999, step": 1}
+    - proportional_height: INT, {"default": 1, min": 1, max": 999, step": 1}
+    - fit: fit_mode
+    - method: method_mode
+    - round_to_multiple: multiple_list
+    - scale_to_longest_side: BOOLEAN, {"default": False}
+    - longest_side: INT, {"default": 1024, min": 4, max": 999999, step": 1}
+  Optional:
+    - image: IMAGE
+    - mask: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+  - original_size (BOX)
+  - width (INT)
+  - height (INT)
+--------------------------------------------------
+Node: InnerShadow:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode
+    - opacity: INT, {"default": 50, min": 0, max": 100, step": 1}
+    - distance_x: INT, {"default": 5, min": -9999, max": 9999, step": 1}
+    - distance_y: INT, {"default": 5, min": -9999, max": 9999, step": 1}
+    - grow: INT, {"default": 2, min": -9999, max": 9999, step": 1}
+    - blur: INT, {"default": 15, min": 0, max": 100, step": 1}
+    - shadow_color: STRING, {"default": "#000000"}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: LayerMaskTransform:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - mask: MASK
+    - x: INT, {"default": 0, min": -99999, max": 99999, step": 1}
+    - y: INT, {"default": 0, min": -99999, max": 99999, step": 1}
+    - mirror: mirror_mode
+    - scale: FLOAT, {"default": 1, min": 0.01, max": 100, step": 0.01}
+    - aspect_ratio: FLOAT, {"default": 1, min": 0.01, max": 100, step": 0.01}
+    - rotate: FLOAT, {"default": 0, min": -999999, max": 999999, step": 0.01}
+    - transform_method: method_mode
+    - anti_aliasing: INT, {"default": 2, min": 0, max": 16, step": 1}
+  Optional:
+Outputs:
+  - mask (MASK)
+--------------------------------------------------
+Node: HLFrequencyDetailRestore:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - detail_image: IMAGE
+    - keep_high_freq: INT, {"default": 64, min": 0, max": 1023}
+    - erase_low_freq: INT, {"default": 32, min": 0, max": 1023}
+    - mask_blur: INT, {"default": 16, min": 0, max": 1023}
+  Optional:
+    - mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: LSImageTaggerSave:
+    def __init__
+Category: 😺dzNodes/LayerUtility/SystemIO
+Inputs:
+  Required:
+    - {"image: IMAGE
+    - tag_text: STRING, {"default": , forceInput":True}
+    - custom_path: STRING, {"default": ""}
+    - filename_prefix: STRING, {"default": "comfyui"}
+    - timestamp: ["None, second, millisecond"]
+    - format: ["png, jpg"]
+    - quality: INT, {"default": 80, min": 10, max": 100, step": 1}
+    - preview: BOOLEAN, {"default": True}
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: ImageBlendV2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode_v2
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ImageReelPipeline:
+    def __init__
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: ImageReel:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image1: IMAGE
+    - image1_text: STRING, {"multiline": False, default": "image1"}
+    - image2_text: STRING, {"multiline": False, default": "image2"}
+    - image3_text: STRING, {"multiline": False, default": "image3"}
+    - image4_text: STRING, {"multiline": False, default": "image4"}
+    - reel_height: INT, {"default": 512, min": 64, max": 2048}
+    - border: INT, {"default": 32, min": 8, max": 512}
+  Optional:
+    - image2: IMAGE
+    - image3: IMAGE
+    - image4: IMAGE
+Outputs:
+  - reel (Reel)
+--------------------------------------------------
+Node: ImageReelComposit:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - reel_1: Reel
+    - font_file: FONT_LIST
+    - font_size: INT, {"default": 40, min": 4, max": 1024}
+    - border: INT, {"default": 32, min": 8, max": 512}
+    - color_theme: color_theme_list
+  Optional:
+    - reel_2: Reel
+    - reel_3: Reel
+    - reel_4: Reel
+Outputs:
+  - image1 (IMAGE)
+--------------------------------------------------
+Node: LS_LoadVQAModel:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - model: model_list
+    - precision: precision_list
+    - device: device_list
+  Optional:
+Outputs:
+  - vqa_model (VQA_MODEL)
+--------------------------------------------------
+Node: LS_VQA_Prompt:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+  Optional:
+Outputs:
+  - text (STRING)
+--------------------------------------------------
+Node: ColorCorrectBrightnessAndContrast:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - brightness: FLOAT, {"default": 1, min": 0.0, max": 3, step": 0.01}
+    - contrast: FLOAT, {"default": 1, min": 0.0, max": 3, step": 0.01}
+    - saturation: FLOAT, {"default": 1, min": 0.0, max": 3, step": 0.01}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: LS_ColorCorrect_Brightness_And_Contrast_V2:
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - brightness: FLOAT, {"default": 1, min": 0.0, max": 3, step": 0.01}
+    - contrast: FLOAT, {"default": 1, min": 0.0, max": 3, step": 0.01}
+    - saturation: FLOAT, {"default": 1, min": 0.0, max": 3, step": 0.01}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: CheckMaskV2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - mask: MASK
+    - method: method_list
+    - white_point: INT, {"default": 1, min": 1, max": 254, step": 1}
+    - area_percent: FLOAT, {"default": 0.01, min": 0, max": 100, step": 0.01}
+  Optional:
+Outputs:
+  - bool (BOOLEAN)
+--------------------------------------------------
+Node: CropByMaskV3:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - mask: MASK
+    - invert_mask: BOOLEAN, {"default": False}
+    - detect: detect_mode
+    - top_reserve: INT, {"default": 20, min": -9999, max": 9999, step": 1}
+    - bottom_reserve: INT, {"default": 20, min": -9999, max": 9999, step": 1}
+    - left_reserve: INT, {"default": 20, min": -9999, max": 9999, step": 1}
+    - right_reserve: INT, {"default": 20, min": -9999, max": 9999, step": 1}
+    - round_to_multiple: multiple_list
+  Optional:
+    - crop_box: BOX
+Outputs:
+  - croped_image (IMAGE)
+  - croped_mask (MASK)
+  - crop_box (BOX)
+  - box_preview (IMAGE)
+--------------------------------------------------
+Node: ColorCorrectGamma:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - gamma: FLOAT, {"default": 1, min": 0.1, max": 10, step": 0.01}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: LS_ColorName:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - color: STRING, {"default": "#000000, forceInput":False}
+    - palette: list(palettes.keys(
+  Optional:
+Outputs:
+  - color_name (STRING)
+--------------------------------------------------
+Node: LS_NameToColor:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - color_name: STRING, {"default": "white, forceInput":False}
+    - palette: list(palettes.keys(
+    - in_palette_only: BOOLEAN, {"default": False}
+    - default_color: STRING, {"default": "#000000, forceInput": False}
+    - size: size_list
+    - custom_width: INT, {"default": 512, min": 4, max": 99999, step": 1}
+    - custom_height: INT, {"default": 512, min": 4, max": 99999, step": 1}
+  Optional:
+    - size_as: any, {}
+Outputs:
+  - image (IMAGE)
+  - color (STRING)
+--------------------------------------------------
+Node: ColorTemperature:
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - temperature: FLOAT, {"default": 0, min": -100, max": 100, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ColorValuetoHSVValue:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - color_value: any, {}
+  Optional:
+Outputs:
+  - H (INT)
+  - S (INT)
+  - V (INT)
+--------------------------------------------------
+Node: ImageBlendAdvanceV2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode_v2
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - x_percent: FLOAT, {"default": 50, min": -999, max": 999, step": 0.01}
+    - y_percent: FLOAT, {"default": 50, min": -999, max": 999, step": 0.01}
+    - mirror: mirror_mode
+    - scale: FLOAT, {"default": 1, min": 0.01, max": 100, step": 0.01}
+    - aspect_ratio: FLOAT, {"default": 1, min": 0.01, max": 100, step": 0.01}
+    - rotate: FLOAT, {"default": 0, min": -999999, max": 999999, step": 0.01}
+    - transform_method: method_mode
+    - anti_aliasing: INT, {"default": 0, min": 0, max": 16, step": 1}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: LS_AnyRerouter
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - any: anything, {}
+  Optional:
+Outputs:
+  - any (anything)
+--------------------------------------------------
+Node: CropBoxResolve:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - crop_box: BOX
+  Optional:
+Outputs:
+  - x (INT)
+  - y (INT)
+  - width (INT)
+  - height (INT)
+--------------------------------------------------
+Node: BlendIfMask:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_if: blend_if_list
+    - black_point: INT, {"default": 0, min": 0, max": 254, step": 1, display": "slider"}
+    - black_range: INT, {"default": 0, min": 0, max": 255, step": 1}
+    - white_point: INT, {"default": 255, min": 1, max": 255, step": 1, display": "slider"}
+    - white_range: INT, {"default": 0, min": 0, max": 255, step": 1}
+  Optional:
+    - mask: MASK
+Outputs:
+  - mask (MASK)
+--------------------------------------------------
+Node: XYtoPercent:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - x: INT, {"default": 0, min": -99999, max": 99999, step": 1}
+    - y: INT, {"default": 0, min": -99999, max": 99999, step": 1}
+  Optional:
+Outputs:
+  - x_percent (FLOAT)
+  - y_percent (FLOAT)
+--------------------------------------------------
+Node: MotionBlur:
+
+    def __init__
+Category: 😺dzNodes/LayerFilter
+Inputs:
+  Required:
+    - image: IMAGE
+    - angle: INT, {"default": 0, min": -90, max": 90, step": 1}
+    - blur: INT, {"default": 20, min": 1, max": 999, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: InnerGlowV2:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode_list
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - brightness: INT, {"default": 5, min": 2, max": 20, step": 1}
+    - glow_range: INT, {"default": 48, min": -9999, max": 9999, step": 1}
+    - blur: INT, {"default": 25, min": 0, max": 9999, step": 1}
+    - light_color: STRING, {"default": "#FFBF30"}
+    - glow_color: STRING, {"default": "#FE0000"}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: SeedNode:
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - seed: INT, {"default": 0, min": 0, max": 1e18, step": 1}
+  Optional:
+Outputs:
+  - seed (INT)
+--------------------------------------------------
+Node: BooleanOperator:
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - a: any
+    - b: any
+    - operator: operator_list
+  Optional:
+Outputs:
+  - output (BOOLEAN)
+--------------------------------------------------
+Node: BooleanOperatorV2:
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - a_value: STRING, {"default": , multiline": False}
+    - b_value: STRING, {"default": , multiline": False}
+    - operator: operator_list
+  Optional:
+    - a: any
+    - b: any
+Outputs:
+  - output (BOOLEAN)
+  - string (STRING)
+--------------------------------------------------
+Node: NumberCalculator:
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - a: any, {}
+    - b: any, {}
+    - operator: operator_list
+  Optional:
+Outputs:
+  - int (INT)
+  - float (FLOAT)
+--------------------------------------------------
+Node: NumberCalculatorV2:
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - a_value: STRING, {"default": , multiline": False}
+    - b_value: STRING, {"default": , multiline": False}
+    - operator: operator_list
+  Optional:
+    - a: any
+    - b: any
+Outputs:
+  - int (INT)
+  - float (FLOAT)
+  - string (STRING)
+--------------------------------------------------
+Node: StringCondition:
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - text: STRING, {"multiline": False}
+    - condition: string_condition_list
+    - sub_string: STRING, {"multiline": False}
+  Optional:
+Outputs:
+  - output (BOOLEAN)
+  - string (STRING)
+--------------------------------------------------
+Node: TextBoxNode:
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - text: STRING, {"multiline": True}
+  Optional:
+Outputs:
+  - text (STRING)
+--------------------------------------------------
+Node: StringNode:
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - string: STRING, {"multiline": False}
+  Optional:
+Outputs:
+  - string (STRING)
+--------------------------------------------------
+Node: IntegerNode:
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - int_value: INT, {"default": 0, min": -1e18, max": 1e18, step": 1}
+  Optional:
+Outputs:
+  - int (INT)
+  - string (STRING)
+--------------------------------------------------
+Node: FloatNode:
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - float_value: FLOAT, {"default": 0, min": -1e18, max": 1e18, step": 0.00001}
+  Optional:
+Outputs:
+  - float (FLOAT)
+  - string (STRING)
+--------------------------------------------------
+Node: BooleanNode:
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - bool_value: BOOLEAN, {"default": False}
+  Optional:
+Outputs:
+  - boolean (BOOLEAN)
+  - string (STRING)
+--------------------------------------------------
+Node: IfExecute:
+
+    @classmethod
+    def INPUT_TYPES
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - if_condition: any
+    - when_TRUE: any
+    - when_FALSE: any
+  Optional:
+Outputs:
+  - ? (any)
+--------------------------------------------------
+Node: SwitchCaseNode:
+
+    @classmethod
+    def INPUT_TYPES
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - switch_condition: STRING, {"default": , multiline": False}
+    - case_1: STRING, {"default": , multiline": False}
+    - case_2: STRING, {"default": , multiline": False}
+    - case_3: STRING, {"default": , multiline": False}
+    - input_default: any
+  Optional:
+    - input_1: any
+    - input_2: any
+    - input_3: any
+Outputs:
+  - ? (any)
+--------------------------------------------------
+Node: QueueStopNode
+Category: 😺dzNodes/LayerUtility/SystemIO
+Inputs:
+  Required:
+    - any: any
+    - mode: mode_list
+    - stop: BOOLEAN, {"default": True}
+  Optional:
+Outputs:
+  - any (any)
+--------------------------------------------------
+Node: RemBgUltra:
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - image: IMAGE
+    - detail_range: INT, {"default": 8, min": 1, max": 256, step": 1}
+    - black_point: FLOAT, {"default": 0.01, min": 0.01, max": 0.98, step": 0.01}
+    - white_point: FLOAT, {"default": 0.99, min": 0.02, max": 0.99, step": 0.01}
+    - process_detail: BOOLEAN, {"default": True}
+  Optional:
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: InnerShadowV2:
+
+    def __init__
+Category: 😺dzNodes/LayerStyle
+Inputs:
+  Required:
+    - background_image: IMAGE
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode_v2
+    - opacity: INT, {"default": 50, min": 0, max": 100, step": 1}
+    - distance_x: INT, {"default": 5, min": -9999, max": 9999, step": 1}
+    - distance_y: INT, {"default": 5, min": -9999, max": 9999, step": 1}
+    - grow: INT, {"default": 2, min": -9999, max": 9999, step": 1}
+    - blur: INT, {"default": 15, min": 0, max": 100, step": 1}
+    - shadow_color: STRING, {"default": "#000000"}
+  Optional:
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: SkinBeauty:
+
+    def __init__
+Category: 😺dzNodes/LayerFilter
+Inputs:
+  Required:
+    - image: IMAGE
+    - smooth: INT, {"default": 20, min": 1, max": 64, step": 1}
+    - threshold: INT, {"default": -10, min": -255, max": 255, step": 1}
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+  - beauty_mask (MASK)
+--------------------------------------------------
+Node: CreateGradientMask:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - width: INT, {"default": 512, min": 4, max": 99999, step": 1}
+    - height: INT, {"default": 512, min": 4, max": 99999, step": 1}
+    - gradient_side: side
+    - gradient_scale: INT, {"default": 100, min": 1, max": 9999, step": 1}
+    - gradient_offset: INT, {"default": 0, min": -9999, max": 9999, step": 1}
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+  Optional:
+    - size_as: any, {}
+Outputs:
+  - mask (MASK)
+--------------------------------------------------
+Node: ColorMap:
+
+    def __init__
+Category: 😺dzNodes/LayerFilter
+Inputs:
+  Required:
+    - image: IMAGE
+    - color_map: colormap_list
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: LSRandomGenerator:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - min_value: FLOAT, {"default": 0, min": -1.0e14, max": 1.0e14, step": 0.01}
+    - max_value: FLOAT, {"default": 10, min": -1.0e14, max": 1.0e14, step": 0.01}
+    - float_decimal_places: INT, {"default": 1, min": 1, max": 14, step": 1}
+    - fix_seed: BOOLEAN, {"default": False}
+  Optional:
+    - image: IMAGE
+Outputs:
+  - int (INT)
+  - float (FLOAT)
+  - bool (BOOLEAN)
+--------------------------------------------------
+Node: LS_RandomGeneratorV2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - min_value: FLOAT, {"default": 0, min": -1.0e14, max": 1.0e14, step": 0.01}
+    - max_value: FLOAT, {"default": 10, min": -1.0e14, max": 1.0e14, step": 0.01}
+    - least: FLOAT, {"default": 0, min": 0, max": 1.0e14, step": 0.01}
+    - float_decimal_places: INT, {"default": 1, min": 1, max": 14, step": 1}
+    - seed: INT, {"default": 0, min": 0, max": 1e14, step": 1}
+  Optional:
+    - image: IMAGE
+Outputs:
+  - int (INT)
+  - float (FLOAT)
+  - bool (BOOLEAN)
+--------------------------------------------------
+Node: RmBgUltraV2:
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - image: IMAGE
+    - detail_method: method_list
+    - detail_erode: INT, {"default": 6, min": 1, max": 255, step": 1}
+    - detail_dilate: INT, {"default": 6, min": 1, max": 255, step": 1}
+    - black_point: FLOAT, {"default": 0.01, min": 0.01, max": 0.98, step": 0.01, display": "slider"}
+    - white_point: FLOAT, {"default": 0.99, min": 0.02, max": 0.99, step": 0.01, display": "slider"}
+    - process_detail: BOOLEAN, {"default": True}
+    - device: device_list
+    - max_megapixels: FLOAT, {"default": 2.0, min": 1, max": 999, step": 0.1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: ColorCorrectLevels:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - channel: channel_list
+    - black_point: INT, {"default": 0, min": 0, max": 255, step": 1, display": "slider"}
+    - white_point: INT, {"default": 255, min": 0, max": 255, step": 1, display": "slider"}
+    - gray_point: FLOAT, {"default": 1, min": 0.01, max": 9.99, step": 0.01}
+    - output_black_point: INT, {"default": 0, min": 0, max": 255, step": 1}
+    - output_white_point: INT, {"default": 255, min": 0, max": 255, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: GetImageSize:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+  Optional:
+Outputs:
+  - width (INT)
+  - height (INT)
+  - original_size (BOX)
+--------------------------------------------------
+Node: LS_TextPreseter:
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - title: STRING, {"default": , multiline": False}
+    - content: STRING, {"default": , multiline": True}
+  Optional:
+    - text_preset: LS_TEXT_PRESET
+Outputs:
+  - text_preset (LS_TEXT_PRESET)
+--------------------------------------------------
+Node: LS_ChoiceTextPreset:
+    def __init__
+Category: 😺dzNodes/LayerUtility/Data
+Inputs:
+  Required:
+    - {   "text_preset: LS_TEXT_PRESET
+    - choice_title: STRING, {"default": , multiline": False}
+    - random_choice: BOOLEAN, {"default": False}
+    - default: INT, {"default": 0, min": 0, max": 1e4, step": 1}
+    - seed: INT, {"default": 0, min": 0, max": 1e18, step": 1}
+  Optional:
+Outputs:
+  - title (STRING)
+  - content (STRING)
+--------------------------------------------------
+Node: ImageScaleRestoreV2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - scale: FLOAT, {"default": 1, min": 0.01, max": 100, step": 0.01}
+    - method: method_mode
+    - scale_by: scale_by_list
+    - scale_by_length: INT, {"default": 1024, min": 4, max": 99999999, step": 1}
+  Optional:
+    - mask: MASK
+    - original_size: BOX
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+  - original_size (BOX)
+  - width (INT)
+  - height (INT)
+--------------------------------------------------
+Node: MaskGrow:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - mask: MASK
+    - invert_mask: BOOLEAN, {"default": True}
+    - grow: INT, {"default": 4, min": -999, max": 999, step": 1}
+    - blur: INT, {"default": 4, min": 0, max": 999, step": 1}
+  Optional:
+Outputs:
+  - mask (MASK)
+--------------------------------------------------
+Node: LS_GetMainColorsV2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - k_means_algorithm: k_means_algorithm_list
+  Optional:
+Outputs:
+  - preview_image (IMAGE)
+  - color_1 (STRING)
+  - color_2 (STRING)
+  - color_3 (STRING)
+  - color_4 (STRING)
+  - color_5 (STRING)
+--------------------------------------------------
+Node: LS_GetMainColors:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - k_means_algorithm: k_means_algorithm_list
+  Optional:
+Outputs:
+  - preview_image (IMAGE)
+  - color_1 (STRING)
+  - color_2 (STRING)
+  - color_3 (STRING)
+  - color_4 (STRING)
+  - color_5 (STRING)
+--------------------------------------------------
+Node: MaskEdgeShrink:
+
+    def __init__
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - mask: MASK
+    - invert_mask: BOOLEAN, {"default": True}
+    - shrink_level: INT, {"default": 4, min": 0, max": 16, step": 1}
+    - soft: INT, {"default": 6, min": 0, max": 64, step": 1}
+    - edge_shrink: INT, {"default": 1, min": 0, max": 999, step": 1}
+    - edge_reserve: INT, {"default": 25, min": 0, max": 100, step": 1}
+  Optional:
+Outputs:
+  - mask (MASK)
+--------------------------------------------------
+Node: ColorCorrectRGB:
+
+    def __init__
+Category: 😺dzNodes/LayerColor
+Inputs:
+  Required:
+    - image: IMAGE
+    - R: INT, {"default": 0, min": -255, max": 255, step": 1}
+    - G: INT, {"default": 0, min": -255, max": 255, step": 1}
+    - B: INT, {"default": 0, min": -255, max": 255, step": 1}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: GradientImage:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - width: INT, {"default": 512, min": 4, max": 99999, step": 1}
+    - height: INT, {"default": 512, min": 4, max": 99999, step": 1}
+    - angle: INT, {"default": 0, min": -360, max": 360, step": 1}
+    - start_color: STRING, {"default": "#FFFFFF"}
+    - end_color: STRING, {"default": "#000000"}
+  Optional:
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: CropByMaskV2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - image: IMAGE
+    - mask: MASK
+    - invert_mask: BOOLEAN, {"default": False}
+    - detect: detect_mode
+    - top_reserve: INT, {"default": 20, min": -9999, max": 9999, step": 1}
+    - bottom_reserve: INT, {"default": 20, min": -9999, max": 9999, step": 1}
+    - left_reserve: INT, {"default": 20, min": -9999, max": 9999, step": 1}
+    - right_reserve: INT, {"default": 20, min": -9999, max": 9999, step": 1}
+    - round_to_multiple: multiple_list
+  Optional:
+    - crop_box: BOX
+Outputs:
+  - croped_image (IMAGE)
+  - croped_mask (MASK)
+  - crop_box (BOX)
+  - box_preview (IMAGE)
+--------------------------------------------------
+Node: MaskPreview
+Category: 😺dzNodes/LayerMask
+Inputs:
+  Required:
+    - {"mask: MASK
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: ImageBlendAdvanceV3:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility
+Inputs:
+  Required:
+    - layer_image: IMAGE
+    - invert_mask: BOOLEAN, {"default": True}
+    - blend_mode: chop_mode_v2
+    - opacity: INT, {"default": 100, min": 0, max": 100, step": 1}
+    - x_percent: FLOAT, {"default": 50, min": -999, max": 999, step": 0.01}
+    - y_percent: FLOAT, {"default": 50, min": -999, max": 999, step": 0.01}
+    - mirror: mirror_mode
+    - scale: FLOAT, {"default": 1, min": 0.01, max": 100, step": 0.01}
+    - aspect_ratio: FLOAT, {"default": 1, min": 0.01, max": 100, step": 0.01}
+    - rotate: FLOAT, {"default": 0, min": -999999, max": 999999, step": 0.01}
+    - transform_method: method_mode
+    - anti_aliasing: INT, {"default": 0, min": 0, max": 16, step": 1}
+  Optional:
+    - background_image: IMAGE
+    - layer_mask: MASK
+Outputs:
+  - image (IMAGE)
+  - mask (MASK)
+--------------------------------------------------
+Node: PurgeVRAM:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility/SystemIO
+Inputs:
+  Required:
+    - anything: any, {}
+    - purge_cache: BOOLEAN, {"default": True}
+    - purge_models: BOOLEAN, {"default": True}
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: PurgeVRAM_V2:
+
+    def __init__
+Category: 😺dzNodes/LayerUtility/SystemIO
+Inputs:
+  Required:
+    - anything: any, {}
+    - purge_cache: BOOLEAN, {"default": True}
+    - purge_models: BOOLEAN, {"default": True}
+  Optional:
+Outputs:
+  - any (any)
+--------------------------------------------------
+Node: VideoCombine:
+    @classmethod
+    def INPUT_TYPES
+Category: Video Helper Suite 🎥🅥🅗🅢
+Inputs:
+  Required:
+  Optional:
+Outputs:
+  - Filenames (VHS_FILENAMES)
+--------------------------------------------------
+Node: LoadAudio:
+    @classmethod
+    def INPUT_TYPES
+Category: audio
+Inputs:
+  Required:
+    - {"audio: sorted(files
+  Optional:
+Outputs:
+  - AUDIO
+--------------------------------------------------
+Node: LoadAudioUpload:
+    @classmethod
+    def INPUT_TYPES
+Category: Video Helper Suite 🎥🅥🅗🅢/audio
+Inputs:
+  Required:
+    - audio: sorted(files
+    - start_time: FLOAT, {"default": 0, min": 0, max": 10000000, step": 0.01}
+    - duration: FLOAT, {"default": 0, min": 0, max": 10000000, step": 0.01}
+  Optional:
+Outputs:
+  - audio (AUDIO)
+--------------------------------------------------
+Node: AudioToVHSAudio:
+    """Legacy method for external nodes that utilized VHS_AUDIO,
+    VHS_AUDIO is deprecated as a format and should no longer be used"""
+    @classmethod
+    def INPUT_TYPES
+Category: Video Helper Suite 🎥🅥🅗🅢/audio
+Description: Legacy method for external nodes that utilized VHS_AUDIO,
+    VHS_AUDIO is deprecated as a format and should no longer be used
+Inputs:
+  Required:
+    - {"audio: AUDIO
+  Optional:
+Outputs:
+  - vhs_audio (VHS_AUDIO)
+--------------------------------------------------
+Node: VHSAudioToAudio:
+    """Legacy method for external nodes that utilized VHS_AUDIO,
+    VHS_AUDIO is deprecated as a format and should no longer be used"""
+    @classmethod
+    def INPUT_TYPES
+Category: Video Helper Suite 🎥🅥🅗🅢/audio
+Description: Legacy method for external nodes that utilized VHS_AUDIO,
+    VHS_AUDIO is deprecated as a format and should no longer be used
+Inputs:
+  Required:
+    - {"vhs_audio: VHS_AUDIO
+  Optional:
+Outputs:
+  - audio (AUDIO)
+--------------------------------------------------
+Node: PruneOutputs:
+    @classmethod
+    def INPUT_TYPES
+Category: Video Helper Suite 🎥🅥🅗🅢
+Inputs:
+  Required:
+    - filenames: VHS_FILENAMES
+    - options: ["Intermediate, Intermediate and Utility"]
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: BatchManager:
+    def __init__
+Category: Video Helper Suite 🎥🅥🅗🅢
+Inputs:
+  Required:
+    - frames_per_batch: INT, {"default": 16, min": 1, max": BIGMAX, step": 1}
+  Optional:
+Outputs:
+  - meta_batch (VHS_BatchManager)
+--------------------------------------------------
+Node: VideoInfo:
+    @classmethod
+    def INPUT_TYPES
+Category: Video Helper Suite 🎥🅥🅗🅢
+Inputs:
+  Required:
+    - video_info: VHS_VIDEOINFO
+  Optional:
+Outputs:
+  - FLOAT
+  - INT
+  - FLOAT
+  - INT
+  - INT
+  - FLOAT
+  - INT
+  - FLOAT
+  - INT
+  - INT
+--------------------------------------------------
+Node: VideoInfoSource:
+    @classmethod
+    def INPUT_TYPES
+Category: Video Helper Suite 🎥🅥🅗🅢
+Inputs:
+  Required:
+    - video_info: VHS_VIDEOINFO
+  Optional:
+Outputs:
+  - FLOAT
+  - INT
+  - FLOAT
+  - INT
+  - INT
+--------------------------------------------------
+Node: VideoInfoLoaded:
+    @classmethod
+    def INPUT_TYPES
+Category: Video Helper Suite 🎥🅥🅗🅢
+Inputs:
+  Required:
+    - video_info: VHS_VIDEOINFO
+  Optional:
+Outputs:
+  - FLOAT
+  - INT
+  - FLOAT
+  - INT
+  - INT
+--------------------------------------------------
+Node: SelectFilename:
+    @classmethod
+    def INPUT_TYPES
+Category: Video Helper Suite 🎥🅥🅗🅢
+Inputs:
+  Required:
+    - {"filenames: VHS_FILENAMES
+  Optional:
+Outputs:
+  - Filename (STRING)
+--------------------------------------------------
+Node: Unbatch:
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: Any
+Category: Video Helper Suite 🎥🅥🅗🅢
+Inputs:
+  Required:
+    - {"batched: *
+  Optional:
+Outputs:
+  - unbatched (Any('*'))
+--------------------------------------------------
+Node: SelectLatest:
+    @classmethod
+    def INPUT_TYPES
+Category: Video Helper Suite 🎥🅥🅗🅢
+Inputs:
+  Required:
+    - {"filename_prefix: STRING, {'default': 'output/AnimateDiff, vhs_path_extensions': []}
+    - filename_postfix: STRING, {"placeholder": ".webm"}
+  Optional:
+Outputs:
+  - Filename (STRING)
+--------------------------------------------------
+Node: VariableLineWidthEffectNode:
+    @classmethod
+    def INPUT_TYPES
+Category: SyntaxNodes/Processing
+Description: Convert mask to proper format and shape
+Inputs:
+  Required:
+    - images: IMAGE
+    - line_spacing: INT, {"default": 5, min": 1, max": 20}
+    - displacement_strength: FLOAT, {"default": 30.0, min": 1.0, max": 100.0}
+    - line_thickness: INT, {"default": 1, min": 1, max": 5}
+    - invert: BOOLEAN, {"default": False}
+    - color_intensity: FLOAT, {"default": 3.0, min": 0.0, max": 5.0}
+    - start_color_r: INT, {"default": 0, min": 0, max": 255}
+    - start_color_g: INT, {"default": 0, min": 0, max": 255}
+    - start_color_b: INT, {"default": 255, min": 0, max": 255}
+    - end_color_r: INT, {"default": 255, min": 0, max": 255}
+    - end_color_g: INT, {"default": 0, min": 0, max": 255}
+    - end_color_b: INT, {"default": 0, min": 0, max": 255}
+  Optional:
+    - mask: MASK
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: PaperCraftNode:
+    def __init__
+Category: 🎨 Image/Effects
+Inputs:
+  Required:
+    - image: IMAGE
+    - default: 0.2
+    - min: 0.0
+    - max: 1.0
+    - step: 0.05
+  Optional:
+    - mask: MASK
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: DepthToLidarEffectNode:
+    def __init__
+Category: SyntaxNodes/Processing
+Description: Reset the previous frame memory for a new sequence.
+Inputs:
+  Required:
+    - depth_map: IMAGE
+    - default: 1
+    - min: 1
+    - max: 5
+    - step: 1
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: RegionBoundaryNode:
+    @classmethod
+    def INPUT_TYPES
+Category: SyntaxNodes/Processing
+Inputs:
+  Required:
+    - image: IMAGE
+    - segments: INT, {"default": 100, min": 10, max": 1000, step": 10}
+    - compactness: FLOAT, {"default": 10.0, min": 1.0, max": 100.0, step": 1.0}
+    - line_color: INT, {"default": 0xFFFFFF, min": 0, max": 0xFFFFFF, step": 1}
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: LuminanceParticleNode:
+    def __init__
+Category: Unknown
+Description: Create new particles at edge points with initial directions and lifespan.
+Inputs:
+  Required:
+    - depth_map: IMAGE
+    - default: 50
+    - min: 1
+    - max: 100
+    - step: 1
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: EdgeTracingNode:
+    def __init__
+Category: Unknown
+Description: Convert a tensor to a PIL image.
+Inputs:
+  Required:
+    - input_image: IMAGE
+    - low_threshold: INT, {"default": 50, min": 0, max": 255}
+    - high_threshold: INT, {"default": 150, min": 0, max": 255}
+    - num_particles: INT, {"default": 1000, min": 1, max": 50000}
+    - speed: INT, {"default": 10, min": 1, max": 100}
+    - edge_opacity: FLOAT, {"default": 0.5, min": 0.0, max": 1.0}
+    - particle_size: INT, {"default": 1, min": 1, max": 10}
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: VoxelNode:
+    def __init__
+Category: SyntaxNodes/Processing
+Inputs:
+  Required:
+    - image: IMAGE
+    - default: 0.2
+    - min: 0.0
+    - max: 1.0
+    - step: 0.05
+  Optional:
+    - mask: MASK
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: GhostingNode:
+    def __init__
+Category: SyntaxNodes/Processing
+Inputs:
+  Required:
+    - image: IMAGE
+    - default: 5
+    - min: 1
+    - max: 20
+    - step: 1
+  Optional:
+    - mask: MASK
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: ImageListToImageBatch:
+    @classmethod
+    def INPUT_TYPES
+Category: SyntaxNodes/Conversion
+Inputs:
+  Required:
+    - images: IMAGE
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: ImageBatchToImageList:
+    @classmethod
+    def INPUT_TYPES
+Category: SyntaxNodes/Conversion
+Inputs:
+  Required:
+    - {"image: IMAGE
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: CyberpunkWindowNode:
+    def __init__
+Category: SyntaxNodes/Processing
+Inputs:
+  Required:
+    - image: IMAGE
+    - custom_text: STRING, {"default": "MOVEMENT, multiline": False}
+    - default: 0
+    - min: 0
+    - max: 1
+    - step: 1
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: RGBStreakNode:
+    @classmethod
+    def INPUT_TYPES
+Category: image/effects
+Inputs:
+  Required:
+    - image: IMAGE
+    - default: 0.95
+    - min: 0.1
+    - max: 0.99
+    - step: 0.01
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: JigsawPuzzleNode:
+    @classmethod
+    def INPUT_TYPES
+Category: 🖼️ Image/Effects
+Description: Converts a ComfyUI tensor to a NumPy array (for OpenCV).
+Inputs:
+  Required:
+    - image: IMAGE
+    - pieces: INT, {"default": 50, min": 10, max": 500, step": 10}
+    - piece_size: INT, {"default": 64, min": 32, max": 100, step": 1}
+    - background: IMAGE, {"optional": True}
+    - num_remove: INT, {"default": 3, min": 0, max": 100, step": 1}
+  Optional:
+    - {"default: 3
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: EdgeMeasurementOverlayNode:
+    def __init__
+Category: Unknown
+Inputs:
+  Required:
+    - image: IMAGE
+    - default: 0.7
+    - min: 0.0
+    - max: 1.0
+    - step: 0.1
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: UpTrackNode:
+    def __init__
+Category: SyntaxNodes/Processing
+Description: Normalize angle to -180 to 180 range
+Inputs:
+  Required:
+    - image: IMAGE
+    - default: 5.0
+    - min: 0.0
+    - max: 45.0
+    - step: 1.0
+    - display: combo
+    - labels: Upright Lock, Follow Flip
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: LowPolyNode:
+    def __init__
+Category: Unknown
+Inputs:
+  Required:
+    - image: IMAGE
+    - default: 5
+    - min: 1
+    - max: 20
+    - step: 1
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: if it can't be imported
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: PngInfo:
+        def __init__
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: FrequencyBeatSyncNode:
+    def __init__
+Category: Video Processing
+Description: Convert tensor to PIL Image
+Inputs:
+  Required:
+    - video_folder: STRING, {"default": "videos"}
+    - audio_path: STRING, {"default": "audio.mp3"}
+    - width: INT, {"default": 512, min": 64, max": 2048}
+    - height: INT, {"default": 512, min": 64, max": 2048}
+    - fps: INT, {"default": 30, min": 1, max": 60}
+    - max_beats: INT, {"default": 0, min": 0, max": 1000, step": 1}
+    - max_frames: INT, {"default": 150, min": 0, max": 1000, step": 1}
+    - effect_intensity: FLOAT, {"default": 1.0, min": 0.1, max": 5.0, step": 0.1}
+    - output_mode: ["Frames for Editing, Direct Video Output"]
+    - filename_prefix: STRING, {"default": "BeatSync"}
+  Optional:
+Outputs:
+  - frames (IMAGE)
+  - audio (AUDIO)
+--------------------------------------------------
+Node: PointillismNode:
+    def __init__
+Category: Unknown
+Inputs:
+  Required:
+    - image: IMAGE
+    - dot_radius: INT, {"default": 3, min": 1, max": 10}
+    - dot_density: INT, {"default": 20000, min": 1000, max": 200000}
+  Optional:
+Outputs:
+  - IMAGE
+--------------------------------------------------
+Node: LS_CollageGenerator:
+    """随机分割生成指定数量的不规则小矩形。"""
+    def __init__
+Category: Unknown
+Description: 随机分割生成指定数量的不规则小矩形。
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: PIP_Collage:
+    def __init__
+Category: PIP 动漫人脸检测
+Inputs:
+  Required:
+    - images: IMAGE, {"description": "输入图像"}
+    - default: multi
+    - min: 0.0
+    - max: 1.0
+    - step: 0.01
+    - display: 模式
+    - description: 选择多人模式或单人模式
+  Optional:
+Outputs:
+  - 输出图像 (IMAGE)
+  - 遮罩 (MASK)
+--------------------------------------------------
+Node: mappings
+NODE_CLASS_MAPPINGS = {
+    "PIP_AnimeFaceDetect": PIP_AnimeFaceDetect,
+    "PIP_Collage": PIP_Collage,
+    "PIP_GridComic": PIP_GridComic
+}
+
+# Node display name mappings
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "PIP_AnimeFaceDetect": "PIP 动漫人脸检测",
+    "PIP_Collage": "PIP 随机拼图",
+    "PIP_GridComic": "PIP 格漫拼图"
+}
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: PIP_AnimeFaceDetect:
+    @classmethod
+    def INPUT_TYPES
+Category: PIP 动漫人脸检测
+Inputs:
+  Required:
+    - image_in: IMAGE, {}
+    - score_threshold: FLOAT, {"default": 0.25, min": 0.0, max": 1.0, step": 0.01, label": "置信度阈值"}
+    - iou_threshold: FLOAT, {"default": 0.7, min": 0.0, max": 1.0, step": 0.01, label": "IOU 阈值"}
+    - expand_ratio: FLOAT, {"default": 0.0, min": 0.0, max": 1.0, step": 0.01, label": "扩展比例"}
+  Optional:
+Outputs:
+  - 带框图像 (IMAGE)
+  - 裁剪人脸 (IMAGE)
+  - 人脸遮罩 (MASK)
+  - 人脸检测结果 (STRING)
+--------------------------------------------------
+Node: MangaStyleLayoutGenerator:
+    """创意漫画布局生成器，使用真实漫画的多样化布局风格"""
+    def __init__
+Category: Unknown
+Description: 创意漫画布局生成器，使用真实漫画的多样化布局风格
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: PIP_GridComic:
+    def __init__
+Category: PIP 动漫人脸检测
+Description: 将图像调整到目标尺寸，根据图像类型优化裁剪，并可选择旋转
+Inputs:
+  Required:
+    - character_image: IMAGE, {"description": "角色图像 (1:2
+    - expression_image: IMAGE, {"description": "表情图像 (2:1
+    - scene_image: IMAGE, {"description": "场景图像 (1:1
+    - item_image: IMAGE, {"description": "物品图像 (1:1
+    - default: 0
+    - min: 0
+    - max: 1e18
+    - step: 1
+    - display: 随机种子
+  Optional:
+Outputs:
+  - 输出图像 (IMAGE)
+  - 遮罩 (MASK)
+--------------------------------------------------
+Node: DebouncedHotReloader
+Category: Unknown
+Description: Hot reloader with debouncing mechanism to reload modules on file changes.
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: HotReloaderService:
+    """Service to manage the hot reloading of modules."""
+
+    def __init__
+Category: Unknown
+Description: Service to manage the hot reloading of modules.
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: variables for help documentation
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: RyanOnTheInside
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: ProgressMixin:
+    def start_progress
+Category: Unknown
+Description: ██████╗ ██╗   ██╗ █████╗ ███╗   ██╗    ██████╗ ███╗   ██╗
+     ██╔══██╗╚██╗ ██╔╝██╔══██╗████╗  ██║   ██╔═══██╗████╗  ██║
+     ██████╔╝ ╚████╔╝ ███████║██╔██╗ ██║   ██║   ██║██╔██╗ ██║
+     ██╔══██╗  ╚██╔╝  ██╔══██║██║╚██╗██║   ██║   ██║██║╚██╗██║
+     ██║  ██║   ██║   ██║  ██║██║ ╚████║   ╚██████╔╝██║ ╚████║
+     ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═════╝ ╚═╝  ╚═══╝
+████████╗██╗  ██╗███████╗   ██╗███╗   ██╗███████╗██╗██████╗ ███████╗
+╚══██╔══╝██║  ██║██╔════╝   ██║████╗  ██║██╔════╝██║██╔══██╗██╔════╝
+   ██║   ███████║█████╗     ██║██╔██╗ ██║███████╗██║██║  ██║█████╗  
+   ██║   ██╔══██║██╔══╝     ██║██║╚██╗██║╚════██║██║██║  ██║██╔══╝  
+   ██║   ██║  ██║███████╗   ██║██║ ╚████║███████║██║██████╔╝███████╗
+   ╚═╝   ╚═╝  ╚═╝╚══════╝   ╚═╝╚═╝  ╚═══╝╚══════╝╚═╝╚═════╝ ╚══════╝
+
+             ⚡ R Y A N   O N   T H E   I N S I D E ⚡
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: ShellAgentOutputText:
+    TYPE_STR = "text"
+    @classmethod
+    def INPUT_TYPES
+Category: shellagent
+Inputs:
+  Required:
+    - s.TYPE_STR: STRING, {"tooltip": f"The {s.TYPE_STR} to output."}
+    - output_name: STRING, {"multiline": False, default": f"output_{s.TYPE_STR}"}
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: ShellAgentOutputFloat
+Category: Unknown
+Inputs:
+  Required:
+    - s.TYPE_STR: FLOAT, {"tooltip": f"The {s.TYPE_STR} to output."}
+    - output_name: STRING, {"multiline": False, default": f"output_{s.TYPE_STR}"}
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: ShellAgentOutputInteger
+Category: Unknown
+Inputs:
+  Required:
+    - s.TYPE_STR: INT, {"tooltip": f"The {s.TYPE_STR} to output."}
+    - output_name: STRING, {"multiline": False, default": f"output_{s.TYPE_STR}"}
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: ShellAgentOutputBoolean
+Category: Unknown
+Inputs:
+  Required:
+    - s.TYPE_STR: BOOLEAN, {"tooltip": f"The {s.TYPE_STR} to output."}
+    - output_name: STRING, {"multiline": False, default": f"output_{s.TYPE_STR}"}
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: ShellAgentSaveImages
+Category: shellagent
+Inputs:
+  Required:
+    - images: IMAGE, {"tooltip": "The images to save."}
+    - output_name: STRING, {"multiline": False, default": "output_image"}
+    - filename_prefix: STRING, {"default": "ComfyUI, tooltip": "The prefix for the file to save. This may include formatting information such as %date:yyyy-MM-dd% or %Empty Latent Image.width% to include values from nodes."}
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: ShellAgentSaveImage
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: ShellAgentSaveVideoVHS:
+    @classmethod
+    def INPUT_TYPES
+Category: shellagent
+Inputs:
+  Required:
+    - filenames: VHS_FILENAMES, {"tooltip": "The filenames to save."}
+    - output_name: STRING, {"multiline": False, default": "output_video"}
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: ShellAgentPluginInputText:
+    @classmethod
+    def INPUT_TYPES
+Category: shellagent
+Inputs:
+  Required:
+    - {"multiline: False
+  Optional:
+    - {"multiline: False
+Outputs:
+  - text (STRING)
+--------------------------------------------------
+Node: ShellAgentPluginInputFloat:
+    @classmethod
+    def INPUT_TYPES
+Category: shellagent
+Inputs:
+  Required:
+    - {"multiline: False
+  Optional:
+    - {"default: }
+    - {"multiline: False
+Outputs:
+  - float (FLOAT)
+--------------------------------------------------
+Node: ShellAgentPluginInputInteger:
+    @classmethod
+    def INPUT_TYPES
+Category: shellagent
+Inputs:
+  Required:
+    - {"multiline: False
+  Optional:
+    - {"default: 1
+    - {"multiline: False
+Outputs:
+  - int (INT)
+--------------------------------------------------
+Node: ShellAgentPluginInputBoolean:
+    @classmethod
+    def INPUT_TYPES
+Category: shellagent
+Inputs:
+  Required:
+    - {"multiline: False
+  Optional:
+    - {"default: False}
+    - {"multiline: True
+Outputs:
+  - boolean (BOOLEAN)
+--------------------------------------------------
+Node: ShellAgentPluginInputImage:
+    @classmethod
+    def INPUT_TYPES
+Category: shellagent
+Inputs:
+  Required:
+    - {"multiline: False
+    - sorted(files), {"image_upload: files
+  Optional:
+    - {"multiline: False
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ShellAgentPluginInputVideo:
+#     @classmethod
+#     def INPUT_TYPES
+Category: shellagent
+Inputs:
+  Required:
+    - #                     {"multiline: False
+    - #                     "STRING", {"video_upload: files
+  Optional:
+    - #                     {"multiline: True
+Outputs:
+  - video (STRING)
+--------------------------------------------------
+Node: ShellAgentPluginInputImage:
+#     @classmethod
+#     def INPUT_TYPES
+Category: shellagent
+Inputs:
+  Required:
+    - #                     {"multiline: False
+    - #                     "STRING", {"image_upload: files
+  Optional:
+    - #                     {"multiline: True
+Outputs:
+  - image (IMAGE)
+--------------------------------------------------
+Node: ShellAgentPluginInputVideo:
+    @classmethod
+    def INPUT_TYPES
+Category: shellagent
+Inputs:
+  Required:
+    - {"multiline: False
+    - { "video_upload: True }
+    - #     "STRING", {"video_upload: files
+  Optional:
+    - {"multiline: True
+Outputs:
+  - video (STRING)
+--------------------------------------------------
+Node: ShellAgentPluginInputAudio:
+    @classmethod
+    def INPUT_TYPES
+Category: shellagent
+Inputs:
+  Required:
+    - {"multiline: False
+    - sorted(files), {"audio_upload: files
+  Optional:
+    - {"multiline: True
+Outputs:
+  - AUDIO
+--------------------------------------------------
+Node: ShellAgentSaveAudios
+Category: shellagent
+Inputs:
+  Required:
+    - {"audio: AUDIO
+    - output_name: STRING, {"multiline": False, default": "output_audio"}
+    - filename_prefix: STRING, {"default": "audio/ComfyUI"}
+  Optional:
+Outputs:
+--------------------------------------------------
+Node: ShellAgentSaveAudio
+Category: Unknown
+Inputs:
+  Required:
+  Optional:
+Outputs:
+--------------------------------------------------
