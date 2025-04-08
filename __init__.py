@@ -98,6 +98,7 @@ from .nodes.FL_GeminiTextAPI import FL_GeminiTextAPI
 from .nodes.FL_JS import FL_JS
 from .nodes.FL_HFDatasetDownloader import FL_HFDatasetDownloader
 from .nodes.FL_WF_Agent import FL_WF_Agent
+from .nodes.FL_BlackFrameReject import FL_BlackFrameReject
 
 
 NODE_CLASS_MAPPINGS = {
@@ -202,6 +203,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_JS": FL_JS,
     "FL_HFDatasetDownloader": FL_HFDatasetDownloader,
     "FL_WF_Agent": FL_WF_Agent,
+    "FL_BlackFrameReject": FL_BlackFrameReject,
 
 }
 
@@ -307,6 +309,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_JS": "FL JavaScript",
     "FL_HFDatasetDownloader": "FL HF Dataset Downloader",
     "FL_WF_Agent": "FL Workflow Agent",
+    "FL_BlackFrameReject": "FL Black Frame Reject",
 
 }
 

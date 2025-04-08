@@ -39,7 +39,7 @@ class FL_WF_Agent:
     RETURN_TYPES = ()
     FUNCTION = "exec_entrypoint"
     OUTPUT_NODE = True
-    CATEGORY = "Fill-Nodes"
+    CATEGORY = "🏵️Fill Nodes/WIP"
 
     def exec_entrypoint(self, event, code_prompt, api_key, javascript, scan_nodes=False):
         try:
