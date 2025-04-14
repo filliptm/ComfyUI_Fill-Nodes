@@ -10,16 +10,24 @@ class FL_InpaintCrop:
     def INPUT_TYPES(cls):
         return {
             "required": {
+                # Mode selection (determines which parameters are used)
+                "mode": (["free size", "forced size", "minimum size"], {"default": "free size"}),
+                
+                # Basic parameters (used by all modes)
                 "image": ("IMAGE",),
                 "mask": ("MASK",),
-                "context_expand_pixels": ("INT", {"default": 10, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
-                "context_expand_factor": ("FLOAT", {"default": 1.01, "min": 1.0, "max": 100.0, "step": 0.01}),
                 "invert_mask": ("BOOLEAN", {"default": False}),
                 "fill_mask_holes": ("BOOLEAN", {"default": True}),
-                "mode": (["free size", "forced size"], {"default": "free size"}),
-                "force_size": ([512, 768, 1024, 1344, 2048, 4096, 8192], {"default": 1024}),
-                "rescale_factor": ("FLOAT", {"default": 1.00, "min": 0.01, "max": 100.0, "step": 0.01}),
-                "padding": ([8, 16, 32, 64, 128, 256, 512], {"default": 32}),
+                
+                # Context expansion parameters (used by all modes)
+                "context_pixels": ("INT", {"default": 10, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
+                "context_factor": ("FLOAT", {"default": 1.01, "min": 1.0, "max": 100.0, "step": 0.01}),
+                
+                # Mode-specific parameters
+                "forced_size": ("INT", {"default": 1024, "min": 32, "max": 2048, "step": 32, "display": "Forced Size (for forced size mode)"}),
+                "minimum_size": ("INT", {"default": 512, "min": 32, "max": 2048, "step": 32, "display": "Minimum Size (for minimum size mode)"}),
+                "free_rescale": ("FLOAT", {"default": 1.00, "min": 0.01, "max": 100.0, "step": 0.01, "display": "Rescale Factor (for free size mode)"}),
+                "free_padding": ("INT", {"default": 32, "min": 8, "max": 512, "step": 8, "display": "Padding (for free size mode)"}),
            },
            "optional": {
                 "optional_context_mask": ("MASK",),
@@ -95,7 +103,7 @@ class FL_InpaintCrop:
         return new_min_val, new_max_val
 
     # Parts of this function are from KJNodes: https://github.com/kijai/ComfyUI-KJNodes
-    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, fill_mask_holes, mode, force_size, rescale_factor, padding, optional_context_mask = None):
+    def inpaint_crop(self, mode, image, mask, invert_mask, fill_mask_holes, context_pixels, context_factor, forced_size, minimum_size, free_rescale, free_padding, optional_context_mask = None):
         original_image = image
         original_mask = mask
         original_width = image.shape[2]
@@ -159,8 +167,8 @@ class FL_InpaintCrop:
         # Grow context area if requested
         y_size = y_max - y_min + 1
         x_size = x_max - x_min + 1
-        y_grow = round(max(y_size*(context_expand_factor-1), context_expand_pixels))
-        x_grow = round(max(x_size*(context_expand_factor-1), context_expand_pixels))
+        y_grow = round(max(y_size*(context_factor-1), context_pixels))
+        x_grow = round(max(x_size*(context_factor-1), context_pixels))
         y_min = max(y_min - y_grow // 2, 0)
         y_max = min(y_max + y_grow // 2, height - 1)
         x_min = max(x_min - x_grow // 2, 0)
@@ -173,11 +181,11 @@ class FL_InpaintCrop:
             # Turn into square
             x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height)
             current_size = x_max - x_min + 1  # Assuming x_max - x_min == y_max - y_min due to square adjustment
-            if current_size != force_size:
-                # Upscale to fit in the force_size square, will be downsized at stitch phase
-                upscale_factor = force_size / current_size
+            if current_size != forced_size:
+                # Upscale to fit in the forced_size square, will be downsized at stitch phase
+                upscale_factor = forced_size / current_size
 
-                samples = image            
+                samples = image
                 samples = samples.movedim(-1, 1)
 
                 width = math.floor(samples.shape[3] * upscale_factor)
@@ -199,17 +207,56 @@ class FL_InpaintCrop:
                 y_min = math.floor(y_min * effective_upscale_factor_y)
                 y_max = math.floor(y_max * effective_upscale_factor_y)
 
-                # Readjust to force size because the upscale math may not round well
-                x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height, target_size=force_size)
+                # Readjust to forced size because the upscale math may not round well
+                x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height, target_size=forced_size)
+
+        elif mode == 'minimum size':
+            # Turn into square
+            x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height)
+            current_size = x_max - x_min + 1  # Assuming x_max - x_min == y_max - y_min due to square adjustment
+            
+            # Only upscale if the current size is smaller than the minimum size
+            if current_size < minimum_size:
+                # Upscale to fit the minimum size, will be downsized at stitch phase
+                upscale_factor = minimum_size / current_size
+                
+                print(f"Upscaling from {current_size} to minimum size {minimum_size}")
+
+                samples = image
+                samples = samples.movedim(-1, 1)
+
+                width = math.floor(samples.shape[3] * upscale_factor)
+                height = math.floor(samples.shape[2] * upscale_factor)
+                samples = comfy.utils.bislerp(samples, width, height)
+                effective_upscale_factor_x = float(width)/float(original_width)
+                effective_upscale_factor_y = float(height)/float(original_height)
+                samples = samples.movedim(1, -1)
+                image = samples
+
+                samples = mask
+                samples = samples.unsqueeze(1)
+                samples = comfy.utils.bislerp(samples, width, height)
+                samples = samples.squeeze(1)
+                mask = samples
+
+                x_min = math.floor(x_min * effective_upscale_factor_x)
+                x_max = math.floor(x_max * effective_upscale_factor_x)
+                y_min = math.floor(y_min * effective_upscale_factor_y)
+                y_max = math.floor(y_max * effective_upscale_factor_y)
+
+                # Readjust to minimum size because the upscale math may not round well
+                x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height, target_size=minimum_size)
+            else:
+                print(f"No upscaling needed. Current size {current_size} is already >= minimum size {minimum_size}")
 
         elif mode == 'free size':
             # Upscale image and masks if requested, they will be downsized at stitch phase
-            if rescale_factor < 0.999 or rescale_factor > 1.001:
+            if free_rescale < 0.999 or free_rescale > 1.001:
                 samples = image            
                 samples = samples.movedim(-1, 1)
 
-                width = math.floor(samples.shape[3] * rescale_factor)
-                height = math.floor(samples.shape[2] * rescale_factor)
+                width = math.floor(samples.shape[3] * free_rescale)
+                height = math.floor(samples.shape[2] * free_rescale)
                 samples = comfy.utils.bislerp(samples, width, height)
                 effective_upscale_factor_x = float(width)/float(original_width)
                 effective_upscale_factor_y = float(height)/float(original_height)
@@ -234,9 +281,9 @@ class FL_InpaintCrop:
                 y_max = min(y_max, height - 1)
 
             # Pad area (if possible, i.e. if pad is smaller than width/height) to avoid the sampler returning smaller results
-            if padding > 1:
-                x_min, x_max = self.apply_padding(x_min, x_max, width, padding)
-                y_min, y_max = self.apply_padding(y_min, y_max, height, padding)
+            if free_padding > 1:
+                x_min, x_max = self.apply_padding(x_min, x_max, width, free_padding)
+                y_min, y_max = self.apply_padding(y_min, y_max, height, free_padding)
 
 
         # Crop the image and the mask, sized context area
