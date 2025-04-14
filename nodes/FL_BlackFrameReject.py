@@ -12,7 +12,7 @@ class FL_BlackFrameReject:
     RETURN_TYPES = ("IMAGE", "INT", "INT",)
     RETURN_NAMES = ("filtered_images", "kept_count", "rejected_count",)
     FUNCTION = "reject_black_frames"
-    CATEGORY = "🏵️Fill Nodes/Image Processing"
+    CATEGORY = "🏵️Fill Nodes/Image"
 
     DESCRIPTION = """
     FL_BlackFrameReject analyzes each image in a batch to detect the percentage of black pixels.

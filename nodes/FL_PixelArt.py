@@ -17,7 +17,7 @@ class FL_PixelArtShader:
                 "color_depth": ("FLOAT", {"default": 50.0, "min": 1.0, "max": 255.0, "step": 1.0}),
                 "use_aspect_ratio": ("BOOLEAN", {"default": True}),
                 "palette_image": ("IMAGE", {"default": None}),
-                "palette_colors": ("INT", {"default": 16, "min": 2, "max": 15, "step": 1}),
+                "palette_colors": ("INT", {"default": 16, "min": 2, "max": 16, "step": 1}),
                 "mask": ("IMAGE", {"default": None}),
             },
         }

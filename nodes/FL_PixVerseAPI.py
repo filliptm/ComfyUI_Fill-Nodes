@@ -26,7 +26,7 @@ class FL_PixVerseAPI:
     RETURN_TYPES = ("IMAGE", "STRING", "STRING")
     RETURN_NAMES = ("frames", "video_url", "status_msg")
     FUNCTION = "generate_video"
-    CATEGORY = "🍵Fill Nodes/API"
+    CATEGORY = "🏵️Fill Nodes/AI"
 
     @classmethod
     def INPUT_TYPES(cls):

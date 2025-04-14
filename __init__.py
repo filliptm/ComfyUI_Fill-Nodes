@@ -102,6 +102,8 @@ from .nodes.FL_HFDatasetDownloader import FL_HFDatasetDownloader
 from .nodes.FL_WF_Agent import FL_WF_Agent
 from .nodes.FL_BlackFrameReject import FL_BlackFrameReject
 from .nodes.FL_PixVerseAPI import FL_PixVerseAPI
+from .nodes.FL_Prompt import FL_PromptBasic
+from .nodes.FL_PaddingRemover import FL_PaddingRemover
 
 
 NODE_CLASS_MAPPINGS = {
@@ -210,6 +212,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_WF_Agent": FL_WF_Agent,
     "FL_BlackFrameReject": FL_BlackFrameReject,
     "FL_PixVerseAPI": FL_PixVerseAPI,
+    "FL_PromptBasic": FL_PromptBasic,
+    "FL_PaddingRemover": FL_PaddingRemover,
 
 }
 
@@ -319,6 +323,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_WF_Agent": "FL Workflow Agent",
     "FL_BlackFrameReject": "FL Black Frame Reject",
     "FL_PixVerseAPI": "FL PixVerse API",
+    "FL_PromptBasic": "FL Prompt Basic",
+    "FL_PaddingRemover": "FL Padding Remover",
 
 }
 
