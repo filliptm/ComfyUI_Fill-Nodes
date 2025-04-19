@@ -1,9 +1,3 @@
-FL_ColorPicker code update: FL_ColorPicker.js
-
-Improved functionality
-
-Fixed movement, fixed on save issue reverted back to #FF0000, added manual hex input, and added RGB sliders for control visual feedback
-
 import { app } from "../../../scripts/app.js";
 import { ComfyWidgets } from "../../../scripts/widgets.js";
 import { api } from "../../../scripts/api.js"; // Import api
