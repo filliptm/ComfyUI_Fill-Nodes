@@ -34,7 +34,6 @@ class FL_PixVerseAPI:
         return {
             "required": {
                 "api_key": ("STRING", {"multiline": False}),
-                "image": ("IMAGE",),
                 "prompt": ("STRING", {"default": ""}),
                 "negative_prompt": ("STRING", {"default": ""}),
                 "duration": ("INT", {"default": 5, "min": 5, "max": 8}),
@@ -47,23 +46,23 @@ class FL_PixVerseAPI:
                 "nth_frame": ("INT", {"default": 1, "min": 1, "max": 4,
                                      "description": "Extract every Nth frame (1=all frames, 2=every 2nd frame, etc.)"}),
                 "use_transition": ("BOOLEAN", {"default": False,
-                                              "description": "Use transition API instead of standard image-to-video"}),
-                "first_frame_img": ("IMAGE", {"default": None, "optional": True,
-                                             "description": "Optional start frame image for transition (requires use_transition=True)"}),
-                "last_frame_img": ("IMAGE", {"default": None, "optional": True,
-                                            "description": "Optional end frame image for transition (requires use_transition=True)"})
+                                              "description": "Use transition API instead of standard image-to-video"})
+            },
+            "optional": {
+                "image": ("IMAGE", {"description": "Main image for standard mode (required if not using transition)"}),
+                "first_frame_img": ("IMAGE", {"description": "Start frame image for transition (requires use_transition=True)"}),
+                "last_frame_img": ("IMAGE", {"description": "End frame image for transition (requires use_transition=True)"})
             }
         }
 
-    def generate_video(self, api_key, image, prompt="", negative_prompt="", duration=5,
+    def generate_video(self, api_key, prompt="", negative_prompt="", duration=5,
                        quality="540p", motion_mode="normal", seed=0, batch_size=1, nth_frame=1,
-                       use_transition=False, first_frame_img=None, last_frame_img=None):
+                       use_transition=False, image=None, first_frame_img=None, last_frame_img=None):
         """
         Generate a video from an image, download it, and extract frames
 
         Args:
             api_key: PixVerse API key
-            image: Input image tensor
             prompt: Text prompt describing the video
             negative_prompt: Negative prompt
             duration: Video duration in seconds
@@ -73,8 +72,9 @@ class FL_PixVerseAPI:
             batch_size: Number of videos to generate with different seeds
             nth_frame: Extract every Nth frame (1=all frames, 2=every 2nd frame, etc.)
             use_transition: Whether to use transition API instead of standard image-to-video
-            first_frame_img: Optional start frame image for transition
-            last_frame_img: Optional end frame image for transition
+            image: (Optional) Main input image tensor
+            first_frame_img: (Optional) Start frame image for transition
+            last_frame_img: (Optional) End frame image for transition
 
         Returns:
             Tuple of (frames_tensor_1, frames_tensor_2, frames_tensor_3, frames_tensor_4, frames_tensor_5,
@@ -82,10 +82,30 @@ class FL_PixVerseAPI:
             Note: If batch_size < 5, the unused frame tensors will be empty (1,1,1,3) tensors
         """
         try:
+            # Helper function for error returns
+            def error_return(error_msg):
+                empty_tensor = torch.zeros((1, 1, 1, 3))
+                return empty_tensor, empty_tensor, empty_tensor, empty_tensor, empty_tensor, "", error_msg, "N/A"
+                
             # 1. Validate API key
             if not api_key or api_key.strip() == "":
-                empty_tensor = torch.zeros((1, 1, 1, 3))
-                return empty_tensor, empty_tensor, empty_tensor, empty_tensor, empty_tensor, "", "Error: API Key is required", "N/A"
+                return error_return("Error: API Key is required")
+                
+            # 2. Validate image inputs based on mode
+            if use_transition:
+                # Transition mode validation
+                if first_frame_img is None and last_frame_img is None:
+                    return error_return("Error: When using transition mode, at least one of first_frame_img or last_frame_img must be provided")
+                
+                # For transition mode, we need either:
+                # 1. Main image (which can be used for missing frames), or
+                # 2. Both first_frame_img and last_frame_img
+                if image is None and (first_frame_img is None or last_frame_img is None):
+                    return error_return("Error: For transition mode without main image, both first_frame_img AND last_frame_img must be provided")
+            else:
+                # Standard mode validation
+                if image is None:
+                    return error_return("Error: Main image is required when not using transition mode")
 
             # Initialize return values
             frame_tensors = [torch.zeros((1, 1, 1, 3)) for _ in range(5)]  # 5 empty tensors by default
@@ -98,14 +118,14 @@ class FL_PixVerseAPI:
             # Generate trace ID for the main request
             main_trace_id = str(uuid.uuid4())
             
-            # 2. Upload the main image
-            print(f"[PixVerse] Processing and uploading main image...")
-            img_id = self.upload_image(api_key, image, main_trace_id, "main image")
-            
-            if img_id == 0:
-                error_msg = "Failed to upload main image"
-                empty_tensor = torch.zeros((1, 1, 1, 3))
-                return empty_tensor, empty_tensor, empty_tensor, empty_tensor, empty_tensor, "", error_msg, "N/A"
+            # 3. Upload the main image if provided
+            img_id = 0
+            if image is not None:
+                print(f"[PixVerse] Processing and uploading main image...")
+                img_id = self.upload_image(api_key, image, main_trace_id, "main image")
+                
+                if img_id == 0:
+                    return error_return("Error: Failed to upload main image")
             
             # 4. Process batches in parallel
             # Define helper functions for parallel processing
@@ -118,11 +138,14 @@ class FL_PixVerseAPI:
                 
                 # Determine which API endpoint to use based on use_transition flag
                 if use_transition:
-                    # Process first and last frame images if provided
+                    # Process first and last frame images
                     first_frame_id = 0
                     last_frame_id = 0
                     
-                    # Upload first frame if provided
+                    # For transition mode, if main image is provided but first/last frame is not,
+                    # use the main image for the missing frame(s)
+                    
+                    # Handle first frame
                     if first_frame_img is not None:
                         first_frame_id = self.upload_image(api_key, first_frame_img, trace_id, "first frame")
                         if first_frame_id == 0:  # Upload failed
@@ -132,8 +155,11 @@ class FL_PixVerseAPI:
                                 "error": "Failed to upload first frame image",
                                 "trace_id": trace_id
                             }
+                    elif img_id > 0:  # Use main image if first frame not provided
+                        first_frame_id = img_id
+                        print(f"[PixVerse] Using main image as first frame")
                     
-                    # Upload last frame if provided
+                    # Handle last frame
                     if last_frame_img is not None:
                         last_frame_id = self.upload_image(api_key, last_frame_img, trace_id, "last frame")
                         if last_frame_id == 0:  # Upload failed
@@ -143,6 +169,9 @@ class FL_PixVerseAPI:
                                 "error": "Failed to upload last frame image",
                                 "trace_id": trace_id
                             }
+                    elif img_id > 0:  # Use main image if last frame not provided
+                        last_frame_id = img_id
+                        print(f"[PixVerse] Using main image as last frame")
                     
                     # Use transition API
                     endpoint = "/openapi/v2/video/transition/generate"
@@ -160,6 +189,15 @@ class FL_PixVerseAPI:
                     })
                 else:
                     # Use standard image-to-video API
+                    # This should never happen due to our validation, but just in case
+                    if img_id == 0:
+                        return {
+                            "batch_idx": batch_idx,
+                            "success": False,
+                            "error": "No valid image provided for standard mode",
+                            "trace_id": trace_id
+                        }
+                        
                     endpoint = "/openapi/v2/video/img/generate"
                     payload = json.dumps({
                         "duration": duration,
@@ -511,7 +549,7 @@ class FL_PixVerseAPI:
         
         Args:
             api_key: PixVerse API key
-            image_tensor: Image tensor to upload
+            image_tensor: Image tensor to upload (can be None)
             trace_id: Trace ID for the request
             image_type: Type of image being uploaded (for logging)
             
@@ -519,6 +557,11 @@ class FL_PixVerseAPI:
             Image ID if successful, 0 if failed
         """
         try:
+            # Check if image_tensor is None
+            if image_tensor is None:
+                print(f"[PixVerse] Error: {image_type} is None")
+                return 0
+                
             # Take first image if batch
             if len(image_tensor.shape) == 4:
                 image_tensor = image_tensor[0]
