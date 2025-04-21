@@ -31,7 +31,7 @@ class FL_ImageCollage:
             raise ValueError(f"The number of tile images ({tile_batch_size}) does not match the number of base images ({base_batch_size}).")
 
         result = []
-        pbar = ProgressBar(total_images)
+        pbar = ProgressBar(base_batch_size)
 
         for i, (base_img, tile_img) in enumerate(zip(base_image, tile_image), start=1):
             base_img = self.t2p(base_img)
