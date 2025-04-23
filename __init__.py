@@ -3,6 +3,7 @@ from .nodes.FL_Image_Caption_Saver import FL_ImageCaptionSaver
 from .nodes.FL_Image_Dimension_Display import FL_ImageDimensionDisplay
 from .nodes.FL_GeminiVideoCaptioner import FL_GeminiVideoCaptioner
 from .nodes.FL_GeminiImageEditor import FL_GeminiImageEditor
+from .nodes.FL_GPT_Image1 import FL_GPT_Image1
 from .nodes.FL_Code_Node import FL_CodeNode
 from .nodes.FL_Video_Caption_Saver import FL_VideoCaptionSaver
 from .nodes.FL_Image_Pixelator import FL_ImagePixelator
@@ -115,6 +116,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_ImageDimensionDisplay": FL_ImageDimensionDisplay,
     "FL_GeminiVideoCaptioner": FL_GeminiVideoCaptioner,
     "FL_GeminiImageEditor": FL_GeminiImageEditor,
+    "FL_GPT_Image1": FL_GPT_Image1,
     "FL_CodeNode": FL_CodeNode,
     "FL_ImagePixelator": FL_ImagePixelator,
     "FL_DirectoryCrawl": FL_DirectoryCrawl,
@@ -228,6 +230,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_ImageDimensionDisplay": "FL Image Size",
     "FL_GeminiVideoCaptioner": "FL Gemini Video Captioner",
     "FL_GeminiImageEditor": "FL Gemini Image Editor",
+    "FL_GPT_Image1": "FL GPT Image-1",
     "FL_CodeNode": "FL Code Node",
     "FL_ImagePixelator": "FL Image Pixelator",
     "FL_DirectoryCrawl": "FL Directory Crawl",
