@@ -9,7 +9,7 @@ class FL_NodePackLoader:
 
     RETURN_TYPES = ("TRIGGER",)
     FUNCTION = "load_nodes"
-    CATEGORY = "utils"
+    CATEGORY = "🏵️Fill Nodes/Loaders"
 
     def load_nodes(self, trigger):
         return (trigger,)

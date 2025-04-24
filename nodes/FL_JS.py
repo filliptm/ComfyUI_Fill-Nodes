@@ -28,7 +28,7 @@ class FL_JS:
             }
         }
     
-    CATEGORY = "🏵️Fill Nodes/Utils"
+    CATEGORY = "🏵️Fill Nodes/utility"
     FUNCTION = "exec"
     RETURN_TYPES = ()
     DESCRIPTION = "Execute JavaScript code when specific events are triggered"

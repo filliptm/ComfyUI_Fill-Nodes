@@ -11,9 +11,9 @@ class FL_MultiPrompt:
             }
         }
 
-    RETURN_TYPES = ("ZIPPED_PROMPT", "STRING", "STRING", "STRING")
-    RETURN_NAMES = ("zipped_prompt", "positive", "negative", "name")
-    OUTPUT_IS_LIST = (True, True, True, True)
+    RETURN_TYPES = ("STRING", "STRING", "STRING")
+    RETURN_NAMES = ("positive", "negative", "name")
+    OUTPUT_IS_LIST = (True, True, True)
     FUNCTION = "process_prompts"
     CATEGORY = "🏵️Fill Nodes/Prompting"
 
@@ -35,17 +35,15 @@ class FL_MultiPrompt:
             else:
                 negative_prompts = [""] * len(positive_prompts)
         
-        # Create zipped prompts
-        zipped_prompts = []
+        # Create output lists
         positives = []
         negatives = []
         names = []
         
         for i, (pos, neg) in enumerate(zip(positive_prompts, negative_prompts)):
             name = f"{name_prefix}{i+1}"
-            zipped_prompts.append((pos, neg, name))
             positives.append(pos)
             negatives.append(neg)
             names.append(name)
         
-        return (zipped_prompts, positives, negatives, names)
+        return (positives, negatives, names)

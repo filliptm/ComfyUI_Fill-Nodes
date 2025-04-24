@@ -12,7 +12,7 @@ class FL_PathTypeChecker:
 
     RETURN_TYPES = ("PATH",)
     FUNCTION = "check_path_type"
-    CATEGORY = "🏵️Fill Nodes/Utils"
+    CATEGORY = "🏵️Fill Nodes/utility"
 
     def check_path_type(self, input_path):
         input_path = input_path.strip()  # Remove leading/trailing whitespace
