@@ -104,7 +104,7 @@ from .nodes.FL_WF_Agent import FL_WF_Agent
 from .nodes.FL_BlackFrameReject import FL_BlackFrameReject
 from .nodes.FL_PixVerseAPI import FL_PixVerseAPI
 from .nodes.FL_Prompt import FL_PromptBasic
-from .nodes.FL_MultiPrompt import FL_MultiPrompt
+from .nodes.FL_PromptMulti import FL_PromptMulti
 from .nodes.FL_PaddingRemover import FL_PaddingRemover
 from .nodes.FL_GoogleCloudStorage import FL_GoogleCloudStorage
 from .nodes.FL_Switch import FL_Switch
@@ -218,7 +218,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_BlackFrameReject": FL_BlackFrameReject,
     "FL_PixVerseAPI": FL_PixVerseAPI,
     "FL_PromptBasic": FL_PromptBasic,
-    "FL_MultiPrompt": FL_MultiPrompt,
+    "FL_PromptMulti": FL_PromptMulti,
     "FL_PaddingRemover": FL_PaddingRemover,
     "FL_GoogleCloudStorage": FL_GoogleCloudStorage,
     "FL_Switch": FL_Switch,
@@ -333,7 +333,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_BlackFrameReject": "FL Black Frame Reject",
     "FL_PixVerseAPI": "FL PixVerse API",
     "FL_PromptBasic": "FL Prompt Basic",
-    "FL_MultiPrompt": "FL Multi Prompt",
+    "FL_PromptMulti": "FL Prompt Multi",
     "FL_PaddingRemover": "FL Padding Remover",
     "FL_GoogleCloudStorage": "FL Google Cloud Storage Uploader",
     "FL_Switch": "FL Switch",

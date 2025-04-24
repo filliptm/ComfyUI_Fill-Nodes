@@ -1,4 +1,4 @@
-class FL_MultiPrompt:
+class FL_PromptMulti:
     @classmethod
     def INPUT_TYPES(cls):
         return {
