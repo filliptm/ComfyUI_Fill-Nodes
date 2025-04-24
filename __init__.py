@@ -106,6 +106,7 @@ from .nodes.FL_PixVerseAPI import FL_PixVerseAPI
 from .nodes.FL_Prompt import FL_PromptBasic
 from .nodes.FL_PromptMulti import FL_PromptMulti
 from .nodes.FL_PaddingRemover import FL_PaddingRemover
+from .nodes.FL_GPT_Text import FL_GPT_Text
 from .nodes.FL_GoogleCloudStorage import FL_GoogleCloudStorage
 from .nodes.FL_Switch import FL_Switch
 
@@ -220,6 +221,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_PromptBasic": FL_PromptBasic,
     "FL_PromptMulti": FL_PromptMulti,
     "FL_PaddingRemover": FL_PaddingRemover,
+    "FL_GPT_Text": FL_GPT_Text,
     "FL_GoogleCloudStorage": FL_GoogleCloudStorage,
     "FL_Switch": FL_Switch,
 
@@ -335,6 +337,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_PromptBasic": "FL Prompt Basic",
     "FL_PromptMulti": "FL Prompt Multi",
     "FL_PaddingRemover": "FL Padding Remover",
+    "FL_GPT_Text": "FL GPT Text",
     "FL_GoogleCloudStorage": "FL Google Cloud Storage Uploader",
     "FL_Switch": "FL Switch",
 
