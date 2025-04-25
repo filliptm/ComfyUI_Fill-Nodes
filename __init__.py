@@ -109,6 +109,7 @@ from .nodes.FL_PaddingRemover import FL_PaddingRemover
 from .nodes.FL_GPT_Text import FL_GPT_Text
 from .nodes.FL_GoogleCloudStorage import FL_GoogleCloudStorage
 from .nodes.FL_Switch import FL_Switch
+from .nodes.FL_PasteByMask import FL_PasteByMask
 
 
 NODE_CLASS_MAPPINGS = {
@@ -224,6 +225,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_GPT_Text": FL_GPT_Text,
     "FL_GoogleCloudStorage": FL_GoogleCloudStorage,
     "FL_Switch": FL_Switch,
+    "FL_PasteByMask": FL_PasteByMask,
 
 }
 
@@ -340,6 +342,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_GPT_Text": "FL GPT Text",
     "FL_GoogleCloudStorage": "FL Google Cloud Storage Uploader",
     "FL_Switch": "FL Switch",
+    "FL_PasteByMask": "FL Paste By Mask",
 
 }
 
