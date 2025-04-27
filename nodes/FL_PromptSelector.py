@@ -6,7 +6,7 @@ class FL_PromptSelector:
                 "prepend_text": ("STRING", {"multiline": True, "default": ""}),
                 "prompts": ("STRING", {"multiline": True}),
                 "append_text": ("STRING", {"multiline": True, "default": ""}),
-                "index": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
+                "index": ("INT", {"default": 0, "min": 0, "max": 6969, "step": 1}),
             },
             "optional": {},
         }

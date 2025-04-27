@@ -103,6 +103,7 @@ from .nodes.FL_HFDatasetDownloader import FL_HFDatasetDownloader
 from .nodes.FL_WF_Agent import FL_WF_Agent
 from .nodes.FL_BlackFrameReject import FL_BlackFrameReject
 from .nodes.FL_PixVerseAPI import FL_PixVerseAPI
+from .nodes.FL_Fal_Pixverse import FL_Fal_Pixverse
 from .nodes.FL_Prompt import FL_PromptBasic
 from .nodes.FL_PromptMulti import FL_PromptMulti
 from .nodes.FL_PaddingRemover import FL_PaddingRemover
@@ -219,6 +220,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_WF_Agent": FL_WF_Agent,
     "FL_BlackFrameReject": FL_BlackFrameReject,
     "FL_PixVerseAPI": FL_PixVerseAPI,
+    "FL_Fal_Pixverse": FL_Fal_Pixverse,
     "FL_PromptBasic": FL_PromptBasic,
     "FL_PromptMulti": FL_PromptMulti,
     "FL_PaddingRemover": FL_PaddingRemover,
@@ -226,6 +228,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_GoogleCloudStorage": FL_GoogleCloudStorage,
     "FL_Switch": FL_Switch,
     "FL_PasteByMask": FL_PasteByMask,
+    "FL_Fal_Pixverse": FL_Fal_Pixverse,
 
 }
 
@@ -336,6 +339,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_WF_Agent": "FL Workflow Agent",
     "FL_BlackFrameReject": "FL Black Frame Reject",
     "FL_PixVerseAPI": "FL PixVerse API",
+    "FL_Fal_Pixverse": "FL Fal Pixverse API",
     "FL_PromptBasic": "FL Prompt Basic",
     "FL_PromptMulti": "FL Prompt Multi",
     "FL_PaddingRemover": "FL Padding Remover",
@@ -343,6 +347,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_GoogleCloudStorage": "FL Google Cloud Storage Uploader",
     "FL_Switch": "FL Switch",
     "FL_PasteByMask": "FL Paste By Mask",
+    "FL_Fal_Pixverse": "FL Fal Pixverse API",
 
 }
 
