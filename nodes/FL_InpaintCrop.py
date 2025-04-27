@@ -11,7 +11,7 @@ class FL_InpaintCrop:
         return {
             "required": {
                 # Mode selection (determines which parameters are used)
-                "mode": (["free size", "forced size", "minimum size"], {"default": "free size"}),
+                "mode": (["free", "long side", "short side", "range", "forced"], {"default": "free"}),
                 
                 # Basic parameters (used by all modes)
                 "image": ("IMAGE",),
@@ -23,11 +23,16 @@ class FL_InpaintCrop:
                 "context_pixels": ("INT", {"default": 10, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
                 "context_factor": ("FLOAT", {"default": 1.01, "min": 1.0, "max": 100.0, "step": 0.01}),
                 
+                # Square ratio option (for all modes)
+                "force_square": ("BOOLEAN", {"default": False, "display": "Force 1:1 Square Ratio"}),
+                
                 # Mode-specific parameters
-                "forced_size": ("INT", {"default": 1024, "min": 32, "max": 2048, "step": 32, "display": "Forced Size (for forced size mode)"}),
-                "minimum_size": ("INT", {"default": 512, "min": 32, "max": 2048, "step": 32, "display": "Minimum Size (for minimum size mode)"}),
-                "free_rescale": ("FLOAT", {"default": 1.00, "min": 0.01, "max": 100.0, "step": 0.01, "display": "Rescale Factor (for free size mode)"}),
-                "free_padding": ("INT", {"default": 32, "min": 8, "max": 512, "step": 8, "display": "Padding (for free size mode)"}),
+                "forced_size": ("INT", {"default": 1024, "min": 32, "max": 2048, "step": 32, "display": "Size (for forced mode)"}),
+                "minimum_size": ("INT", {"default": 512, "min": 32, "max": 2048, "step": 32, "display": "Minimum Size (for range mode)"}),
+                "maximum_size": ("INT", {"default": 1024, "min": 32, "max": 2048, "step": 32, "display": "Maximum Size (for range mode)"}),
+                "target_size": ("INT", {"default": 1024, "min": 32, "max": 2048, "step": 32, "display": "Target Size (for long/short side modes)"}),
+                "free_rescale": ("FLOAT", {"default": 1.00, "min": 0.01, "max": 100.0, "step": 0.01, "display": "Rescale Factor (for free mode)"}),
+                "free_padding": ("INT", {"default": 32, "min": 8, "max": 512, "step": 8, "display": "Padding (for free mode)"}),
            },
            "optional": {
                 "optional_context_mask": ("MASK",),
@@ -103,7 +108,7 @@ class FL_InpaintCrop:
         return new_min_val, new_max_val
 
     # Parts of this function are from KJNodes: https://github.com/kijai/ComfyUI-KJNodes
-    def inpaint_crop(self, mode, image, mask, invert_mask, fill_mask_holes, context_pixels, context_factor, forced_size, minimum_size, free_rescale, free_padding, optional_context_mask = None):
+    def inpaint_crop(self, mode, image, mask, invert_mask, fill_mask_holes, context_pixels, context_factor, force_square, forced_size, minimum_size, maximum_size, target_size, free_rescale, free_padding, optional_context_mask = None):
         original_image = image
         original_mask = mask
         original_width = image.shape[2]
@@ -176,14 +181,27 @@ class FL_InpaintCrop:
 
         effective_upscale_factor_x = 1.0
         effective_upscale_factor_y = 1.0
-        # Adjust to preferred size
-        if mode == 'forced size':
-            # Turn into square
+        
+        # Apply square adjustment if requested
+        if force_square:
             x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height)
-            current_size = x_max - x_min + 1  # Assuming x_max - x_min == y_max - y_min due to square adjustment
-            if current_size != forced_size:
-                # Upscale to fit in the forced_size square, will be downsized at stitch phase
-                upscale_factor = forced_size / current_size
+        
+        # Adjust to preferred size based on mode
+        if mode == 'forced':
+            # Force to exact size (square if force_square is True)
+            current_width = x_max - x_min + 1
+            current_height = y_max - y_min + 1
+            
+            if force_square:
+                current_size = current_width  # Should be equal to current_height after adjust_to_square
+                if current_size != forced_size:
+                    # Upscale to fit in the forced_size, will be downsized at stitch phase
+                    upscale_factor = forced_size / current_size
+            else:
+                # For non-square, we'll scale to make the larger dimension match forced_size
+                larger_dimension = max(current_width, current_height)
+                if larger_dimension != forced_size:
+                    upscale_factor = forced_size / larger_dimension
 
                 samples = image
                 samples = samples.movedim(-1, 1)
@@ -210,21 +228,148 @@ class FL_InpaintCrop:
                 # Readjust to forced size because the upscale math may not round well
                 x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height, target_size=forced_size)
 
-        elif mode == 'minimum size':
-            # Turn into square
-            x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height)
-            current_size = x_max - x_min + 1  # Assuming x_max - x_min == y_max - y_min due to square adjustment
+        elif mode == 'range':
+            current_width = x_max - x_min + 1
+            current_height = y_max - y_min + 1
             
-            # Only upscale if the current size is smaller than the minimum size
-            if current_size < minimum_size:
-                # Upscale to fit the minimum size, will be downsized at stitch phase
-                upscale_factor = minimum_size / current_size
+            if force_square:
+                current_size = current_width  # Should be equal to current_height after adjust_to_square
                 
-                print(f"Upscaling from {current_size} to minimum size {minimum_size}")
+                # Only upscale if the current size is smaller than the minimum size
+                if current_size < minimum_size:
+                    # Upscale to fit the minimum size, will be downsized at stitch phase
+                    upscale_factor = minimum_size / current_size
+                    print(f"Upscaling from {current_size} to minimum size {minimum_size}")
+                    
+                    samples = image
+                    samples = samples.movedim(-1, 1)
 
+                    width = math.floor(samples.shape[3] * upscale_factor)
+                    height = math.floor(samples.shape[2] * upscale_factor)
+                    samples = comfy.utils.bislerp(samples, width, height)
+                    effective_upscale_factor_x = float(width)/float(original_width)
+                    effective_upscale_factor_y = float(height)/float(original_height)
+                    samples = samples.movedim(1, -1)
+                    image = samples
+
+                    samples = mask
+                    samples = samples.unsqueeze(1)
+                    samples = comfy.utils.bislerp(samples, width, height)
+                    samples = samples.squeeze(1)
+                    mask = samples
+
+                    x_min = math.floor(x_min * effective_upscale_factor_x)
+                    x_max = math.floor(x_max * effective_upscale_factor_x)
+                    y_min = math.floor(y_min * effective_upscale_factor_y)
+                    y_max = math.floor(y_max * effective_upscale_factor_y)
+
+                    # Readjust to minimum size because the upscale math may not round well
+                    x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height, target_size=minimum_size)
+                    
+                # Only downscale if the current size is larger than the maximum size
+                elif current_size > maximum_size:
+                    # Downscale to fit the maximum size
+                    upscale_factor = maximum_size / current_size
+                    print(f"Downscaling from {current_size} to maximum size {maximum_size}")
+                    
+                    samples = image
+                    samples = samples.movedim(-1, 1)
+
+                    width = math.floor(samples.shape[3] * upscale_factor)
+                    height = math.floor(samples.shape[2] * upscale_factor)
+                    samples = comfy.utils.bislerp(samples, width, height)
+                    effective_upscale_factor_x = float(width)/float(original_width)
+                    effective_upscale_factor_y = float(height)/float(original_height)
+                    samples = samples.movedim(1, -1)
+                    image = samples
+
+                    samples = mask
+                    samples = samples.unsqueeze(1)
+                    samples = comfy.utils.bislerp(samples, width, height)
+                    samples = samples.squeeze(1)
+                    mask = samples
+
+                    x_min = math.floor(x_min * effective_upscale_factor_x)
+                    x_max = math.floor(x_max * effective_upscale_factor_x)
+                    y_min = math.floor(y_min * effective_upscale_factor_y)
+                    y_max = math.floor(y_max * effective_upscale_factor_y)
+
+                    # Readjust to maximum size because the upscale math may not round well
+                    x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height, target_size=maximum_size)
+                    
+                else:
+                    print(f"No scaling needed. Current size {current_size} is within range {minimum_size}-{maximum_size}")
+            else:
+                # For non-square, we'll check both dimensions
+                larger_dimension = max(current_width, current_height)
+                
+                if larger_dimension < minimum_size:
+                    upscale_factor = minimum_size / larger_dimension
+                    print(f"Upscaling from {larger_dimension} to minimum size {minimum_size}")
+                    
+                    samples = image
+                    samples = samples.movedim(-1, 1)
+
+                    width = math.floor(samples.shape[3] * upscale_factor)
+                    height = math.floor(samples.shape[2] * upscale_factor)
+                    samples = comfy.utils.bislerp(samples, width, height)
+                    effective_upscale_factor_x = float(width)/float(original_width)
+                    effective_upscale_factor_y = float(height)/float(original_height)
+                    samples = samples.movedim(1, -1)
+                    image = samples
+
+                    samples = mask
+                    samples = samples.unsqueeze(1)
+                    samples = comfy.utils.bislerp(samples, width, height)
+                    samples = samples.squeeze(1)
+                    mask = samples
+
+                    x_min = math.floor(x_min * effective_upscale_factor_x)
+                    x_max = math.floor(x_max * effective_upscale_factor_x)
+                    y_min = math.floor(y_min * effective_upscale_factor_y)
+                    y_max = math.floor(y_max * effective_upscale_factor_y)
+                    
+                elif larger_dimension > maximum_size:
+                    upscale_factor = maximum_size / larger_dimension
+                    print(f"Downscaling from {larger_dimension} to maximum size {maximum_size}")
+                    
+                    samples = image
+                    samples = samples.movedim(-1, 1)
+
+                    width = math.floor(samples.shape[3] * upscale_factor)
+                    height = math.floor(samples.shape[2] * upscale_factor)
+                    samples = comfy.utils.bislerp(samples, width, height)
+                    effective_upscale_factor_x = float(width)/float(original_width)
+                    effective_upscale_factor_y = float(height)/float(original_height)
+                    samples = samples.movedim(1, -1)
+                    image = samples
+
+                    samples = mask
+                    samples = samples.unsqueeze(1)
+                    samples = comfy.utils.bislerp(samples, width, height)
+                    samples = samples.squeeze(1)
+                    mask = samples
+
+                    x_min = math.floor(x_min * effective_upscale_factor_x)
+                    x_max = math.floor(x_max * effective_upscale_factor_x)
+                    y_min = math.floor(y_min * effective_upscale_factor_y)
+                    y_max = math.floor(y_max * effective_upscale_factor_y)
+                    
+                else:
+                    print(f"No scaling needed. Larger dimension {larger_dimension} is within range {minimum_size}-{maximum_size}")
+        
+        elif mode == 'long side':
+            current_width = x_max - x_min + 1
+            current_height = y_max - y_min + 1
+            longer_side = max(current_width, current_height)
+            
+            if longer_side != target_size:
+                upscale_factor = target_size / longer_side
+                print(f"Scaling to make longer side ({longer_side}) match target size {target_size}")
+                
                 samples = image
                 samples = samples.movedim(-1, 1)
-
+                
                 width = math.floor(samples.shape[3] * upscale_factor)
                 height = math.floor(samples.shape[2] * upscale_factor)
                 samples = comfy.utils.bislerp(samples, width, height)
@@ -232,24 +377,58 @@ class FL_InpaintCrop:
                 effective_upscale_factor_y = float(height)/float(original_height)
                 samples = samples.movedim(1, -1)
                 image = samples
-
+                
                 samples = mask
                 samples = samples.unsqueeze(1)
                 samples = comfy.utils.bislerp(samples, width, height)
                 samples = samples.squeeze(1)
                 mask = samples
-
+                
                 x_min = math.floor(x_min * effective_upscale_factor_x)
                 x_max = math.floor(x_max * effective_upscale_factor_x)
                 y_min = math.floor(y_min * effective_upscale_factor_y)
                 y_max = math.floor(y_max * effective_upscale_factor_y)
-
-                # Readjust to minimum size because the upscale math may not round well
-                x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height, target_size=minimum_size)
-            else:
-                print(f"No upscaling needed. Current size {current_size} is already >= minimum size {minimum_size}")
-
-        elif mode == 'free size':
+                
+                # If force_square is true, readjust to square after scaling
+                if force_square:
+                    x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height)
+        
+        elif mode == 'short side':
+            current_width = x_max - x_min + 1
+            current_height = y_max - y_min + 1
+            shorter_side = min(current_width, current_height)
+            
+            if shorter_side != target_size:
+                upscale_factor = target_size / shorter_side
+                print(f"Scaling to make shorter side ({shorter_side}) match target size {target_size}")
+                
+                samples = image
+                samples = samples.movedim(-1, 1)
+                
+                width = math.floor(samples.shape[3] * upscale_factor)
+                height = math.floor(samples.shape[2] * upscale_factor)
+                samples = comfy.utils.bislerp(samples, width, height)
+                effective_upscale_factor_x = float(width)/float(original_width)
+                effective_upscale_factor_y = float(height)/float(original_height)
+                samples = samples.movedim(1, -1)
+                image = samples
+                
+                samples = mask
+                samples = samples.unsqueeze(1)
+                samples = comfy.utils.bislerp(samples, width, height)
+                samples = samples.squeeze(1)
+                mask = samples
+                
+                x_min = math.floor(x_min * effective_upscale_factor_x)
+                x_max = math.floor(x_max * effective_upscale_factor_x)
+                y_min = math.floor(y_min * effective_upscale_factor_y)
+                y_max = math.floor(y_max * effective_upscale_factor_y)
+                
+                # If force_square is true, readjust to square after scaling
+                if force_square:
+                    x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height)
+        
+        elif mode == 'free':
             # Upscale image and masks if requested, they will be downsized at stitch phase
             if free_rescale < 0.999 or free_rescale > 1.001:
                 samples = image            
