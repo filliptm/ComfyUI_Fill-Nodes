@@ -43,7 +43,9 @@ class FL_SaveImages:
             # Create the file name and ensure it doesn't overwrite existing files
             index = start_index + i
             while True:
-                full_file_name = file_name_template.format(index=index)
+                # Format index with zero padding (4 digits: 0001, 0002, etc.)
+                padded_index = f"{index:04d}"
+                full_file_name = file_name_template.format(index=padded_index)
                 full_file_path = os.path.join(full_folder_path, full_file_name)
                 if not os.path.exists(full_file_path):
                     break
