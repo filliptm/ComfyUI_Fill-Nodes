@@ -7,6 +7,7 @@ from .nodes.FL_GPT_Image1 import FL_GPT_Image1
 from .nodes.FL_Code_Node import FL_CodeNode
 from .nodes.FL_Video_Caption_Saver import FL_VideoCaptionSaver
 from .nodes.FL_Image_Pixelator import FL_ImagePixelator
+from .nodes.FL_Image_AddToBatch import FL_ImageAddToBatch
 from .nodes.FL_DirectoryCrawl import FL_DirectoryCrawl
 from .nodes.FL_Ascii import FL_Ascii
 from .nodes.FL_Glitch import FL_Glitch
@@ -123,6 +124,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_GPT_Image1": FL_GPT_Image1,
     "FL_CodeNode": FL_CodeNode,
     "FL_ImagePixelator": FL_ImagePixelator,
+    "FL_ImageAddToBatch": FL_ImageAddToBatch,
     "FL_DirectoryCrawl": FL_DirectoryCrawl,
     "FL_Ascii": FL_Ascii,
     "FL_Glitch": FL_Glitch,
@@ -242,6 +244,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_GPT_Image1": "FL GPT Image-1",
     "FL_CodeNode": "FL Code Node",
     "FL_ImagePixelator": "FL Image Pixelator",
+    "FL_ImageAddToBatch": "FL Image Add To Batch",
     "FL_DirectoryCrawl": "FL Directory Crawl",
     "FL_Ascii": "FL Ascii",
     "FL_Glitch": "FL Glitch",
