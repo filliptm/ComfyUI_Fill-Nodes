@@ -52,6 +52,7 @@ from .nodes.FL_DiscordWebhook import FL_SendToDiscordWebhook
 from .nodes.FL_HF_Character import FL_HF_Character
 from .nodes.FL_CaptionToCSV import FL_CaptionToCSV
 from .nodes.FL_KsamplerPlus import FL_KsamplerPlus
+from .nodes.FL_KsamplerPlusV2 import FL_KsamplerPlusV2
 from .nodes.FL_KsamplerBasic import FL_KsamplerBasic
 from .nodes.FL_KsamplerFractals import FL_FractalKSampler
 from .nodes.FL_UpscaleModel import FL_UpscaleModel
@@ -113,6 +114,8 @@ from .nodes.FL_GoogleCloudStorage import FL_GoogleCloudStorage
 from .nodes.FL_Switch import FL_Switch
 from .nodes.FL_Switch_Big import FL_Switch_Big
 from .nodes.FL_PasteByMask import FL_PasteByMask
+from .nodes.FL_ModelInspector import FL_ModelInspector
+from .nodes.FL_Float import FL_Float
 
 
 NODE_CLASS_MAPPINGS = {
@@ -170,6 +173,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_HF_Character": FL_HF_Character,
     "FL_CaptionToCSV": FL_CaptionToCSV,
     "FL_KsamplerPlus": FL_KsamplerPlus,
+    "FL_KsamplerPlusV2": FL_KsamplerPlusV2,
     "FL_KsamplerBasic": FL_KsamplerBasic,
     "FL_FractalKSampler": FL_FractalKSampler,
     "FL_UpscaleModel": FL_UpscaleModel,
@@ -233,6 +237,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_Switch_Big": FL_Switch_Big,
     "FL_PasteByMask": FL_PasteByMask,
     "FL_Fal_Pixverse": FL_Fal_Pixverse,
+    "FL_ModelInspector": FL_ModelInspector,
+    "FL_Float": FL_Float,
 
 }
 
@@ -291,6 +297,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_HF_Character": "FL HF Character",
     "FL_CaptionToCSV": "FL Caption To CSV",
     "FL_KsamplerPlus": "FL KSampler Plus",
+    "FL_KsamplerPlusV2": "FL KSampler Plus V2",
     "FL_KsamplerBasic": "FL KSampler Basic",
     "FL_FractalKSampler": "FL Fractal KSampler",
     "FL_UpscaleModel": "FL Upscale Model",
@@ -353,7 +360,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Switch": "FL Switch",
     "FL_Switch_Big": "FL Switch Big",
     "FL_PasteByMask": "FL Paste By Mask",
+    "FL_Float": "FL Float",
     "FL_Fal_Pixverse": "FL Fal Pixverse API",
+    "FL_ModelInspector": "FL Model Inspector",
 
 }
 
