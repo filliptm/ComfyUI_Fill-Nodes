@@ -33,7 +33,7 @@ class FL_ModelInspector:
     RETURN_TYPES = ("STRING", "MODEL")
     RETURN_NAMES = ("model_info", "model")
     FUNCTION = "inspect_model"
-    CATEGORY = "🏵️Fill Nodes/Utility"
+    CATEGORY = "🏵️Fill Nodes/utility"
 
     def count_parameters(self, model_dict):
         """Count the total number of parameters in the model"""

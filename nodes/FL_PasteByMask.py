@@ -88,7 +88,7 @@ class FL_PasteByMask:
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "paste"
 
-    CATEGORY = "🏵️Fill Nodes/Utility"
+    CATEGORY = "🏵️Fill Nodes/utility"
 
     def paste(self, image_base, image_to_paste, mask, resize_behavior, blend_mode="normal", feather_amount=0, mask_mapping_optional=None):
         image_base = tensor2rgba(image_base)

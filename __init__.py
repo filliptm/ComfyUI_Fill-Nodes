@@ -116,6 +116,7 @@ from .nodes.FL_Switch_Big import FL_Switch_Big
 from .nodes.FL_PasteByMask import FL_PasteByMask
 from .nodes.FL_ModelInspector import FL_ModelInspector
 from .nodes.FL_Float import FL_Float
+from .nodes.FL_UnloadModel import FL_UnloadModel, FL_UnloadAllModels
 
 
 NODE_CLASS_MAPPINGS = {
@@ -239,6 +240,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_Fal_Pixverse": FL_Fal_Pixverse,
     "FL_ModelInspector": FL_ModelInspector,
     "FL_Float": FL_Float,
+    "FL_UnloadModel": FL_UnloadModel,
+    "FL_UnloadAllModels": FL_UnloadAllModels,
 
 }
 
@@ -361,6 +364,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Switch_Big": "FL Switch Big",
     "FL_PasteByMask": "FL Paste By Mask",
     "FL_Float": "FL Float",
+    "FL_UnloadModel": "FL Unload Model",
+    "FL_UnloadAllModels": "FL Unload All Models",
     "FL_Fal_Pixverse": "FL Fal Pixverse API",
     "FL_ModelInspector": "FL Model Inspector",
 

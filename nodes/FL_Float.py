@@ -10,7 +10,7 @@ class FL_Float:
     RETURN_TYPES = ("FLOAT",)
     RETURN_NAMES = ("value",)
     FUNCTION = "output_float"
-    CATEGORY = "🏵️Fill Nodes/Utility"
+    CATEGORY = "🏵️Fill Nodes/utility"
 
     def output_float(self, value):
         # Round to 2 decimal places to ensure consistent display
