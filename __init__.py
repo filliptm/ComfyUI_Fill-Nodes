@@ -117,6 +117,7 @@ from .nodes.FL_PasteByMask import FL_PasteByMask
 from .nodes.FL_ModelInspector import FL_ModelInspector
 from .nodes.FL_Float import FL_Float
 from .nodes.FL_UnloadModel import FL_UnloadModel, FL_UnloadAllModels
+from .nodes.FL_VideoTrim import FL_VideoTrim
 
 
 NODE_CLASS_MAPPINGS = {
@@ -242,6 +243,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_Float": FL_Float,
     "FL_UnloadModel": FL_UnloadModel,
     "FL_UnloadAllModels": FL_UnloadAllModels,
+    "FL_VideoTrim": FL_VideoTrim,
 
 }
 
@@ -368,6 +370,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_UnloadAllModels": "FL Unload All Models",
     "FL_Fal_Pixverse": "FL Fal Pixverse API",
     "FL_ModelInspector": "FL Model Inspector",
+    "FL_VideoTrim": "FL Video Trim",
 
 }
 

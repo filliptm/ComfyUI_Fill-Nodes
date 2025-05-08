@@ -57,6 +57,10 @@ class FL_Fal_Pixverse:
     def generate_video(self, api_key, prompt="", negative_prompt="", duration=5,
                        quality="540p", motion_mode="normal", seed=0, batch_size=1, nth_frame=1,
                        image=None):
+        # Clear any existing FAL_KEY environment variable to prevent caching issues
+        if "FAL_KEY" in os.environ:
+            del os.environ["FAL_KEY"]
+            print("[Fal Pixverse] Cleared existing FAL_KEY environment variable")
         """
         Generate a video from an image, download it, and extract frames
 
@@ -149,8 +153,11 @@ class FL_Fal_Pixverse:
                     print(f"[Fal Pixverse] Batch {batch_idx+1}/{batch_size}: Generating video with seed {batch_seed}...")
                     
                     # Prepare the API request
+                    # Ensure API key is properly formatted (trim any whitespace)
+                    clean_api_key = api_key.strip()
+                    
                     headers = {
-                        "Authorization": f"Key {api_key}",
+                        "Authorization": f"Key {clean_api_key}",
                         "Content-Type": "application/json"
                     }
                     
@@ -167,8 +174,15 @@ class FL_Fal_Pixverse:
                     if negative_prompt:
                         arguments["negative_prompt"] = negative_prompt
                     
-                    # Set the API key as an environment variable for fal_client
-                    os.environ["FAL_KEY"] = api_key
+                    # Set the API key as an environment variable for fal_client (using cleaned key)
+                    # Print the first few characters of the key for debugging (don't print the whole key for security)
+                    key_preview = clean_api_key[:8] + "..." if len(clean_api_key) > 8 else "invalid_key"
+                    print(f"[Fal Pixverse] Using API key starting with: {key_preview}")
+                    
+                    # Clear and set the environment variable
+                    if "FAL_KEY" in os.environ:
+                        del os.environ["FAL_KEY"]
+                    os.environ["FAL_KEY"] = clean_api_key
                     
                     print(f"[Fal Pixverse] Calling Fal AI API with fal_client...")
                     
@@ -186,7 +200,14 @@ class FL_Fal_Pixverse:
                             endpoint = "fal-ai/pixverse/v4/fast-image-to-video"
                             print(f"[Fal Pixverse] Using fast mode endpoint: {endpoint}")
                         
+                        # Force reload the fal_client module to avoid caching issues
+                        import sys
+                        if 'fal_client' in sys.modules:
+                            del sys.modules['fal_client']
+                        import fal_client
+                        
                         # Make the API call using fal_client.subscribe
+                        print(f"[Fal Pixverse] Making API call with fal_client.subscribe...")
                         result = fal_client.subscribe(
                             endpoint,
                             arguments=arguments,

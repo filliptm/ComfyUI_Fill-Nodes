@@ -25,7 +25,7 @@ class FL_GeminiImageEditor:
             "required": {
                 "prompt": ("STRING", {"multiline": True}),
                 "api_key": ("STRING", {"default": "", "multiline": False}),
-                "model": (["models/gemini-2.0-flash-exp"], {"default": "models/gemini-2.0-flash-exp"}),
+                "model": (["models/gemini-2.0-flash-exp", "models/gemini-2.0-flash-preview-image-generation"], {"default": "models/gemini-2.0-flash-preview-image-generation"}),
                 "temperature": ("FLOAT", {"default": 1, "min": 0.0, "max": 2.0, "step": 0.05}),
                 "max_retries": ("INT", {"default": 3, "min": 1, "max": 5, "step": 1}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 8, "step": 1}),
