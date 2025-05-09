@@ -83,6 +83,8 @@ from .nodes.FL_SaveWebpImages import FL_SaveWebPImage
 from .nodes.FL_MadLibGenerator import FL_MadLibGenerator
 from .nodes.FL_Math import FL_Math
 from .nodes.FL_ImageSlicer import FL_ImageSlicer
+from .nodes.FL_ImageSelector import FL_ImageSelector
+from .nodes.FL_ImageAspectCropper import FL_ImageAspectCropper
 from .nodes.FL_HF_UploaderAbsolute import FL_HF_UploaderAbsolute
 from .nodes.FL_ImageBatchListConverter import FL_ImageListToImageBatch, FL_ImageBatchToImageList
 from .nodes.FL_ImageBatchToGrid import FL_ImageBatchToGrid
@@ -206,6 +208,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_MadLibGenerator": FL_MadLibGenerator,
     "FL_Math": FL_Math,
     "FL_ImageSlicer": FL_ImageSlicer,
+    "FL_ImageSelector": FL_ImageSelector,
+    "FL_ImageAspectCropper": FL_ImageAspectCropper,
     "FL_HF_UploaderAbsolute": FL_HF_UploaderAbsolute,
     "FL_ImageListToImageBatch": FL_ImageListToImageBatch,
     "FL_ImageBatchToImageList": FL_ImageBatchToImageList,
@@ -333,6 +337,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_MadLibGenerator": "FL MadLib Generator",
     "FL_Math": "FL Math",
     "FL_ImageSlicer": "FL Image Slicer",
+    "FL_ImageSelector": "FL Image Selector",
+    "FL_ImageAspectCropper": "FL Image Aspect Cropper",
     "FL_HF_UploaderAbsolute": "FL HF Uploader Absolute",
     "FL_ImageListToImageBatch": "FL Image List To Image Batch",
     "FL_ImageBatchToImageList": "FL Image Batch To Image List",
