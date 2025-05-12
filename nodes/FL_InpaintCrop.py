@@ -3,6 +3,7 @@ import math
 import nodes
 import numpy as np
 import torch
+import torch.nn.functional as F
 from scipy.ndimage import gaussian_filter, grey_dilation, binary_fill_holes, binary_closing
 
 class FL_InpaintCrop:
@@ -18,6 +19,7 @@ class FL_InpaintCrop:
                 "mask": ("MASK",),
                 "invert_mask": ("BOOLEAN", {"default": False}),
                 "fill_mask_holes": ("BOOLEAN", {"default": True}),
+                "use_gpu": ("BOOLEAN", {"default": False}),
                 
                 # Context expansion parameters (used by all modes)
                 "context_pixels": ("INT", {"default": 10, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
@@ -107,8 +109,81 @@ class FL_InpaintCrop:
 
         return new_min_val, new_max_val
 
+    # GPU-accelerated version of binary_fill_holes
+    def binary_fill_holes_gpu(self, binary_mask_tensor):
+        # Create a kernel for morphological operations
+        kernel_size = 3
+        kernel = torch.ones(1, 1, kernel_size, kernel_size, device=binary_mask_tensor.device)
+        
+        # Perform closing operation (dilation followed by erosion)
+        # First pad the tensor to avoid border issues
+        padding = kernel_size // 2
+        padded = F.pad(binary_mask_tensor.unsqueeze(0).unsqueeze(0), (padding, padding, padding, padding), mode='constant', value=1)
+        
+        # Dilate
+        dilated = F.conv2d(padded, kernel, padding=0)
+        dilated = (dilated > 0).float()
+        
+        # Erode
+        inverted = 1 - dilated
+        eroded_inv = F.conv2d(inverted, kernel, padding=0)
+        closed = 1 - (eroded_inv > 0).float()
+        
+        # Remove padding
+        closed = closed[0, 0, padding:-padding, padding:-padding]
+        
+        # Fill holes (find isolated regions of 0s surrounded by 1s)
+        # Start with the border
+        h, w = closed.shape
+        filled = closed.clone()
+        
+        # Create a mask of border pixels
+        border = torch.zeros_like(filled)
+        border[0, :] = 1
+        border[-1, :] = 1
+        border[:, 0] = 1
+        border[:, -1] = 1
+        
+        # Set border pixels to 0 in our working mask if they're 0 in the original
+        seed = torch.ones_like(filled)
+        seed[border == 1] = closed[border == 1]
+        
+        # Iteratively propagate the seed inward
+        # This is a simplified approach - for complex images, more iterations might be needed
+        for _ in range(max(h, w)):
+            # Pad for convolution
+            padded_seed = F.pad(seed.unsqueeze(0).unsqueeze(0), (1, 1, 1, 1), mode='constant', value=0)
+            
+            # Use convolution to check neighbors
+            neighbors = F.conv2d(padded_seed, torch.ones(1, 1, 3, 3, device=seed.device), padding=0)
+            neighbors = neighbors[0, 0]
+            
+            # Propagate: if any neighbor is marked and the current pixel is not a foreground pixel in the original
+            new_seed = (neighbors > 0).float() * (1 - closed)
+            
+            # Update seed with newly marked pixels
+            seed = torch.clamp(seed + new_seed, 0, 1)
+            
+            # Check if we've converged
+            if not new_seed.any():
+                break
+        
+        # The holes are the areas that weren't reached
+        holes = (1 - seed) * (1 - closed)
+        
+        # Add the holes to the original mask
+        filled = torch.clamp(closed + holes, 0, 1)
+        
+        return filled
+
     # Parts of this function are from KJNodes: https://github.com/kijai/ComfyUI-KJNodes
-    def inpaint_crop(self, mode, image, mask, invert_mask, fill_mask_holes, context_pixels, context_factor, force_square, forced_size, minimum_size, maximum_size, target_size, free_rescale, free_padding, optional_context_mask = None):
+    def inpaint_crop(self, mode, image, mask, invert_mask, fill_mask_holes, use_gpu, context_pixels, context_factor, force_square, forced_size, minimum_size, maximum_size, target_size, free_rescale, free_padding, optional_context_mask = None):
+        # Check if GPU is available when requested
+        use_gpu = use_gpu and torch.cuda.is_available()
+        if use_gpu:
+            print("Using GPU for inpaint crop operations")
+        else:
+            print("Using CPU for inpaint crop operations")
         original_image = image
         original_mask = mask
         original_width = image.shape[2]
@@ -128,19 +203,36 @@ class FL_InpaintCrop:
 
         # Fill holes if requested
         if fill_mask_holes:
-            holemask = mask.reshape((-1, mask.shape[-2], mask.shape[-1])).cpu()
-            out = []
-            for m in holemask:
-                mask_np = m.numpy()
-                binary_mask = mask_np > 0
-                struct = np.ones((5, 5))
-                closed_mask = binary_closing(binary_mask, structure=struct, border_value=1)
-                filled_mask = binary_fill_holes(closed_mask)
-                output = filled_mask.astype(np.float32) * 255
-                output = torch.from_numpy(output)
-                out.append(output)
-            mask = torch.stack(out, dim=0)
-            mask = torch.clamp(mask, 0.0, 1.0)
+            if use_gpu:
+                # GPU implementation
+                device = mask.device
+                holemask = mask.reshape((-1, mask.shape[-2], mask.shape[-1]))
+                out = []
+                for m in holemask:
+                    # Convert to binary mask
+                    binary_mask = m > 0
+                    # Apply GPU-accelerated hole filling
+                    filled_mask = self.binary_fill_holes_gpu(binary_mask)
+                    # Scale to match the expected output range
+                    output = filled_mask * 255
+                    out.append(output)
+                mask = torch.stack(out, dim=0)
+                mask = torch.clamp(mask, 0.0, 1.0)
+            else:
+                # Original CPU implementation
+                holemask = mask.reshape((-1, mask.shape[-2], mask.shape[-1])).cpu()
+                out = []
+                for m in holemask:
+                    mask_np = m.numpy()
+                    binary_mask = mask_np > 0
+                    struct = np.ones((5, 5))
+                    closed_mask = binary_closing(binary_mask, structure=struct, border_value=1)
+                    filled_mask = binary_fill_holes(closed_mask)
+                    output = filled_mask.astype(np.float32) * 255
+                    output = torch.from_numpy(output)
+                    out.append(output)
+                mask = torch.stack(out, dim=0)
+                mask = torch.clamp(mask, 0.0, 1.0)
 
         # Validate or initialize context mask
         if optional_context_mask is None:
