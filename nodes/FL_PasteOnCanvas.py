@@ -11,7 +11,6 @@ class FL_PasteOnCanvas:
         return {
             "required": {
                 "image": ("IMAGE",),
-                "mask": ("IMAGE",),
                 "canvas_width": ("INT", {"default": 512, "min": 64, "max": 4096, "step": 32}),
                 "canvas_height": ("INT", {"default": 512, "min": 64, "max": 4096, "step": 32}),
                 "background_red": ("INT", {"default": 255, "min": 0, "max": 255, "step": 1}),
@@ -20,8 +19,10 @@ class FL_PasteOnCanvas:
                 "padding": ("INT", {"default": 0, "min": 0, "max": 512, "step": 1}),
                 "resize_algorithm": (["bilinear", "nearest", "bicubic", "lanczos"],),
                 "include_alpha": ("BOOLEAN", {"default": False}),
+                "use_full_mask": ("BOOLEAN", {"default": False}),
             },
             "optional": {
+                "mask": ("IMAGE",),
                 "bg_image_optional": ("IMAGE",),
             },
         }
@@ -30,19 +31,42 @@ class FL_PasteOnCanvas:
     FUNCTION = "cut_and_paste"
     CATEGORY = "🏵️Fill Nodes/utility"
 
-    def cut_and_paste(self, image, mask, canvas_width, canvas_height, background_red, background_green, background_blue,
-                      padding, resize_algorithm, include_alpha, bg_image_optional=None):
+    def cut_and_paste(self, image, canvas_width, canvas_height, background_red, background_green, background_blue,
+                      padding, resize_algorithm, include_alpha, use_full_mask, mask=None, bg_image_optional=None):
         # Ensure inputs are in the correct format
         image = self.tensor_to_rgba(image)
-        mask = self.tensor_to_mask(mask)
-
         B, H, W, C = image.shape
+        
+        # Validate canvas dimensions
+        if canvas_width <= 0 or canvas_height <= 0:
+            print("Error: Canvas dimensions must be positive")
+            return (image,)  # Return original image as fallback
+        
+        # Handle mask input
+        if mask is None:
+            if use_full_mask:
+                print("Creating full white mask as requested")
+                # Create a full white mask matching the image dimensions
+                mask = torch.ones((B, H, W), device=image.device)
+            else:
+                # Raise an error when no mask is provided and use_full_mask is False
+                raise ValueError("No mask provided and use_full_mask is False. Either provide a mask or enable use_full_mask.")
+        else:
+            # Process the provided mask
+            mask = self.tensor_to_mask(mask)
+            
+        # Resize mask to match image dimensions
         mask = F.interpolate(mask.unsqueeze(1), size=(H, W), mode='nearest')[:, 0, :, :]
         MB, MH, MW = mask.shape
 
         if MB < B:
-            assert B % MB == 0, "Batch size mismatch between image and mask"
-            mask = mask.repeat(B // MB, 1, 1)
+            # Handle batch size mismatch more gracefully
+            if B % MB == 0:
+                mask = mask.repeat(B // MB, 1, 1)
+            else:
+                print(f"Warning: Batch size mismatch between image ({B}) and mask ({MB})")
+                # Repeat the first mask to match batch size
+                mask = mask[0:1].repeat(B, 1, 1)
 
         # Prepare the background canvas
         if bg_image_optional is not None:
@@ -53,7 +77,7 @@ class FL_PasteOnCanvas:
             canvas = background_color.expand(B, canvas_height, canvas_width, 4).clone()
 
         # Handle empty masks
-        is_empty = ~torch.gt(mask.view(MB, -1).max(dim=1).values, 0)
+        is_empty = ~torch.gt(mask.view(B, -1).max(dim=1).values, 0)
         mask[is_empty, 0, 0] = 1
         boxes = masks_to_boxes(mask)
         mask[is_empty, 0, 0] = 0
@@ -147,6 +171,8 @@ class FL_PasteOnCanvas:
 
     @staticmethod
     def tensor_to_mask(tensor):
+        if tensor is None:
+            return None
         if len(tensor.shape) == 4:
             return tensor.mean(dim=-1)
         return tensor
