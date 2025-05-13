@@ -492,6 +492,7 @@ class FL_GeminiVideoCaptioner:
         output_path = None
         cap = None
         out = None
+        successful_conversion = False
 
         try:
             # Create a temporary file for the output
@@ -569,6 +570,7 @@ class FL_GeminiVideoCaptioner:
                         file_size = os.path.getsize(output_path)
                         if file_size <= max_size_bytes:
                             print(f"[FL_GeminiVideoCaptioner] Created WebM: {file_size / 1024 / 1024:.2f}MB")
+                            successful_conversion = True
                             return output_path
 
                         print(
@@ -594,10 +596,11 @@ class FL_GeminiVideoCaptioner:
                 cap.release()
             if out is not None:
                 out.release()
-            if output_path and os.path.exists(output_path):
+            if not successful_conversion and output_path and os.path.exists(output_path):
                 try:
                     os.unlink(output_path)
-                except:
+                except Exception as e:
+                    print(f"[FL_GeminiVideoCaptioner] Warning: Failed to delete temp file {output_path} in convert_to_webm finally: {e}")
                     pass
 
     def create_webm_from_frames(self, frames, fps=30, max_size_mb=29):

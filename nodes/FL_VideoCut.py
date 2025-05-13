@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from comfy.utils import ProgressBar, common_upscale
 
-class FL_SceneCut:
+class FL_VideoCut:
     """
     A node that detects scene cuts in a batch of images (video frames) and outputs
     the segmented clips as MP4 files to a specified folder.

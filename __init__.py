@@ -100,7 +100,7 @@ from .nodes.FL_GoogleDriveImageDownloader import FL_GoogleDriveImageDownloader
 from .nodes.FL_AnimeLineExtractor import FL_AnimeLineExtractor
 from .nodes.FL_HunyuanDelight import FL_HunyuanDelight
 from .nodes.FL_ClipScanner import FL_ClipScanner
-from .nodes.FL_SceneCut import FL_SceneCut
+from .nodes.FL_VideoCut import FL_VideoCut
 from .nodes.FL_GeminiTextAPI import FL_GeminiTextAPI
 from .nodes.FL_JS import FL_JS
 from .nodes.FL_HFDatasetDownloader import FL_HFDatasetDownloader
@@ -120,6 +120,8 @@ from .nodes.FL_ModelInspector import FL_ModelInspector
 from .nodes.FL_Float import FL_Float
 from .nodes.FL_UnloadModel import FL_UnloadModel, FL_UnloadAllModels
 from .nodes.FL_VideoTrim import FL_VideoTrim
+from .nodes.FL_VideoCadence import FL_VideoCadence
+from .nodes.FL_VideoCadenceCompile import FL_VideoCadenceCompile
 
 
 NODE_CLASS_MAPPINGS = {
@@ -226,7 +228,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_AnimeLineExtractor": FL_AnimeLineExtractor,
     "FL_HunyuanDelight": FL_HunyuanDelight,
     "FL_ClipScanner": FL_ClipScanner,
-    "FL_SceneCut": FL_SceneCut,
+    "FL_VideoCut": FL_VideoCut,
     "FL_GeminiTextAPI": FL_GeminiTextAPI,
     "FL_JS": FL_JS,
     "FL_HFDatasetDownloader": FL_HFDatasetDownloader,
@@ -248,6 +250,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_UnloadModel": FL_UnloadModel,
     "FL_UnloadAllModels": FL_UnloadAllModels,
     "FL_VideoTrim": FL_VideoTrim,
+    "FL_VideoCadence": FL_VideoCadence,
+    "FL_VideoCadenceCompile": FL_VideoCadenceCompile,
 
 }
 
@@ -355,7 +359,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_AnimeLineExtractor": "FL Anime Line Extractor",
     "FL_HunyuanDelight": "FL Hunyuan Delight",
     "FL_ClipScanner": "FL Clip Scanner (Kytra)",
-    "FL_SceneCut": "FL Scene Cut Detector",
+    "FL_VideoCut": "FL Video Cut Detector",
     "FL_GeminiTextAPI": "FL Gemini Text API",
     "FL_JS": "FL JavaScript",
     "FL_HFDatasetDownloader": "FL HF Dataset Downloader",
@@ -377,6 +381,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Fal_Pixverse": "FL Fal Pixverse API",
     "FL_ModelInspector": "FL Model Inspector",
     "FL_VideoTrim": "FL Video Trim",
+    "FL_VideoCadence": "FL Video Cadence",
+    "FL_VideoCadenceCompile": "FL Video Cadence Compile",
 
 }
 
