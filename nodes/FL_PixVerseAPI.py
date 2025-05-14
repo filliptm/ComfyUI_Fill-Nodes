@@ -582,7 +582,7 @@ class FL_PixVerseAPI:
                 
             # Convert PIL image to bytes
             img_byte_arr = io.BytesIO()
-            pil_image.save(img_byte_arr, format='PNG')
+            pil_image.save(img_byte_arr, format='JPEG', quality=80) # Changed to JPEG with quality 80
             img_byte_arr.seek(0)  # Reset pointer to beginning of buffer
             
             upload_url = "https://app-api.pixverse.ai/openapi/v2/image/upload"
@@ -592,7 +592,7 @@ class FL_PixVerseAPI:
             }
             
             # Send bytes directly without saving to disk
-            files = {'image': (f'{image_type}.png', img_byte_arr, 'image/png')}
+            files = {'image': (f'{image_type}.jpg', img_byte_arr, 'image/jpeg')} # Changed to jpg and image/jpeg
             upload_response = requests.post(upload_url, headers=upload_headers, files=files)
             
             if upload_response.status_code != 200:

@@ -122,6 +122,8 @@ from .nodes.FL_UnloadModel import FL_UnloadModel, FL_UnloadAllModels
 from .nodes.FL_VideoTrim import FL_VideoTrim
 from .nodes.FL_VideoCadence import FL_VideoCadence
 from .nodes.FL_VideoCadenceCompile import FL_VideoCadenceCompile
+from .nodes.FL_GeminiImageGenADV import FL_GeminiImageGenADV
+from .nodes.FL_ImageBatch import FL_ImageBatch
 
 
 NODE_CLASS_MAPPINGS = {
@@ -252,6 +254,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_VideoTrim": FL_VideoTrim,
     "FL_VideoCadence": FL_VideoCadence,
     "FL_VideoCadenceCompile": FL_VideoCadenceCompile,
+    "FL_GeminiImageGenADV": FL_GeminiImageGenADV,
+    "FL_ImageBatch": FL_ImageBatch,
 
 }
 
@@ -383,6 +387,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_VideoTrim": "FL Video Trim",
     "FL_VideoCadence": "FL Video Cadence",
     "FL_VideoCadenceCompile": "FL Video Cadence Compile",
+    "FL_GeminiImageGenADV": "FL Gemini Image Gen ADV",
+    "FL_ImageBatch": "FL Image Batch",
 
 }
 

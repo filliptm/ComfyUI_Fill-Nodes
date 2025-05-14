@@ -7,7 +7,7 @@ glfw
 scipy >=1.13.1
 requests
 aiohttp
-moviepy
+moviepy==1.0.3
 matplotlib
 reportlab
 openai
