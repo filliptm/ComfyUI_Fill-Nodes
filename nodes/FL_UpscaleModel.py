@@ -81,7 +81,7 @@ class FL_UpscaleModel:
                 target_height = round(upscaled_batch.shape[1] * downscale_by)
                 target_width = round(upscaled_batch.shape[2] * downscale_by)
 
-                upscaled_batch = upscaled_batch.permute(0, 3, 1, 2)
+                upscaled_batch = upscaled_batch.permute(0, 3, 1, 2).contiguous()
 
                 upscaled_batch = torch.nn.functional.interpolate(
                     upscaled_batch,
@@ -90,11 +90,16 @@ class FL_UpscaleModel:
                     align_corners=False if rescale_method in ["bilinear", "bicubic"] else None
                 )
 
-                upscaled_batch = upscaled_batch.permute(0, 2, 3, 1)
+                upscaled_batch = upscaled_batch.permute(0, 2, 3, 1).contiguous()
+            else:
+                # Ensure contiguity if no permute operations (which now include .contiguous()) were performed.
+                # This handles cases where __imageScaler.upscale might return a non-contiguous tensor.
+                upscaled_batch = upscaled_batch.contiguous()
 
             if dtype != original_dtype or downscale_by < 1.0:
                 upscaled_batch = upscaled_batch.clamp(0, 1).to(original_dtype).to(original_device)
 
+            # upscaled_batch is now guaranteed to be contiguous before splitting.
             upscaled_list.extend(list(torch.split(upscaled_batch, 1)))
 
             # Update the progress bar

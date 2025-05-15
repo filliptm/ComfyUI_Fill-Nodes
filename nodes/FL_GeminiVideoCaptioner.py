@@ -190,16 +190,12 @@ class FL_GeminiVideoCaptioner:
             middle_idx = len(frames) // 2
             sample_frame_tensor = image[middle_idx].unsqueeze(0) if image.shape[0] > 0 else None
 
-            # Create WebM video from frames
-            print(f"[FL_GeminiVideoCaptioner] Creating WebM video from {len(frames)} frames...")
-            webm_path = self.create_webm_from_frames(frames, fps=frames_per_second)
-
-            if webm_path is None:
-                print(f"[FL_GeminiVideoCaptioner] WebM creation failed, falling back to frame processing...")
-                # Generate caption from individual frames
+            # If only one frame is provided and it's a newer model, send as JPEG directly
+            if len(frames) == 1 and model in ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"]:
+                print(f"[FL_GeminiVideoCaptioner] Single frame input for {model}, using direct frame processing (JPEG).")
                 caption = self.get_caption_with_frames(
                     api_key,
-                    frames,
+                    frames,  # This will be a list with one frame
                     prompt,
                     model,
                     temperature,
@@ -209,27 +205,40 @@ class FL_GeminiVideoCaptioner:
                     seed
                 )
             else:
-                # Use the WebM file for captioning
-                mime_type = "video/webm"
-                print(f"[FL_GeminiVideoCaptioner] Using WebM video for captioning")
+                # Original logic: try to create WebM, then send video file or fallback to frames
+                print(f"[FL_GeminiVideoCaptioner] Creating WebM video from {len(frames)} frames...")
+                webm_path = self.create_webm_from_frames(frames, fps=frames_per_second)
 
-                # Get caption using the WebM file
-                caption = self.get_caption_with_video_file(
-                    api_key,
-                    webm_path,
-                    mime_type,
-                    prompt,
-                    model,
-                    process_audio,
-                    temperature,
-                    max_output_tokens,
-                    top_p,
-                    top_k,
-                    seed
-                )
-
-                # Clean up temporary WebM file
-                os.unlink(webm_path)
+                if webm_path is None:
+                    print(f"[FL_GeminiVideoCaptioner] WebM creation failed, falling back to frame processing...")
+                    caption = self.get_caption_with_frames(
+                        api_key,
+                        frames,
+                        prompt,
+                        model,
+                        temperature,
+                        max_output_tokens,
+                        top_p,
+                        top_k,
+                        seed
+                    )
+                else:
+                    mime_type = "video/webm"
+                    print(f"[FL_GeminiVideoCaptioner] Using WebM video for captioning")
+                    caption = self.get_caption_with_video_file(
+                        api_key,
+                        webm_path,
+                        mime_type,
+                        prompt,
+                        model,
+                        process_audio,
+                        temperature,
+                        max_output_tokens,
+                        top_p,
+                        top_k,
+                        seed
+                    )
+                    os.unlink(webm_path) # Clean up temporary WebM file
 
             return (caption, sample_frame_tensor)
 
@@ -524,9 +533,11 @@ class FL_GeminiVideoCaptioner:
                 new_width = int(width * size_factor)
                 new_height = int(height * size_factor)
 
-                # Ensure dimensions are even
-                new_width = new_width if new_width % 2 == 0 else new_width + 1
-                new_height = new_height if new_height % 2 == 0 else new_height + 1
+                # Ensure dimensions are even by flooring to the nearest even number, min 2
+                new_width = (new_width // 2) * 2
+                new_width = max(2, new_width)
+                new_height = (new_height // 2) * 2
+                new_height = max(2, new_height)
 
                 # Try different quality settings
                 for quality in [95, 80, 60, 40, 20]:
@@ -628,9 +639,11 @@ class FL_GeminiVideoCaptioner:
             # Get dimensions from the first frame
             height, width = frames[0].shape[:2]
 
-            # Ensure dimensions are even
-            width = width if width % 2 == 0 else width + 1
-            height = height if height % 2 == 0 else height + 1
+            # Ensure dimensions are even by flooring to the nearest even number, min 2
+            width = (width // 2) * 2
+            width = max(2, width)
+            height = (height // 2) * 2
+            height = max(2, height)
 
             # Set size reduction factors and quality
             size_factors = [1.0, 0.75, 0.5, 0.25, 0.125]
@@ -653,9 +666,11 @@ class FL_GeminiVideoCaptioner:
                 new_width = int(width * size_factor)
                 new_height = int(height * size_factor)
 
-                # Ensure dimensions are even
-                new_width = new_width if new_width % 2 == 0 else new_width + 1
-                new_height = new_height if new_height % 2 == 0 else new_height + 1
+                # Ensure dimensions are even by flooring to the nearest even number, min 2
+                new_width = (new_width // 2) * 2
+                new_width = max(2, new_width)
+                new_height = (new_height // 2) * 2
+                new_height = max(2, new_height)
 
                 # Try different quality settings
                 for quality in [95, 80, 60, 40, 20]:
