@@ -363,7 +363,7 @@ const remove = function(...nodes) {
 
 const select = function(...nodes) {
   nodes = nodes.map(findNode);
-  app.canvas.deselectAllNodes();
+  app.canvas.deselectAll();
   app.canvas.selectNodes(nodes);
 }
 
