@@ -68,7 +68,7 @@ class FL_UpscaleModel:
         pbar = tqdm(total=total_images, desc="Processing frames", unit="frame")
 
         for i in range(0, total_images, batch_size):
-            batch = torch.cat(image_list[i:i + batch_size]).to(dtype)
+            batch = torch.cat(image_list[i:i + batch_size]).to(dtype).contiguous()
 
             with torch.no_grad():
                 if dtype in [torch.float16, torch.bfloat16]:
