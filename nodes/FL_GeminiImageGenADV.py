@@ -25,7 +25,7 @@ class FL_GeminiImageGenADV:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "inputcount": ("INT", {"default": 1, "min": 1, "max": 10, "step": 1}),
+                "inputcount": ("INT", {"default": 1, "min": 1, "max": 100, "step": 1}),
                 "api_key": ("STRING", {"default": os.getenv("GEMINI_API_KEY", ""), "multiline": False}),
                 "model": (["models/gemini-2.0-flash-exp", "models/gemini-2.0-flash-preview-image-generation"], {"default": "models/gemini-2.0-flash-preview-image-generation"}),
                 "temperature": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05}),
@@ -34,7 +34,7 @@ class FL_GeminiImageGenADV:
             },
             "optional": {
                 "image_1": ("IMAGE", {}), # Moved image_1 to optional. Default will be None if not connected.
-                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}), # Restored full seed range
+                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffff}), # Restored full seed range
                 # Subsequent image_i and prompt_i will be handled by **kwargs based on inputcount
             }
         }
@@ -117,28 +117,36 @@ Each pair triggers an asynchronous API call. Results are batched.
         self._log(f"Created error image: '{error_message}'")
         return img_tensor
 
-    def _process_tensor_to_pil(self, tensor_image: Optional[torch.Tensor], image_name: str = "Image") -> Optional[Image.Image]:
+    def _process_tensor_to_pil_list(self, tensor_image: Optional[torch.Tensor], image_name_prefix: str = "Image") -> Optional[List[Image.Image]]:
         if tensor_image is None:
-            self._log(f"{image_name} is None, skipping PIL conversion.")
+            self._log(f"{image_name_prefix} input is None, skipping PIL conversion.")
             return None
         if not isinstance(tensor_image, torch.Tensor):
-            self._log(f"{image_name} is not a tensor, skipping. Type: {type(tensor_image)}")
+            self._log(f"{image_name_prefix} is not a tensor (type: {type(tensor_image)}), skipping.")
             return None
-        if tensor_image.ndim == 4 and tensor_image.shape[0] > 0:
-            img_np = tensor_image[0].cpu().numpy() # Use the first image in the batch
-            img_np = (img_np * 255).astype(np.uint8)
-            pil_image = Image.fromarray(img_np)
-            self._log(f"Converted {image_name} (shape: {tensor_image.shape}) to PIL Image (size: {pil_image.size}).")
-            return pil_image
-        elif tensor_image.ndim == 3: # Assume (H, W, C)
+
+        pil_images = []
+        if tensor_image.ndim == 4: # Batch of images (B, H, W, C)
+            if tensor_image.shape[0] == 0:
+                self._log(f"{image_name_prefix} batch is empty (shape: {tensor_image.shape}).")
+                return None
+            for i in range(tensor_image.shape[0]):
+                img_np = tensor_image[i].cpu().numpy()
+                img_np = (img_np * 255).astype(np.uint8)
+                pil_image = Image.fromarray(img_np)
+                self._log(f"Converted {image_name_prefix} batch item {i} (original shape: {tensor_image.shape}) to PIL Image (size: {pil_image.size}).")
+                pil_images.append(pil_image)
+        elif tensor_image.ndim == 3: # Single image (H, W, C)
             img_np = tensor_image.cpu().numpy()
             img_np = (img_np * 255).astype(np.uint8)
             pil_image = Image.fromarray(img_np)
-            self._log(f"Converted {image_name} (shape: {tensor_image.shape}) to PIL Image (size: {pil_image.size}).")
-            return pil_image
+            self._log(f"Converted single {image_name_prefix} (original shape: {tensor_image.shape}) to PIL Image (size: {pil_image.size}).")
+            pil_images.append(pil_image)
         else:
-            self._log(f"Cannot convert {image_name} with shape {tensor_image.shape} to PIL Image.")
+            self._log(f"Cannot convert {image_name_prefix} with ndim {tensor_image.ndim} (shape: {tensor_image.shape}) to PIL Image(s).")
             return None
+        
+        return pil_images if pil_images else None
 
     def _call_gemini_api(self, client_instance, model_name_full, contents, gen_config_obj, retry_count=0, max_retries=3, call_id="0"):
         try:
@@ -289,31 +297,24 @@ Each pair triggers an asynchronous API call. Results are batched.
         
         return image_tensor, final_response_text
 
-    async def _generate_single_image_async(self, api_key, model_name_full, prompt_text, input_pil_image, temperature, max_retries, seed_val, call_id):
+    async def _generate_single_image_async(self, api_key, model_name_full, prompt_text, input_pil_images: Optional[List[Image.Image]], temperature, max_retries, seed_val, call_id): # Parameter changed to input_pil_images
         try:
-            # Use genai.Client for initialization, similar to FL_GeminiImageEditor
-            # Ensure API key is passed if required by genai.Client constructor
-            # Some SDK versions might use genai.configure(api_key=...) globally first,
-            # then genai.Client() without api_key arg.
-            # Given the error, direct client instantiation is safer.
             try:
                 client_instance = genai.Client(api_key=api_key)
-            except TypeError: # Fallback if genai.Client() doesn't take api_key (older versions might not)
-                genai.configure(api_key=api_key) # Try global configure
-                client_instance = genai.Client() # Then instantiate
-            except AttributeError: # If genai.Client itself is not found, this is a deeper SDK issue.
+            except TypeError:
+                genai.configure(api_key=api_key)
+                client_instance = genai.Client()
+            except AttributeError:
                  self._log(f"[Call {call_id}] CRITICAL: genai.Client not found. Please check google-genai SDK installation and version.")
                  error_msg = f"Call {call_id} Error: genai.Client not found."
                  return self._create_error_image(error_msg), error_msg, call_id
 
-
             actual_seed = seed_val if seed_val != 0 else random.randint(1, 0xffffffffffffffff)
             self._log(f"[Call {call_id}] Using seed: {actual_seed} for prompt: '{prompt_text[:50]}...'")
 
-            # Use types.GenerateContentConfig as in FL_GeminiImageEditor
             gen_config_params = {
                 "temperature": temperature,
-                "response_modalities": ['Text', 'Image'] # From FL_GeminiImageEditor
+                "response_modalities": ['Text', 'Image']
             }
             if actual_seed != 0:
                  gen_config_params["seed"] = actual_seed
@@ -325,9 +326,11 @@ Each pair triggers an asynchronous API call. Results are batched.
                 if current_seed_in_config != actual_seed:
                     self._log(f"[Call {call_id}] Warning: Seed {actual_seed} was specified. GenerateContentConfig has seed: {current_seed_in_config}. Ensure model supports seed via this config.")
 
-            contents = [prompt_text]
-            if input_pil_image:
-                contents.append(input_pil_image)
+            contents = [prompt_text] # Start with the prompt
+            if input_pil_images: # If the list of PIL images is provided and not empty
+                for pil_img in input_pil_images:
+                    if pil_img: # Ensure the image itself is not None
+                        contents.append(pil_img)
             
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
@@ -343,44 +346,56 @@ Each pair triggers an asynchronous API call. Results are batched.
             error_msg = f"Call {call_id} Error: {str(e)}"
             return self._create_error_image(error_msg), error_msg, call_id
 
-    def generate_images_advanced(self, inputcount, api_key, model, temperature, max_retries, prompt_1, image_1=None, seed=0, **kwargs): # image_1 now has default None
+    def generate_images_advanced(self, inputcount, api_key, model, temperature, max_retries, prompt_1, image_1=None, seed=0, **kwargs):
         self.log_messages = []
         if not api_key:
             error_msg = "API key not provided."
             self._log(error_msg)
-            # Ensure error image is created with the correct (updated) default size if needed
             error_img_instance = self._create_error_image(error_msg)
+            # API key error should return 'inputcount' error images if we can determine it,
+            # otherwise, a single error image is a reasonable fallback.
+            # Since each slot is one API call now, inputcount is the number of expected results.
             return ([error_img_instance] * inputcount, error_msg)
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
         tasks = []
-        for i in range(1, inputcount + 1):
-            current_prompt = prompt_1 if i == 1 else kwargs.get(f"prompt_{i}", f"Default prompt for image {i}")
-            # Handle image_1 being optional, and subsequent image_i from kwargs
-            current_image_tensor = None
-            if i == 1:
-                current_image_tensor = image_1 # This could be None if not provided
+        for slot_idx in range(1, inputcount + 1):
+            current_prompt = prompt_1 if slot_idx == 1 else kwargs.get(f"prompt_{slot_idx}", f"Default prompt for image {slot_idx}")
+            
+            current_image_tensor_for_slot = None
+            if slot_idx == 1:
+                current_image_tensor_for_slot = image_1
             else:
-                current_image_tensor = kwargs.get(f"image_{i}") # This could also be None
+                current_image_tensor_for_slot = kwargs.get(f"image_{slot_idx}")
             
-            current_pil_image = self._process_tensor_to_pil(current_image_tensor, f"InputImage{i}") # This function already handles None
+            # This will return a list of PIL images if current_image_tensor_for_slot is a batch or single image,
+            # or None if it's None or invalid.
+            pil_images_for_this_slot = self._process_tensor_to_pil_list(current_image_tensor_for_slot, f"InputSlot{slot_idx}")
             
-            # Increment seed for each task if a non-zero base seed is provided
-            current_seed = seed + (i-1) if seed != 0 else 0
+            # Each slot_idx corresponds to one API call.
+            # The seed is incremented per slot_idx (per API call).
+            current_task_seed = seed + (slot_idx - 1) if seed != 0 else 0
+            task_call_id = str(slot_idx) # Simplified call_id
 
             tasks.append(self._generate_single_image_async(
-                api_key, model, current_prompt, current_pil_image,
-                temperature, max_retries, current_seed, str(i)
+                api_key, model, current_prompt, pil_images_for_this_slot, # Pass the list of PIL images
+                temperature, max_retries, current_task_seed, task_call_id
             ))
 
+        if not tasks:
+            self._log("No tasks were created. This might indicate an issue with inputcount or logic.")
+            return ([self._create_error_image("No tasks generated")], "No tasks generated")
+
+        results_with_id = []
         try:
             results_with_id = loop.run_until_complete(asyncio.gather(*tasks))
         finally:
-            loop.close()
-
-        # Sort results by call_id to maintain order, though gather usually preserves submission order
+            if loop and not loop.is_closed():
+                loop.close()
+        
+        # Sort results by call_id (which is now just the string of slot_idx)
         results_with_id.sort(key=lambda x: int(x[2]))
         
         output_images = []

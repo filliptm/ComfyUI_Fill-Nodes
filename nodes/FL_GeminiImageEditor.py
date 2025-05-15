@@ -31,7 +31,7 @@ class FL_GeminiImageEditor:
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 8, "step": 1}),
             },
             "optional": {
-                "seed": ("INT", {"default": 66666666, "min": 0, "max": 2147483647}),
+                "seed": ("INT", {"default": 66666666, "min": 0, "max": 66666666}),
                 "image1": ("IMAGE",),
                 "image2": ("IMAGE",),
                 "image3": ("IMAGE",),
@@ -453,26 +453,31 @@ class FL_GeminiImageEditor:
                 return await asyncio.gather(*tasks)
 
             # Run the async batch processing
-            import asyncio
+            # Always create a new event loop for this execution context
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            results = None # Initialize results
             try:
-                # Get or create event loop based on platform
-                try:
-                    loop = asyncio.get_event_loop()
-                except RuntimeError:
-                    # If no event loop exists, create a new one
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-
                 # Run the batch processing
                 results = loop.run_until_complete(run_batch())
             except Exception as e:
                 self._log(f"Error in async processing: {str(e)}")
                 traceback.print_exc()
-
                 # Create batch of error images
                 error_imgs = [self._create_error_image(f"Async processing error: {str(e)}")] * batch_size
                 batch_tensor = torch.cat(error_imgs, dim=0)
                 return (batch_tensor, f"Async processing error: {str(e)}")
+            finally:
+                # Ensure the loop is closed
+                if loop and not loop.is_closed():
+                    loop.close()
+            
+            # Process results (ensure results is not None if an error occurred before assignment)
+            if results is None:
+                self._log("Async processing did not yield results, possibly due to an earlier error before gather.")
+                error_imgs = [self._create_error_image("Async processing failed to produce results")] * batch_size
+                batch_tensor = torch.cat(error_imgs, dim=0)
+                return (batch_tensor, "Async processing failed to produce results")
 
             # Process results
             all_tensors = []
