@@ -123,6 +123,7 @@ from .nodes.FL_VideoTrim import FL_VideoTrim
 from .nodes.FL_VideoCadence import FL_VideoCadence
 from .nodes.FL_VideoCadenceCompile import FL_VideoCadenceCompile
 from .nodes.FL_GeminiImageGenADV import FL_GeminiImageGenADV
+from .nodes.FL_GPT_Image1_ADV import FL_GPT_Image1_ADV
 from .nodes.FL_ImageBatch import FL_ImageBatch
 
 
@@ -255,6 +256,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_VideoCadence": FL_VideoCadence,
     "FL_VideoCadenceCompile": FL_VideoCadenceCompile,
     "FL_GeminiImageGenADV": FL_GeminiImageGenADV,
+    "FL_GPT_Image1_ADV": FL_GPT_Image1_ADV,
     "FL_ImageBatch": FL_ImageBatch,
 
 }
@@ -388,6 +390,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_VideoCadence": "FL Video Cadence",
     "FL_VideoCadenceCompile": "FL Video Cadence Compile",
     "FL_GeminiImageGenADV": "FL Gemini Image Gen ADV",
+    "FL_GPT_Image1_ADV": "FL GPT Image1 ADV",
     "FL_ImageBatch": "FL Image Batch",
 
 }

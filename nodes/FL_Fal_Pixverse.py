@@ -194,7 +194,7 @@ class FL_Fal_Pixverse:
                     
                     try:
                         # Determine which endpoint to use based on motion_mode
-                        endpoint = "fal-ai/pixverse/v4/image-to-video"
+                        endpoint = "fal-ai/pixverse/v4.5/image-to-video"
                         if motion_mode == "fast":
                             # Use the fast endpoint for image-to-video
                             endpoint = "fal-ai/pixverse/v4/fast-image-to-video"
