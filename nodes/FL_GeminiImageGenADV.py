@@ -17,6 +17,8 @@ import concurrent.futures
 import random
 from typing import List, Tuple, Optional
 
+from comfy.utils import ProgressBar
+
 # Assuming ImageBatch is still needed if we are batching results, or can be removed if Gemini returns a batch
 # from nodes import ImageBatch
 
@@ -34,7 +36,8 @@ class FL_GeminiImageGenADV:
             },
             "optional": {
                 "image_1": ("IMAGE", {}), # Moved image_1 to optional. Default will be None if not connected.
-                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffff}), # Restored full seed range
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffff}), # Restored full seed range
+                "retry_indefinitely": ("BOOLEAN", {"default": False}),
                 # Subsequent image_i and prompt_i will be handled by **kwargs based on inputcount
             }
         }
@@ -148,9 +151,9 @@ Each pair triggers an asynchronous API call. Results are batched.
         
         return pil_images if pil_images else None
 
-    def _call_gemini_api(self, client_instance, model_name_full, contents, gen_config_obj, retry_count=0, max_retries=3, call_id="0"):
+    def _call_gemini_api(self, client_instance, model_name_full, contents, gen_config_obj, retry_indefinitely, retry_count=0, max_retries=3, call_id="0"):
         try:
-            self._log(f"[Call {call_id}] API call attempt #{retry_count + 1} to {model_name_full}")
+            self._log(f"[Call {call_id}] API call attempt #{retry_count + 1} to {model_name_full}{' (retrying indefinitely)' if retry_indefinitely else ''}")
             
             # Using client.models.generate_content like in FL_GeminiImageEditor
             response = client_instance.models.generate_content(
@@ -162,30 +165,30 @@ Each pair triggers an asynchronous API call. Results are batched.
             # Validate response structure (adapted from FL_GeminiImageEditor)
             if not hasattr(response, 'candidates') or not response.candidates:
                 self._log(f"[Call {call_id}] Empty response: No candidates found")
-                if retry_count < max_retries - 1:
-                    self._log(f"[Call {call_id}] Retrying in 2 seconds... (Attempt {retry_count + 2}/{max_retries})")
+                if retry_indefinitely or retry_count < max_retries - 1:
+                    self._log(f"[Call {call_id}] Retrying in 2 seconds... (Attempt {retry_count + 2 if not retry_indefinitely else 'N/A'}/{max_retries if not retry_indefinitely else 'inf'})")
                     time.sleep(2)
-                    return self._call_gemini_api(client_instance, model_name_full, contents, gen_config_obj, retry_count + 1, max_retries, call_id)
+                    return self._call_gemini_api(client_instance, model_name_full, contents, gen_config_obj, retry_indefinitely, retry_count + 1, max_retries, call_id)
                 else:
                     self._log(f"[Call {call_id}] Maximum retries ({max_retries}) reached. Returning empty response.")
                     return None
 
             if not hasattr(response.candidates[0], 'content') or response.candidates[0].content is None:
                 self._log(f"[Call {call_id}] Invalid response: candidates[0].content is missing")
-                if retry_count < max_retries - 1:
-                    self._log(f"[Call {call_id}] Retrying in 2 seconds... (Attempt {retry_count + 2}/{max_retries})")
+                if retry_indefinitely or retry_count < max_retries - 1:
+                    self._log(f"[Call {call_id}] Retrying in 2 seconds... (Attempt {retry_count + 2 if not retry_indefinitely else 'N/A'}/{max_retries if not retry_indefinitely else 'inf'})")
                     time.sleep(2)
-                    return self._call_gemini_api(client_instance, model_name_full, contents, gen_config_obj, retry_count + 1, max_retries, call_id)
+                    return self._call_gemini_api(client_instance, model_name_full, contents, gen_config_obj, retry_indefinitely, retry_count + 1, max_retries, call_id)
                 else:
                     self._log(f"[Call {call_id}] Maximum retries ({max_retries}) reached. Returning empty response.")
                     return None
 
             if not hasattr(response.candidates[0].content, 'parts') or response.candidates[0].content.parts is None:
                 self._log(f"[Call {call_id}] Invalid response: candidates[0].content.parts is missing")
-                if retry_count < max_retries - 1:
-                    self._log(f"[Call {call_id}] Retrying in 2 seconds... (Attempt {retry_count + 2}/{max_retries})")
+                if retry_indefinitely or retry_count < max_retries - 1:
+                    self._log(f"[Call {call_id}] Retrying in 2 seconds... (Attempt {retry_count + 2 if not retry_indefinitely else 'N/A'}/{max_retries if not retry_indefinitely else 'inf'})")
                     time.sleep(2)
-                    return self._call_gemini_api(client_instance, model_name_full, contents, gen_config_obj, retry_count + 1, max_retries, call_id)
+                    return self._call_gemini_api(client_instance, model_name_full, contents, gen_config_obj, retry_indefinitely, retry_count + 1, max_retries, call_id)
                 else:
                     self._log(f"[Call {call_id}] Maximum retries ({max_retries}) reached. Returning empty response.")
                     return None
@@ -195,11 +198,11 @@ Each pair triggers an asynchronous API call. Results are batched.
             
         except Exception as e:
             self._log(f"[Call {call_id}] API call error: {str(e)}")
-            if retry_count < max_retries - 1:
+            if retry_indefinitely or retry_count < max_retries - 1:
                 wait_time = 2 * (retry_count + 1) # Progressive backoff
-                self._log(f"[Call {call_id}] Retrying in {wait_time}s... (Attempt {retry_count + 2}/{max_retries})")
+                self._log(f"[Call {call_id}] Retrying in {wait_time}s... (Attempt {retry_count + 2 if not retry_indefinitely else 'N/A'}/{max_retries if not retry_indefinitely else 'inf'})")
                 time.sleep(wait_time)
-                return self._call_gemini_api(client_instance, model_name_full, contents, gen_config_obj, retry_count + 1, max_retries, call_id)
+                return self._call_gemini_api(client_instance, model_name_full, contents, gen_config_obj, retry_indefinitely, retry_count + 1, max_retries, call_id)
             else:
                 self._log(f"[Call {call_id}] Max retries ({max_retries}) reached. Giving up.")
                 return None
@@ -297,7 +300,7 @@ Each pair triggers an asynchronous API call. Results are batched.
         
         return image_tensor, final_response_text
 
-    async def _generate_single_image_async(self, api_key, model_name_full, prompt_text, input_pil_images: Optional[List[Image.Image]], temperature, max_retries, seed_val, call_id): # Parameter changed to input_pil_images
+    async def _generate_single_image_async(self, api_key, model_name_full, prompt_text, input_pil_images: Optional[List[Image.Image]], temperature, max_retries, retry_indefinitely, seed_val, call_id):
         try:
             try:
                 client_instance = genai.Client(api_key=api_key)
@@ -335,7 +338,7 @@ Each pair triggers an asynchronous API call. Results are batched.
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
                 None,
-                lambda: self._call_gemini_api(client_instance, model_name_full, contents, gen_config_obj, 0, max_retries, call_id)
+                lambda: self._call_gemini_api(client_instance, model_name_full, contents, gen_config_obj, retry_indefinitely, 0, max_retries, call_id)
             )
             
             img_tensor, response_text = self._process_api_response(response, call_id)
@@ -346,7 +349,7 @@ Each pair triggers an asynchronous API call. Results are batched.
             error_msg = f"Call {call_id} Error: {str(e)}"
             return self._create_error_image(error_msg), error_msg, call_id
 
-    def generate_images_advanced(self, inputcount, api_key, model, temperature, max_retries, prompt_1, image_1=None, seed=0, **kwargs):
+    def generate_images_advanced(self, inputcount, api_key, model, temperature, max_retries, prompt_1, image_1=None, seed=0, retry_indefinitely=False, **kwargs):
         self.log_messages = []
         if not api_key:
             error_msg = "API key not provided."
@@ -361,6 +364,8 @@ Each pair triggers an asynchronous API call. Results are batched.
         asyncio.set_event_loop(loop)
         
         tasks = []
+        pbar = ProgressBar(inputcount) # Initialize progress bar
+
         for slot_idx in range(1, inputcount + 1):
             current_prompt = prompt_1 if slot_idx == 1 else kwargs.get(f"prompt_{slot_idx}", f"Default prompt for image {slot_idx}")
             
@@ -370,19 +375,16 @@ Each pair triggers an asynchronous API call. Results are batched.
             else:
                 current_image_tensor_for_slot = kwargs.get(f"image_{slot_idx}")
             
-            # This will return a list of PIL images if current_image_tensor_for_slot is a batch or single image,
-            # or None if it's None or invalid.
             pil_images_for_this_slot = self._process_tensor_to_pil_list(current_image_tensor_for_slot, f"InputSlot{slot_idx}")
             
-            # Each slot_idx corresponds to one API call.
-            # The seed is incremented per slot_idx (per API call).
             current_task_seed = seed + (slot_idx - 1) if seed != 0 else 0
-            task_call_id = str(slot_idx) # Simplified call_id
+            task_call_id = str(slot_idx)
 
             tasks.append(self._generate_single_image_async(
-                api_key, model, current_prompt, pil_images_for_this_slot, # Pass the list of PIL images
-                temperature, max_retries, current_task_seed, task_call_id
+                api_key, model, current_prompt, pil_images_for_this_slot,
+                temperature, max_retries, retry_indefinitely, current_task_seed, task_call_id
             ))
+            pbar.update_absolute(slot_idx) # Update progress bar after task is added
 
         if not tasks:
             self._log("No tasks were created. This might indicate an issue with inputcount or logic.")
@@ -395,7 +397,6 @@ Each pair triggers an asynchronous API call. Results are batched.
             if loop and not loop.is_closed():
                 loop.close()
         
-        # Sort results by call_id (which is now just the string of slot_idx)
         results_with_id.sort(key=lambda x: int(x[2]))
         
         output_images = []
@@ -408,7 +409,6 @@ Each pair triggers an asynchronous API call. Results are batched.
         batched_images = torch.cat(output_images, dim=0) if output_images else self._create_error_image("No images generated")
         combined_responses = "\n\n".join(output_texts)
         
-        # Prepend logs
         final_log_output = "Processing Logs:\n" + "\n".join(self.log_messages) + "\n\n" + combined_responses
 
         return (batched_images, final_log_output)

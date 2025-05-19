@@ -20,7 +20,7 @@ class FL_GPT_Image1_ADV:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "inputcount": ("INT", {"default": 1, "min": 1, "max": 10, "step": 1}), # Max 10 concurrent calls
+                "inputcount": ("INT", {"default": 1, "min": 1, "max": 100, "step": 1}), # Max 10 concurrent calls
                 "api_key": ("STRING", {"default": os.getenv("OPENAI_API_KEY", ""), "multiline": False}),
                 # Global settings from FL_GPT_Image1.py, with _setting suffix
                 "size_setting": (["1024x1024", "1536x1024", "1024x1536"], {"default": "1024x1024"}), # Adjusted for gpt-image-1 supported sizes
