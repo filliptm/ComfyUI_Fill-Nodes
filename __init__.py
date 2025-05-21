@@ -125,6 +125,8 @@ from .nodes.FL_VideoCadenceCompile import FL_VideoCadenceCompile
 from .nodes.FL_GeminiImageGenADV import FL_GeminiImageGenADV
 from .nodes.FL_GPT_Image1_ADV import FL_GPT_Image1_ADV
 from .nodes.FL_ImageBatch import FL_ImageBatch
+from .nodes.FL_Hedra_API import FL_Hedra_API
+from .nodes.FL_RunwayImageAPI import FL_RunwayImageAPI
 
 
 NODE_CLASS_MAPPINGS = {
@@ -258,7 +260,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_GeminiImageGenADV": FL_GeminiImageGenADV,
     "FL_GPT_Image1_ADV": FL_GPT_Image1_ADV,
     "FL_ImageBatch": FL_ImageBatch,
-
+    "FL_Hedra_API": FL_Hedra_API,
+    "FL_RunwayImageAPI": FL_RunwayImageAPI,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -392,7 +395,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_GeminiImageGenADV": "FL Gemini Image Gen ADV",
     "FL_GPT_Image1_ADV": "FL GPT Image1 ADV",
     "FL_ImageBatch": "FL Image Batch",
-
+    "FL_Hedra_API": "FL Hedra API",
+    "FL_RunwayImageAPI": "FL Runway Image API",
 }
 
 

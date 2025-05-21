@@ -24,3 +24,5 @@ open_clip_torch
 google-genai
 google-cloud-storage
 fal-client
+runwayml
+httpx

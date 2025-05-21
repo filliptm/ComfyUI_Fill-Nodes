@@ -34,6 +34,7 @@ class FL_ImageAspectCropper:
             if current_ratio > target_ratio:
                 # Image is wider than target ratio, crop width
                 new_width = int(height * target_ratio)
+                new_width = new_width - (new_width % 2) # Ensure even number
                 # Calculate left position to center the crop
                 left = (width - new_width) // 2
                 # Crop the image
@@ -41,6 +42,7 @@ class FL_ImageAspectCropper:
             else:
                 # Image is taller than target ratio, crop height
                 new_height = int(width / target_ratio)
+                new_height = new_height - (new_height % 2) # Ensure even number
                 # Calculate top position to center the crop
                 top = (height - new_height) // 2
                 # Crop the image
