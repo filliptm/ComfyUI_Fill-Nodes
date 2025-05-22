@@ -17,7 +17,9 @@ class FL_DirectoryCrawl:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "STRING")  # Output a batch of images or list of text contents
+    RETURN_TYPES = ("IMAGE", "STRING", "IMAGE")
+    RETURN_NAMES = ("image_batch", "text_content", "image_list")
+    OUTPUT_IS_LIST = (False, False, True)
     FUNCTION = "load_batch"
     CATEGORY = "🏵️Fill Nodes/utility"
 
@@ -27,52 +29,71 @@ class FL_DirectoryCrawl:
 
         file_paths = self.crawl_directories(directory_path, file_type)
         if not file_paths:
-            raise ValueError(f"No {file_type} found in the specified directory and its subdirectories.")
+            if file_type == "images":
+                return (torch.empty(0), "", []) # Return empty for all if no files
+            else: # text
+                return (torch.empty(0), "", [])
+
 
         file_paths = file_paths[:max_files]  # Limit the number of files
 
         if file_type == "images":
-            return self.load_image_batch(file_paths)
-        else:
-            return self.load_text_batch(file_paths)
+            batch_tensor, image_list_tensors = self.load_images_data(file_paths)
+            return (batch_tensor, "", image_list_tensors)
+        else: # text
+            text_content = self.load_text_data(file_paths)
+            return (torch.empty(0), text_content, [])
 
-    def load_image_batch(self, image_paths):
-        batch_images = []
+    def load_images_data(self, image_paths):
+        individual_images_np = []
+        individual_image_tensors = []
         pbar = ProgressBar(len(image_paths))
+
+        if not image_paths:
+            return torch.empty(0), []
+
         for idx, img_path in enumerate(image_paths):
             image = Image.open(img_path)
             image = ImageOps.exif_transpose(image)  # Correct orientation
             image = image.convert("RGB")
             image_np = np.array(image).astype(np.float32) / 255.0
-            batch_images.append(image_np)
+            individual_images_np.append(image_np)
+            # Create tensor for the list output (B, H, W, C) -> (1, H, W, C)
+            individual_image_tensors.append(torch.from_numpy(image_np)[None,])
             pbar.update_absolute(idx)
 
-        # Pad images to the largest dimensions
-        max_h = max(img.shape[0] for img in batch_images)
-        max_w = max(img.shape[1] for img in batch_images)
+        # Pad images for batch output
+        max_h = max(img.shape[0] for img in individual_images_np)
+        max_w = max(img.shape[1] for img in individual_images_np)
 
-        padded_images = []
-        for img in batch_images:
-            h, w, c = img.shape
+        padded_images_for_batch = []
+        for img_np in individual_images_np:
+            h, w, c = img_np.shape
             padded = np.zeros((max_h, max_w, c), dtype=np.float32)
-            padded[:h, :w, :] = img
-            padded_images.append(padded)
+            padded[:h, :w, :] = img_np
+            padded_images_for_batch.append(padded)
 
-        batch_images_np = np.stack(padded_images, axis=0)
+        batch_images_np = np.stack(padded_images_for_batch, axis=0)
         batch_images_tensor = torch.from_numpy(batch_images_np)
 
-        return (batch_images_tensor, "")
+        return batch_images_tensor, individual_image_tensors
 
-    def load_text_batch(self, text_paths):
+    def load_text_data(self, text_paths):
         text_contents = []
+        if not text_paths:
+            return ""
         pbar = ProgressBar(len(text_paths))
         for idx, txt_path in enumerate(text_paths):
-            with open(txt_path, 'r', encoding='utf-8') as file:
-                content = file.read()
-                text_contents.append(content)
+            try:
+                with open(txt_path, 'r', encoding='utf-8') as file:
+                    content = file.read()
+                    text_contents.append(content)
+            except Exception as e:
+                print(f"Warning: Could not read text file {txt_path}: {e}")
+                text_contents.append(f"Error reading file: {txt_path}")
             pbar.update_absolute(idx)
 
-        return (torch.zeros(1), "\n---\n".join(text_contents))  # Return empty tensor for IMAGE type
+        return "\n---\n".join(text_contents)
 
     def crawl_directories(self, directory, file_type):
         if file_type == "images":

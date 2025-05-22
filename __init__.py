@@ -127,9 +127,11 @@ from .nodes.FL_GPT_Image1_ADV import FL_GPT_Image1_ADV
 from .nodes.FL_ImageBatch import FL_ImageBatch
 from .nodes.FL_Hedra_API import FL_Hedra_API
 from .nodes.FL_RunwayImageAPI import FL_RunwayImageAPI
+from .nodes.FL_Image_Blank import FL_ImageBlank
 
 
 NODE_CLASS_MAPPINGS = {
+    "FL_ImageBlank": FL_ImageBlank,
     "FL_ImageRandomizer": FL_ImageRandomizer,
     "FL_ImageCaptionSaver": FL_ImageCaptionSaver,
     "FL_VideoCaptionSaver": FL_VideoCaptionSaver,
@@ -265,6 +267,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "FL_ImageBlank": "FL Image Blank",
     "FL_ImageRandomizer": "FL Image Randomizer",
     "FL_ImageCaptionSaver": "FL Image Caption Saver",
     "FL_VideoCaptionSaver": "FL Video Caption Saver",

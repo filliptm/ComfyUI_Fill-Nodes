@@ -17,7 +17,9 @@ class FL_ImageRandomizer:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "PATH")
+    RETURN_TYPES = ("IMAGE", "PATH", "IMAGE")
+    RETURN_NAMES = ("image_batch", "selected_path", "image_list")
+    OUTPUT_IS_LIST = (False, False, True)
     FUNCTION = "select_media"
     CATEGORY = "🏵️Fill Nodes/Image"
 
@@ -26,11 +28,13 @@ class FL_ImageRandomizer:
             raise ValueError("Directory path is not provided.")
         
         if mode == "Image":
-            return self.select_image(directory_path, seed, search_subdirectories)
+            image_tensor, selected_path = self.select_image_data(directory_path, seed, search_subdirectories)
+            return (image_tensor, selected_path, [image_tensor])
         else:  # Video mode
-            return self.select_video_frames(directory_path, seed, search_subdirectories)
+            frames_tensor, selected_path = self.select_video_data(directory_path, seed, search_subdirectories)
+            return (frames_tensor, selected_path, [frames_tensor]) # Video frames are already a batch, but we wrap in list for consistency
     
-    def select_image(self, directory_path, seed, search_subdirectories=False):
+    def select_image_data(self, directory_path, seed, search_subdirectories=False):
         images = self.load_files(directory_path, search_subdirectories, file_type="image")
         if not images:
             raise ValueError("No images found in the specified directory.")
@@ -46,9 +50,9 @@ class FL_ImageRandomizer:
         image_np = np.array(image).astype(np.float32) / 255.0
         image_tensor = torch.from_numpy(image_np)[None,]
 
-        return (image_tensor, selected_image_path)
+        return image_tensor, selected_image_path
     
-    def select_video_frames(self, directory_path, seed, search_subdirectories=False):
+    def select_video_data(self, directory_path, seed, search_subdirectories=False):
         videos = self.load_files(directory_path, search_subdirectories, file_type="video")
         if not videos:
             raise ValueError("No videos found in the specified directory.")
@@ -58,27 +62,21 @@ class FL_ImageRandomizer:
 
         selected_video_path = videos[selected_index]
 
-        # Open the video file
         cap = cv2.VideoCapture(selected_video_path)
         if not cap.isOpened():
             raise ValueError(f"Could not open video file: {selected_video_path}")
         
-        # Get video properties
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         
         if frame_count <= 0:
             raise ValueError(f"No frames found in video: {selected_video_path}")
         
-        # Extract all frames from the video
         frames = []
         success = True
         while success:
             success, frame = cap.read()
             if success:
-                # Convert BGR to RGB (OpenCV uses BGR by default)
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                
-                # Normalize
                 frame_np = np.array(frame).astype(np.float32) / 255.0
                 frames.append(frame_np)
         
@@ -87,10 +85,9 @@ class FL_ImageRandomizer:
         if not frames:
             raise ValueError(f"Failed to extract frames from video: {selected_video_path}")
             
-        # Convert list of frames to tensor with batch dimension
         frames_tensor = torch.from_numpy(np.stack(frames))
         
-        return (frames_tensor, selected_video_path)
+        return frames_tensor, selected_video_path
 
     def load_files(self, directory, search_subdirectories=False, file_type="image"):
         if file_type == "image":
