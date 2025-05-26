@@ -128,9 +128,13 @@ from .nodes.FL_ImageBatch import FL_ImageBatch
 from .nodes.FL_Hedra_API import FL_Hedra_API
 from .nodes.FL_RunwayImageAPI import FL_RunwayImageAPI
 from .nodes.FL_Image_Blank import FL_ImageBlank
+from .nodes.FL_TextOverlay import FL_TextOverlayNode
+from .nodes.FL_SaveWebM import FL_SaveWebM
 
 
 NODE_CLASS_MAPPINGS = {
+    "FL_SaveWebM": FL_SaveWebM,
+    "FL_TextOverlayNode": FL_TextOverlayNode,
     "FL_ImageBlank": FL_ImageBlank,
     "FL_ImageRandomizer": FL_ImageRandomizer,
     "FL_ImageCaptionSaver": FL_ImageCaptionSaver,
@@ -400,6 +404,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_ImageBatch": "FL Image Batch",
     "FL_Hedra_API": "FL Hedra API",
     "FL_RunwayImageAPI": "FL Runway Image API",
+    "FL_TextOverlayNode": "FL Text Overlay",
+    "FL_SaveWebM": "FL Save WebM",
 }
 
 
