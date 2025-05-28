@@ -13,6 +13,7 @@ class FL_ImageNotes:
                 "text": ("STRING", {"default": "Text Here", "multiline": False}),
                 "bar_height": ("INT", {"default": 50, "min": 10, "max": 200, "step": 2}),
                 "text_size": ("INT", {"default": 24, "min": 10, "max": 100, "step": 1}),
+                "border": ("INT", {"default": 0, "min": 0, "max": 200, "step": 5, "description": "Border size in pixels (left, right, bottom)"}),
             },
         }
 
@@ -20,13 +21,13 @@ class FL_ImageNotes:
     FUNCTION = "add_notes"
     CATEGORY = "🏵️Fill Nodes/Image"
 
-    def add_notes(self, images, text, bar_height, text_size):
+    def add_notes(self, images, text, bar_height, text_size, border):
         result = []
         total_images = len(images)
         pbar = ProgressBar(total_images)
         for i, image in enumerate(images, start=1):
             img = self.t2p(image)
-            result_img = self.add_text_bar(img, text, bar_height, text_size)
+            result_img = self.add_text_bar(img, text, bar_height, text_size, border)
             result_img = self.p2t(result_img)
             result.append(result_img)
 
@@ -34,11 +35,18 @@ class FL_ImageNotes:
 
         return (torch.cat(result, dim=0),)
 
-    def add_text_bar(self, image, text, bar_height, text_size):
+    def add_text_bar(self, image, text, bar_height, text_size, border):
         width, height = image.size
-        new_height = height + bar_height
-        new_image = Image.new("RGB", (width, new_height), color="black")
-        new_image.paste(image, (0, bar_height))
+        
+        # Calculate new dimensions with border
+        new_width = width + (border * 2)  # Left and right borders
+        new_height = height + bar_height + border  # Top bar and bottom border
+        
+        # Create new image with black background
+        new_image = Image.new("RGB", (new_width, new_height), color="black")
+        
+        # Paste original image with offset for borders
+        new_image.paste(image, (border, bar_height))
 
         draw = ImageDraw.Draw(new_image)
 
@@ -47,7 +55,7 @@ class FL_ImageNotes:
         
         font = ImageFont.truetype(font_path, text_size)
         text_width, text_height = self.get_text_size(text, font)
-        x = (width - text_width) // 2
+        x = (new_width - text_width) // 2  # Center text in the new width
         y = (bar_height - text_height) // 2
         draw.text((x, y), text, font=font, fill="white")
 
