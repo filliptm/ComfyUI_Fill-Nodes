@@ -16,17 +16,30 @@ class FL_ImageSelector:
     CATEGORY = "🏵️Fill Nodes/Image"
 
     def select_images(self, images, indices):
+        # Get batch size for "last" keyword processing
+        batch_size = images.shape[0]
+        
         # Parse the indices string
         try:
-            # Split by comma and convert to integers
-            index_list = [int(idx.strip()) for idx in indices.split(',') if idx.strip()]
+            # Split by comma and process each index
+            index_parts = [idx.strip() for idx in indices.split(',') if idx.strip()]
+            index_list = []
+            
+            for idx_str in index_parts:
+                if idx_str.lower() == "last":
+                    # Replace "last" with the last index (batch_size - 1)
+                    if batch_size > 0:
+                        index_list.append(batch_size - 1)
+                else:
+                    # Convert to integer
+                    index_list.append(int(idx_str))
+                    
         except ValueError:
-            print("Error: Indices must be comma-separated integers")
+            print("Error: Indices must be comma-separated integers or 'last'")
             # Return the original batch if parsing fails
             return (images,)
 
         # Validate indices
-        batch_size = images.shape[0]
         valid_indices = [idx for idx in index_list if 0 <= idx < batch_size]
         
         if not valid_indices:

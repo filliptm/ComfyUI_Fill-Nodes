@@ -17,9 +17,9 @@ class FL_ImageRandomizer:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "PATH", "IMAGE")
-    RETURN_NAMES = ("image_batch", "selected_path", "image_list")
-    OUTPUT_IS_LIST = (False, False, True)
+    RETURN_TYPES = ("IMAGE", "PATH", "IMAGE", "STRING")
+    RETURN_NAMES = ("image_batch", "selected_path", "image_list", "filename")
+    OUTPUT_IS_LIST = (False, False, True, False)
     FUNCTION = "select_media"
     CATEGORY = "🏵️Fill Nodes/Image"
 
@@ -29,10 +29,12 @@ class FL_ImageRandomizer:
         
         if mode == "Image":
             image_tensor, selected_path = self.select_image_data(directory_path, seed, search_subdirectories)
-            return (image_tensor, selected_path, [image_tensor])
+            filename = os.path.basename(selected_path)
+            return (image_tensor, selected_path, [image_tensor], filename)
         else:  # Video mode
             frames_tensor, selected_path = self.select_video_data(directory_path, seed, search_subdirectories)
-            return (frames_tensor, selected_path, [frames_tensor]) # Video frames are already a batch, but we wrap in list for consistency
+            filename = os.path.basename(selected_path)
+            return (frames_tensor, selected_path, [frames_tensor], filename) # Video frames are already a batch, but we wrap in list for consistency
     
     def select_image_data(self, directory_path, seed, search_subdirectories=False):
         images = self.load_files(directory_path, search_subdirectories, file_type="image")
