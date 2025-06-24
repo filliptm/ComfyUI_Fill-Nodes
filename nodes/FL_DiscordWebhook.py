@@ -19,6 +19,9 @@ class FL_SendToDiscordWebhook:
                 "save_locally": ("BOOLEAN", {"default": True}),
                 "bot_username": ("STRING", {"default": "ComfyUI Bot"}),
                 "message": ("STRING", {"default": "Here's your image/video:", "multiline": True}),
+            },
+            "optional": {
+                "user_id_to_tag": ("STRING", {"default": "", "multiline": False}),
             }
         }
 
@@ -28,7 +31,7 @@ class FL_SendToDiscordWebhook:
     OUTPUT_NODE = True
 
     def generate_and_upload(self, images, webhook_url: str, frame_rate: int, save_locally: bool, bot_username: str,
-                            message: str):
+                            message: str, user_id_to_tag: str = ""):
         if save_locally:
             output_dir = os.path.join(os.path.dirname(__file__), "outputs")
             os.makedirs(output_dir, exist_ok=True)
@@ -37,10 +40,23 @@ class FL_SendToDiscordWebhook:
 
         filename = f"discord_upload_{int(torch.rand(1).item() * 10000)}"
 
+        # Build the message with mentions
+        full_message = ""
+        
+        # Add user mention if user ID is provided
+        if user_id_to_tag and user_id_to_tag.strip():
+            # Handle multiple user IDs separated by commas
+            user_ids = [uid.strip() for uid in user_id_to_tag.split(",") if uid.strip()]
+            for uid in user_ids:
+                full_message += f"<@{uid}> "
+        
+        # Add the actual message
+        full_message += message
+
         # Prepare the webhook data
         webhook_data = {
             "username": bot_username,
-            "content": message,
+            "content": full_message,
         }
 
         if len(images) == 1:
@@ -84,11 +100,11 @@ class FL_SendToDiscordWebhook:
                 response = requests.post(webhook_url, files=files)
 
         if response.status_code == 204:
-            message = "Successfully uploaded to Discord."
+            status_message = "Successfully uploaded to Discord."
         else:
-            message = f"Failed to upload. Status code: {response.status_code} - {response.text}"
+            status_message = f"Failed to upload. Status code: {response.status_code} - {response.text}"
 
         if not save_locally:
             os.remove(file_path)
 
-        return (message,)
+        return (status_message,)
