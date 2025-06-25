@@ -3,7 +3,7 @@
 If you enjoy this project, consider supporting me on Patreon!
 <p align="left">
   <a href="https://www.patreon.com/c/Machinedelusions">
-    <img src="assets/Patreon.png" width="150px" alt="Patreon">
+    <img src="images\nodes\Patreon.png" width="150px" alt="Patreon">
   </a>
 </p>
 
