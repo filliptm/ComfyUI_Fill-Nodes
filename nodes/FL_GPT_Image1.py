@@ -109,31 +109,33 @@ class FL_GPT_Image1:
         return img_tensor
 
     def _process_tensor_to_pil(self, tensor, name="Image"):
-        """Convert a tensor to a PIL image for API submission"""
+        """Convert a tensor (or a batch of tensors) to a list of PIL images."""
         try:
             if tensor is None:
                 self._log(f"{name} is None, skipping")
-                return None
+                return []
 
-            # Ensure tensor is in correct format [1, H, W, 3]
-            if len(tensor.shape) == 4 and tensor.shape[0] == 1:
-                # Get first frame image
-                image_np = tensor[0].cpu().numpy()
+            # Handle batch of images [B, H, W, 3] or single image [1, H, W, 3]
+            if len(tensor.shape) == 4:
+                pil_images = []
+                for i in range(tensor.shape[0]):
+                    image_np = tensor[i].cpu().numpy()
+                    image_np = (image_np * 255).astype(np.uint8)
+                    pil_image = Image.fromarray(image_np)
+                    pil_images.append(pil_image)
+                
+                if not pil_images:
+                    self._log(f"{name} processed but no images were created.")
+                    return []
 
-                # Convert to uint8 format for PIL
-                image_np = (image_np * 255).astype(np.uint8)
-
-                # Create PIL image
-                pil_image = Image.fromarray(image_np)
-
-                self._log(f"{name} processed successfully, size: {pil_image.width}x{pil_image.height}")
-                return pil_image
+                self._log(f"{name} batch processed successfully, {len(pil_images)} images, size: {pil_images[0].width}x{pil_images[0].height}")
+                return pil_images
             else:
                 self._log(f"{name} format incorrect: {tensor.shape}")
-                return None
+                return []
         except Exception as e:
             self._log(f"Error processing {name}: {str(e)}")
-            return None
+            return []
 
     def _encode_image_to_base64(self, pil_image, format="PNG"):
         """Convert PIL image to base64 string"""
@@ -161,33 +163,40 @@ class FL_GPT_Image1:
                     "Authorization": f"Bearer {api_key}"
                 }
                 
-                # Create a multipart form-data request
-                multipart_data = {}
+                # Create a multipart form-data request.
+                # We use a list of tuples for 'files' to support multiple images.
+                form_data = []
                 
                 # Add all text fields to the multipart data
                 for key, value in payload.items():
                     if key not in ["image", "mask"]:
-                        multipart_data[key] = (None, str(value))
-                
-                # Add image file if present
+                        form_data.append((key, (None, str(value))))
+
+                # Add image file(s) if present
                 if "image" in payload and payload["image"] is not None:
-                    if isinstance(payload["image"], bytes):
-                        multipart_data["image"] = ("image.png", payload["image"], "image/png")
-                        self._log("Added image file to multipart request")
-                
+                    images = payload["image"]
+                    if not isinstance(images, list):
+                        images = [images]  # Ensure it's a list for consistency
+
+                    for i, img_bytes in enumerate(images):
+                        if isinstance(img_bytes, bytes):
+                            form_data.append(('image[]', (f"image_{i}.png", img_bytes, "image/png")))
+                    
+                    self._log(f"Added {len(images)} image file(s) to multipart request")
+
                 # Add mask file if present
                 if "mask" in payload and payload["mask"] is not None:
                     if isinstance(payload["mask"], bytes):
-                        multipart_data["mask"] = ("mask.png", payload["mask"], "image/png")
+                        form_data.append(('mask', ("mask.png", payload["mask"], "image/png")))
                         self._log("Added mask file to multipart request")
                 
-                self._log(f"Sending multipart request with {len(multipart_data)} fields")
+                self._log(f"Sending multipart request with {len(form_data)} parts")
                 
                 # Use requests to send the multipart form data
                 response = requests.post(
                     url,
                     headers=headers,
-                    files=multipart_data,  # This automatically sets the correct content-type
+                    files=form_data,  # Pass the list of tuples here
                     timeout=120
                 )
             else:
@@ -365,26 +374,35 @@ class FL_GPT_Image1:
             if image is not None:
                 endpoint = "edits"
                 
-                # Process the input image
-                pil_image = self._process_tensor_to_pil(image, "Input Image")
-                if pil_image is None:
-                    return self._create_error_image("Failed to process input image"), "Error: Failed to process input image"
+                # Process the input image batch
+                pil_images = self._process_tensor_to_pil(image, "Input Image")
+                if not pil_images:
+                    return self._create_error_image("Failed to process input image(s)"), "Error: Failed to process input image(s)"
+
+                if len(pil_images) > 16:
+                    self._log("Error: A maximum of 16 images can be provided for editing.")
+                    return self._create_error_image("Too many images (max 16)"), "Error: A maximum of 16 images can be provided for editing."
+
+                self._log(f"Setting up image editing request for {len(pil_images)} image(s)")
                 
-                self._log("Setting up image editing request")
+                # Convert PIL images to a list of bytes
+                image_bytes_list = []
+                for i, pil_image in enumerate(pil_images):
+                    img_byte_arr = BytesIO()
+                    pil_image.save(img_byte_arr, format='PNG')
+                    image_bytes_list.append(img_byte_arr.getvalue())
                 
-                # Convert PIL image directly to bytes
-                img_byte_arr = BytesIO()
-                pil_image.save(img_byte_arr, format='PNG')
-                img_bytes = img_byte_arr.getvalue()
-                self._log(f"Converted image to bytes, size: {len(img_bytes)} bytes")
+                self._log(f"Converted {len(image_bytes_list)} image(s) to bytes")
                 
-                # Add image bytes to payload
-                payload["image"] = img_bytes
+                # Add image bytes list to payload
+                payload["image"] = image_bytes_list
                 
-                # Process mask if provided
+                # Process mask if provided. A single mask is applied to all images.
                 if mask is not None:
-                    pil_mask = self._process_tensor_to_pil(mask, "Mask Image")
-                    if pil_mask is not None:
+                    # The mask is still a single image tensor, so we expect a list with one item
+                    pil_masks = self._process_tensor_to_pil(mask, "Mask Image")
+                    if pil_masks:
+                        pil_mask = pil_masks[0] # Get the first (and only) mask
                         # Convert mask to bytes
                         mask_byte_arr = BytesIO()
                         pil_mask.save(mask_byte_arr, format='PNG')
