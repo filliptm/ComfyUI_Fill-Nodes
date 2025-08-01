@@ -121,6 +121,7 @@ from .nodes.FL_ModelInspector import FL_ModelInspector
 from .nodes.FL_Float import FL_Float
 from .nodes.FL_UnloadModel import FL_UnloadModel, FL_UnloadAllModels
 from .nodes.FL_VideoTrim import FL_VideoTrim
+from .nodes.FL_VideoCrossfade import FL_VideoCrossfade
 from .nodes.FL_VideoCadence import FL_VideoCadence
 from .nodes.FL_VideoCadenceCompile import FL_VideoCadenceCompile
 from .nodes.FL_GeminiImageGenADV import FL_GeminiImageGenADV
@@ -128,9 +129,11 @@ from .nodes.FL_GPT_Image1_ADV import FL_GPT_Image1_ADV
 from .nodes.FL_ImageBatch import FL_ImageBatch
 from .nodes.FL_Hedra_API import FL_Hedra_API
 from .nodes.FL_RunwayImageAPI import FL_RunwayImageAPI
+from .nodes.FL_RunwayAct2 import FL_RunwayAct2
 from .nodes.FL_Image_Blank import FL_ImageBlank
 from .nodes.FL_TextOverlay import FL_TextOverlayNode
 from .nodes.FL_SaveWebM import FL_SaveWebM
+from .nodes.FL_Image_Crop import FL_ImageCrop
 
 
 NODE_CLASS_MAPPINGS = {
@@ -263,6 +266,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_UnloadModel": FL_UnloadModel,
     "FL_UnloadAllModels": FL_UnloadAllModels,
     "FL_VideoTrim": FL_VideoTrim,
+    "FL_VideoCrossfade": FL_VideoCrossfade,
     "FL_VideoCadence": FL_VideoCadence,
     "FL_VideoCadenceCompile": FL_VideoCadenceCompile,
     "FL_GeminiImageGenADV": FL_GeminiImageGenADV,
@@ -270,6 +274,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_ImageBatch": FL_ImageBatch,
     "FL_Hedra_API": FL_Hedra_API,
     "FL_RunwayImageAPI": FL_RunwayImageAPI,
+    "FL_RunwayAct2": FL_RunwayAct2,
+    "FL_ImageCrop": FL_ImageCrop,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -400,6 +406,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Fal_Pixverse": "FL Fal Pixverse API",
     "FL_ModelInspector": "FL Model Inspector",
     "FL_VideoTrim": "FL Video Trim",
+    "FL_VideoCrossfade": "FL Video Crossfade",
     "FL_VideoCadence": "FL Video Cadence",
     "FL_VideoCadenceCompile": "FL Video Cadence Compile",
     "FL_GeminiImageGenADV": "FL Gemini Image Gen ADV",
@@ -407,8 +414,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_ImageBatch": "FL Image Batch",
     "FL_Hedra_API": "FL Hedra API",
     "FL_RunwayImageAPI": "FL Runway Image API",
+    "FL_RunwayAct2": "FL Runway Act2",
     "FL_TextOverlayNode": "FL Text Overlay",
     "FL_SaveWebM": "FL Save WebM",
+    "FL_ImageCrop": "FL Image Crop",
 }
 
 
