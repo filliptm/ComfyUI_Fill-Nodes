@@ -121,6 +121,7 @@ from .nodes.FL_ModelInspector import FL_ModelInspector
 from .nodes.FL_Float import FL_Float
 from .nodes.FL_UnloadModel import FL_UnloadModel, FL_UnloadAllModels
 from .nodes.FL_VideoTrim import FL_VideoTrim
+from .nodes.FL_VideoBatchSplitter import FL_VideoBatchSplitter
 from .nodes.FL_VideoCrossfade import FL_VideoCrossfade
 from .nodes.FL_VideoCadence import FL_VideoCadence
 from .nodes.FL_VideoCadenceCompile import FL_VideoCadenceCompile
@@ -266,6 +267,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_UnloadModel": FL_UnloadModel,
     "FL_UnloadAllModels": FL_UnloadAllModels,
     "FL_VideoTrim": FL_VideoTrim,
+    "FL_VideoBatchSplitter": FL_VideoBatchSplitter,
     "FL_VideoCrossfade": FL_VideoCrossfade,
     "FL_VideoCadence": FL_VideoCadence,
     "FL_VideoCadenceCompile": FL_VideoCadenceCompile,
@@ -406,6 +408,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Fal_Pixverse": "FL Fal Pixverse API",
     "FL_ModelInspector": "FL Model Inspector",
     "FL_VideoTrim": "FL Video Trim",
+    "FL_VideoBatchSplitter": "FL Video Batch Splitter",
     "FL_VideoCrossfade": "FL Video Crossfade",
     "FL_VideoCadence": "FL Video Cadence",
     "FL_VideoCadenceCompile": "FL Video Cadence Compile",
