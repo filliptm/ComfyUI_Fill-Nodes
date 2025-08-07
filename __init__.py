@@ -109,6 +109,7 @@ from .nodes.FL_BlackFrameReject import FL_BlackFrameReject
 from .nodes.FL_PixVerseAPI import FL_PixVerseAPI
 from .nodes.FL_Fal_Pixverse import FL_Fal_Pixverse
 from .nodes.FL_Fal_Kontext import FL_Fal_Kontext
+from .nodes.FL_Fal_Seedance_i2v import FL_Fal_Seedance_i2v
 from .nodes.FL_Prompt import FL_PromptBasic
 from .nodes.FL_PromptMulti import FL_PromptMulti
 from .nodes.FL_PaddingRemover import FL_PaddingRemover
@@ -135,6 +136,7 @@ from .nodes.FL_Image_Blank import FL_ImageBlank
 from .nodes.FL_TextOverlay import FL_TextOverlayNode
 from .nodes.FL_SaveWebM import FL_SaveWebM
 from .nodes.FL_Image_Crop import FL_ImageCrop
+from .nodes.FL_WanFirstLastFrameToVideo import FL_WanFirstLastFrameToVideo
 
 
 NODE_CLASS_MAPPINGS = {
@@ -253,6 +255,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_PixVerseAPI": FL_PixVerseAPI,
     "FL_Fal_Pixverse": FL_Fal_Pixverse,
     "FL_Fal_Kontext": FL_Fal_Kontext,
+    "FL_Fal_Seedance_i2v": FL_Fal_Seedance_i2v,
     "FL_PromptBasic": FL_PromptBasic,
     "FL_PromptMulti": FL_PromptMulti,
     "FL_PaddingRemover": FL_PaddingRemover,
@@ -261,7 +264,6 @@ NODE_CLASS_MAPPINGS = {
     "FL_Switch": FL_Switch,
     "FL_Switch_Big": FL_Switch_Big,
     "FL_PasteByMask": FL_PasteByMask,
-    "FL_Fal_Pixverse": FL_Fal_Pixverse,
     "FL_ModelInspector": FL_ModelInspector,
     "FL_Float": FL_Float,
     "FL_UnloadModel": FL_UnloadModel,
@@ -278,6 +280,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_RunwayImageAPI": FL_RunwayImageAPI,
     "FL_RunwayAct2": FL_RunwayAct2,
     "FL_ImageCrop": FL_ImageCrop,
+    "FL_WanFirstLastFrameToVideo": FL_WanFirstLastFrameToVideo,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -394,6 +397,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_PixVerseAPI": "FL PixVerse API",
     "FL_Fal_Pixverse": "FL Fal Pixverse API",
     "FL_Fal_Kontext": "FL Fal Kontext API",
+    "FL_Fal_Seedance_i2v": "FL Fal Seedance i2v",
     "FL_PromptBasic": "FL Prompt Basic",
     "FL_PromptMulti": "FL Prompt Multi",
     "FL_PaddingRemover": "FL Padding Remover",
@@ -405,7 +409,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Float": "FL Float",
     "FL_UnloadModel": "FL Unload Model",
     "FL_UnloadAllModels": "FL Unload All Models",
-    "FL_Fal_Pixverse": "FL Fal Pixverse API",
     "FL_ModelInspector": "FL Model Inspector",
     "FL_VideoTrim": "FL Video Trim",
     "FL_VideoBatchSplitter": "FL Video Batch Splitter",
@@ -421,6 +424,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_TextOverlayNode": "FL Text Overlay",
     "FL_SaveWebM": "FL Save WebM",
     "FL_ImageCrop": "FL Image Crop",
+    "FL_WanFirstLastFrameToVideo": "FL Wan First Frame Last Frame",
 }
 
 
