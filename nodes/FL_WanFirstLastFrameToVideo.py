@@ -11,11 +11,6 @@ import comfy.utils
 import comfy.latent_formats
 import comfy.clip_vision
 
-# Import original WAN functionality
-import sys
-sys.path.append(str(ROOT_COMFY / "comfy_extras"))
-from nodes_wan import WanFirstLastFrameToVideo
-
 class FL_WanFirstLastFrameToVideo:
     @classmethod
     def INPUT_TYPES(s):
@@ -57,7 +52,7 @@ class FL_WanFirstLastFrameToVideo:
     CATEGORY = "🏵️Fill Nodes/video"
 
     def __init__(self):
-        self.original_wan = WanFirstLastFrameToVideo()
+        pass
 
     def generate_interpolation_curve(self, curve_type: str, length: int) -> torch.Tensor:
         """Generate normalized timing curve [0,1] for frame interpolation"""
@@ -163,99 +158,16 @@ class FL_WanFirstLastFrameToVideo:
         return g2d / g2d.sum()
 
 
-    def generate_interpolation_curve(self, curve_type, length):
-        """Generate interpolation curve based on curve type"""
-        t = torch.linspace(0, 1, length)
-        
-        if curve_type == "linear":
-            return t
-        elif curve_type == "ease_in":
-            return t * t
-        elif curve_type == "ease_out":
-            return 1 - (1 - t) * (1 - t)
-        elif curve_type == "ease_in_out":
-            return torch.where(t < 0.5, 2 * t * t, 1 - 2 * (1 - t) * (1 - t))
-        elif curve_type == "bounce":
-            # Simple bounce effect
-            return torch.abs(torch.sin(t * math.pi * 2)) * (1 - t) + t
-        else:
-            return t  # Default to linear
-
-    def calculate_keyframe_positions(self, start_pos, end_pos, length, buffer):
-        """Calculate frame positions based on timing parameters"""
-        start_frame = int(start_pos * (length - 1))
-        end_frame = int(end_pos * (length - 1))
-        
-        return {
-            'start_frame': start_frame,
-            'end_frame': end_frame,
-            'buffer_start': max(0, start_frame - buffer),
-            'buffer_end': min(length - 1, end_frame + buffer)
-        }
-
-    def process_custom_mask(self, mask_input, feather, invert):
-        """Process custom interpolation mask with feathering and inversion options"""
-        mask = mask_input.clone()
-        
-        if invert:
-            mask = 1.0 - mask
-        
-        if feather > 0:
-            # Apply Gaussian blur for feathering
-            kernel_size = int(feather * 10) * 2 + 1  # Ensure odd kernel size
-            sigma = feather * 3
-            
-            # Create Gaussian kernel
-            x = torch.arange(kernel_size, dtype=torch.float32, device=mask.device)
-            x = x - kernel_size // 2
-            gauss = torch.exp(-(x ** 2) / (2 * sigma ** 2))
-            gauss = gauss / gauss.sum()
-            
-            # Apply separable Gaussian blur if mask is 2D
-            if len(mask.shape) >= 2:
-                kernel_h = gauss.view(1, 1, -1, 1)
-                kernel_w = gauss.view(1, 1, 1, -1)
-                
-                # Ensure mask has batch and channel dimensions
-                original_shape = mask.shape
-                if len(mask.shape) == 2:
-                    mask = mask.unsqueeze(0).unsqueeze(0)
-                elif len(mask.shape) == 3:
-                    mask = mask.unsqueeze(0)
-                
-                # Apply blur
-                mask = F.conv2d(mask, kernel_h, padding=(kernel_size//2, 0))
-                mask = F.conv2d(mask, kernel_w, padding=(0, kernel_size//2))
-                
-                # Restore original shape
-                mask = mask.view(original_shape)
-        
-        return mask
-
-    def integrate_custom_mask(self, wan_mask, custom_mask, width, height):
-        """Integrate custom mask with WAN's guidance mask"""
-        # Resize custom mask to match WAN mask dimensions
-        mask_h, mask_w = wan_mask.shape[-2], wan_mask.shape[-1]
-        custom_resized = F.interpolate(custom_mask.unsqueeze(0).unsqueeze(0),
-                                     size=(mask_h, mask_w),
-                                     mode='bilinear', align_corners=False).squeeze()
-        
-        # Combine masks: WAN mask controls temporal placement, custom mask controls spatial regions
-        combined_mask = wan_mask.clone()
-        for i in range(combined_mask.shape[2]):
-            combined_mask[:, :, i] = combined_mask[:, :, i] * custom_resized
-        
-        return combined_mask
 
     def encode(self, positive, negative, vae, width, height, length, batch_size,
                keyframe_start_position, keyframe_end_position, interpolation_curve, temporal_buffer,
                start_image=None, end_image=None, clip_vision_start_image=None, clip_vision_end_image=None,
                interpolation_mask=None, mask_feather=0.1, mask_invert=False, regional_blending=True):
         
-        # If all parameters are default, use original WAN
+        # If all parameters are default, use original WAN logic
         if (keyframe_start_position == 0.0 and keyframe_end_position == 1.0 and
             interpolation_curve == "linear" and interpolation_mask is None and temporal_buffer == 3):
-            return self.original_wan.encode(
+            return self.original_wan_encode(
                 positive, negative, vae, width, height, length, batch_size,
                 start_image, end_image, clip_vision_start_image, clip_vision_end_image
             )
@@ -267,6 +179,52 @@ class FL_WanFirstLastFrameToVideo:
             start_image, end_image, clip_vision_start_image, clip_vision_end_image,
             interpolation_mask, mask_feather, mask_invert, regional_blending
         )
+
+    def original_wan_encode(self, positive, negative, vae, width, height, length, batch_size,
+                           start_image=None, end_image=None, clip_vision_start_image=None, clip_vision_end_image=None):
+        """Original WAN functionality integrated natively"""
+        latent = torch.zeros([batch_size, 16, ((length - 1) // 4) + 1, height // 8, width // 8],
+                            device=comfy.model_management.intermediate_device())
+        
+        if start_image is not None:
+            start_image = comfy.utils.common_upscale(start_image[:length].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+        if end_image is not None:
+            end_image = comfy.utils.common_upscale(end_image[-length:].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+
+        image = torch.ones((length, height, width, 3)) * 0.5
+        mask = torch.ones((1, 1, latent.shape[2] * 4, latent.shape[-2], latent.shape[-1]))
+
+        if start_image is not None:
+            image[:start_image.shape[0]] = start_image
+            mask[:, :, :start_image.shape[0] + 3] = 0.0
+
+        if end_image is not None:
+            image[-end_image.shape[0]:] = end_image
+            mask[:, :, -end_image.shape[0]:] = 0.0
+
+        concat_latent_image = vae.encode(image[:, :, :, :3])
+        mask = mask.view(1, mask.shape[2] // 4, 4, mask.shape[3], mask.shape[4]).transpose(1, 2)
+        positive = node_helpers.conditioning_set_values(positive, {"concat_latent_image": concat_latent_image, "concat_mask": mask})
+        negative = node_helpers.conditioning_set_values(negative, {"concat_latent_image": concat_latent_image, "concat_mask": mask})
+
+        clip_vision_output = None
+        if clip_vision_start_image is not None:
+            clip_vision_output = clip_vision_start_image
+
+        if clip_vision_end_image is not None:
+            if clip_vision_output is not None:
+                states = torch.cat([clip_vision_output.penultimate_hidden_states, clip_vision_end_image.penultimate_hidden_states], dim=-2)
+                clip_vision_output = comfy.clip_vision.Output()
+                clip_vision_output.penultimate_hidden_states = states
+            else:
+                clip_vision_output = clip_vision_end_image
+
+        if clip_vision_output is not None:
+            positive = node_helpers.conditioning_set_values(positive, {"clip_vision_output": clip_vision_output})
+            negative = node_helpers.conditioning_set_values(negative, {"clip_vision_output": clip_vision_output})
+
+        out_latent = {"samples": latent}
+        return (positive, negative, out_latent)
 
     def enhanced_wan_encode(self, positive, negative, vae, width, height, length, batch_size,
                            keyframe_start_position, keyframe_end_position, interpolation_curve, temporal_buffer,
@@ -375,20 +333,6 @@ class FL_WanFirstLastFrameToVideo:
         out_latent = {"samples": latent}
         return (positive, negative, out_latent)
     
-    def integrate_custom_mask(self, wan_mask, custom_mask, width, height):
-        """Integrate custom mask with WAN's guidance mask"""
-        # Resize custom mask to match WAN mask dimensions
-        mask_h, mask_w = wan_mask.shape[-2], wan_mask.shape[-1]
-        custom_resized = F.interpolate(custom_mask.unsqueeze(0).unsqueeze(0),
-                                     size=(mask_h, mask_w),
-                                     mode='bilinear', align_corners=False).squeeze()
-        
-        # Combine masks: WAN mask controls temporal placement, custom mask controls spatial regions
-        combined_mask = wan_mask.clone()
-        for i in range(combined_mask.shape[2]):
-            combined_mask[:, :, i] = combined_mask[:, :, i] * custom_resized
-        
-        return combined_mask
 
 # Node registration info
 NODE_CLASS_MAPPINGS = {

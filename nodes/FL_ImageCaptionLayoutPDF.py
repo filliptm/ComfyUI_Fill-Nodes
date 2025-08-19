@@ -80,6 +80,30 @@ class FL_ImageCaptionLayoutPDF:
         rows_per_page = math.floor((height - padding_pt) / item_height)
         items_per_page = items_per_row * rows_per_page
 
+        # Validate that at least one item can fit on the page
+        if items_per_page == 0:
+            # Calculate page dimensions for error message
+            page_width_usable = width - padding_pt
+            page_height_usable = height - padding_pt
+            
+            error_msg = (
+                f"Layout Error: Items are too large to fit on the page.\n"
+                f"Current settings:\n"
+                f"  - Page size: {width:.0f} x {height:.0f} pts ({orientation} orientation)\n"
+                f"  - Usable area: {page_width_usable:.0f} x {page_height_usable:.0f} pts (after padding)\n"
+                f"  - Item size needed: {item_width:.0f} x {item_height:.0f} pts\n"
+                f"  - Display size: {display_size_pt} pts\n"
+                f"  - Caption height: {caption_height_pt} pts\n"
+                f"  - Padding: {padding_pt} pts\n\n"
+                f"Solutions:\n"
+                f"  1. Reduce 'display_size' (currently {display_size_pt})\n"
+                f"  2. Reduce 'caption_height' (currently {caption_height_pt})\n"
+                f"  3. Reduce 'padding' (currently {padding_pt})\n"
+                f"  4. Try switching orientation (currently '{orientation}')\n"
+                f"  5. Use fewer 'images_per_row' (currently {images_per_row})"
+            )
+            raise ValueError(error_msg)
+
         for i in range(0, len(image_files), items_per_page):
             page_images = image_files[i:i + items_per_page]
 
