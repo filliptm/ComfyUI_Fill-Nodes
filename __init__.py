@@ -10,6 +10,7 @@ from .nodes.FL_Image_Pixelator import FL_ImagePixelator
 from .nodes.FL_Image_AddToBatch import FL_ImageAddToBatch
 from .nodes.FL_DirectoryCrawl import FL_DirectoryCrawl
 from .nodes.FL_Ascii import FL_Ascii
+from .nodes.FL_WordFrequencyGraph import FL_WordFrequencyGraph
 from .nodes.FL_Glitch import FL_Glitch
 from .nodes.FL_Ripple import FL_Ripple
 from .nodes.FL_PixelSort import FL_PixelSort
@@ -155,6 +156,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_ImageAddToBatch": FL_ImageAddToBatch,
     "FL_DirectoryCrawl": FL_DirectoryCrawl,
     "FL_Ascii": FL_Ascii,
+    "FL_WordFrequencyGraph": FL_WordFrequencyGraph,
     "FL_Glitch": FL_Glitch,
     "FL_Ripple": FL_Ripple,
     "FL_PixelSort": FL_PixelSort,
@@ -297,6 +299,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_ImageAddToBatch": "FL Image Add To Batch",
     "FL_DirectoryCrawl": "FL Directory Crawl",
     "FL_Ascii": "FL Ascii",
+    "FL_WordFrequencyGraph": "FL Word Frequency Graph",
     "FL_Glitch": "FL Glitch",
     "FL_Ripple": "FL Ripple",
     "FL_PixelSort": "FL PixelSort",
