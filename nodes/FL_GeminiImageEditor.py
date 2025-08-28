@@ -25,7 +25,8 @@ class FL_GeminiImageEditor:
             "required": {
                 "prompt": ("STRING", {"multiline": True}),
                 "api_key": ("STRING", {"default": "", "multiline": False}),
-                "model": (["models/gemini-2.0-flash-exp", "models/gemini-2.0-flash-preview-image-generation"], {"default": "models/gemini-2.0-flash-preview-image-generation"}),
+                "model": (["models/gemini-2.0-flash-exp", "models/gemini-2.0-flash-preview-image-generation", "models/gemini-2.5-flash-image-preview"], {"default": "models/gemini-2.5-flash-image-preview"}),
+                "always_square": ("BOOLEAN", {"default": False, "description": "When enabled, pads images to square dimensions. When disabled, outputs original resolution as image list."}),
                 "temperature": ("FLOAT", {"default": 1, "min": 0.0, "max": 2.0, "step": 0.05}),
                 "max_retries": ("INT", {"default": 3, "min": 1, "max": 5, "step": 1}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 8, "step": 1}),
@@ -39,8 +40,8 @@ class FL_GeminiImageEditor:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "STRING")
-    RETURN_NAMES = ("image", "API Respond")
+    RETURN_TYPES = ("IMAGE", "*", "STRING")
+    RETURN_NAMES = ("image", "image_list", "API Respond")
     FUNCTION = "generate_image"
     CATEGORY = "🏵️Fill Nodes/AI"
 
@@ -234,7 +235,7 @@ class FL_GeminiImageEditor:
                 self._log(f"[Batch {batch_id}] Maximum retries ({max_retries}) reached. Giving up.")
                 return None
 
-    def _process_api_response(self, response, batch_id=0):
+    def _process_api_response(self, response, batch_id=0, always_square=False):
         """Process API response and extract image tensor"""
         if response is None:
             self._log(f"[Batch {batch_id}] No valid response to process")
@@ -308,12 +309,19 @@ class FL_GeminiImageEditor:
                         pil_image = pil_image.convert('RGB')
                         self._log(f"[Batch {batch_id}] Image converted to RGB mode")
 
-                    # Check if image needs padding to minimum size
+                    # Store original dimensions for logging
                     width, height = pil_image.size
-                    if width < self.min_size or height < self.min_size:
+                    self._log(f"[Batch {batch_id}] Original image size: {width}x{height}")
+
+                    # Apply padding if always_square is enabled and image needs it
+                    if always_square and (width < self.min_size or height < self.min_size):
                         self._log(
                             f"[Batch {batch_id}] Image size {width}x{height} is smaller than minimum {self.min_size}x{self.min_size}, padding needed")
                         pil_image = self._pad_image_to_minimum_size(pil_image)
+                    elif always_square:
+                        self._log(f"[Batch {batch_id}] Always square enabled but image already meets minimum size")
+                    else:
+                        self._log(f"[Batch {batch_id}] Always square disabled, keeping original size: {width}x{height}")
 
                     # Convert to ComfyUI format
                     img_array = np.array(pil_image).astype(np.float32) / 255.0
@@ -331,7 +339,7 @@ class FL_GeminiImageEditor:
         return self._create_error_image(error_msg), response_text if response_text else error_msg
 
     async def _generate_single_image_async(self, prompt, api_key, model, temperature, max_retries,
-                                           batch_id, seed, reference_images):
+                                           batch_id, seed, reference_images, always_square=False):
         """Generate a single image asynchronously for batch processing"""
         try:
             # Create client instance - each batch gets its own client
@@ -376,7 +384,7 @@ class FL_GeminiImageEditor:
 
             # Process the response and return the image tensor and text
             img_tensor, response_text = await loop.run_in_executor(
-                None, lambda: self._process_api_response(response, batch_id)
+                None, lambda: self._process_api_response(response, batch_id, always_square)
             )
 
             # If processing failed, return the error image
@@ -392,7 +400,7 @@ class FL_GeminiImageEditor:
             return self._create_error_image(error_msg), error_msg, batch_id
 
     def generate_image(self, prompt, api_key, model, temperature, max_retries=3, batch_size=1,
-                       seed=66666666, image1=None, image2=None, image3=None, image4=None):
+                       seed=66666666, always_square=False, image1=None, image2=None, image3=None, image4=None):
         """Generate batch of images with parallel API calls"""
         # Reset log messages
         self.log_messages = []
@@ -452,14 +460,27 @@ class FL_GeminiImageEditor:
                 # Run all tasks concurrently
                 return await asyncio.gather(*tasks)
 
-            # Run the async batch processing
-            # Always create a new event loop for this execution context
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            results = None # Initialize results
+            # Run the async batch processing using thread pool to avoid event loop conflicts
+            def run_sync_batch():
+                """Run async batch in a new thread with its own event loop"""
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    return loop.run_until_complete(run_batch())
+                finally:
+                    loop.close()
+            
+            results = None  # Initialize results
             try:
-                # Run the batch processing
-                results = loop.run_until_complete(run_batch())
+                # Use thread pool executor to run async code in separate thread
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(run_sync_batch)
+                    results = future.result(timeout=300)  # 5 minute timeout
+            except concurrent.futures.TimeoutError:
+                self._log("Async processing timed out after 5 minutes")
+                error_imgs = [self._create_error_image("Processing timeout")] * batch_size
+                batch_tensor = torch.cat(error_imgs, dim=0)
+                return (batch_tensor, "Processing timed out after 5 minutes")
             except Exception as e:
                 self._log(f"Error in async processing: {str(e)}")
                 traceback.print_exc()
@@ -467,10 +488,6 @@ class FL_GeminiImageEditor:
                 error_imgs = [self._create_error_image(f"Async processing error: {str(e)}")] * batch_size
                 batch_tensor = torch.cat(error_imgs, dim=0)
                 return (batch_tensor, f"Async processing error: {str(e)}")
-            finally:
-                # Ensure the loop is closed
-                if loop and not loop.is_closed():
-                    loop.close()
             
             # Process results (ensure results is not None if an error occurred before assignment)
             if results is None:

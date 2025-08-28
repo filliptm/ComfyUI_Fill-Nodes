@@ -18,6 +18,7 @@ class FL_CaptionSaver_V2:
             },
             "optional": {
                 "images": ("IMAGE", {}),
+                "mask_image": ("IMAGE", {}),
                 "input_directory": ("STRING", {"default": ""}),
                 "single_caption": ("STRING", {"default": "Your caption here"}),
                 "multiple_captions": ("STRING", {"multiline": True, "default": ""})
@@ -33,7 +34,7 @@ class FL_CaptionSaver_V2:
         return re.sub(r'[^a-zA-Z0-9\s.,!?-]', '', text)
 
     def save_images_with_captions(self, input_type, caption_input_type, folder_name, overwrite, downsize_factor,
-                                  images=None, input_directory=None, single_caption="", multiple_captions=""):
+                                  images=None, mask_image=None, input_directory=None, single_caption="", multiple_captions=""):
         os.makedirs(folder_name, exist_ok=True)
 
         if input_type == "Image Input" and images is not None:
@@ -80,6 +81,33 @@ class FL_CaptionSaver_V2:
 
             image.save(image_file_name)
             saved_files.append(image_file_name)
+
+            # Save mask image if provided
+            if mask_image is not None:
+                if use_original_names:
+                    mask_base_name = f"mask_{base_name}"
+                else:
+                    mask_base_name = f"mask_{i}"
+                mask_file_name = f"{folder_name}/{mask_base_name}.png"
+                
+                if not overwrite and os.path.exists(mask_file_name):
+                    counter = 1
+                    while os.path.exists(f"{folder_name}/{mask_base_name}_{counter}.png"):
+                        counter += 1
+                    mask_file_name = f"{folder_name}/{mask_base_name}_{counter}.png"
+                
+                # Process mask image tensor
+                if i < len(mask_image):
+                    mask_np = mask_image[i].cpu().numpy()
+                    mask_np = self.process_image_tensor(mask_np)
+                    mask_pil = Image.fromarray(mask_np)
+                    
+                    # Downsize mask image with same factor
+                    if downsize_factor > 1:
+                        mask_new_size = (mask_pil.width // downsize_factor, mask_pil.height // downsize_factor)
+                        mask_pil = mask_pil.resize(mask_new_size, Image.LANCZOS)
+                    
+                    mask_pil.save(mask_file_name)
 
             with open(text_file_name, "w") as text_file:
                 text_file.write(caption)
