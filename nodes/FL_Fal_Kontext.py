@@ -328,44 +328,72 @@ class FL_Fal_Kontext:
             error_img_instance = self._create_error_image(error_msg)
             return ([error_img_instance] * inputcount, "", error_msg)
 
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        tasks = []
         pbar = ProgressBar(inputcount)  # Initialize progress bar
 
-        for slot_idx in range(1, inputcount + 1):
-            current_prompt = prompt_1 if slot_idx == 1 else kwargs.get(f"prompt_{slot_idx}", f"Default prompt for image {slot_idx}")
+        # Setup async tasks for each input
+        async def run_batch():
+            tasks = []
             
-            current_image_tensor_for_slot = None
-            if slot_idx == 1:
-                current_image_tensor_for_slot = image_1
-            else:
-                current_image_tensor_for_slot = kwargs.get(f"image_{slot_idx}")
-            
-            pil_images_for_this_slot = self._process_tensor_to_pil_list(current_image_tensor_for_slot, f"InputSlot{slot_idx}")
-            
-            current_task_seed = seed + (slot_idx - 1) if seed != 0 else 0
-            task_call_id = str(slot_idx)
+            for slot_idx in range(1, inputcount + 1):
+                current_prompt = prompt_1 if slot_idx == 1 else kwargs.get(f"prompt_{slot_idx}", f"Default prompt for image {slot_idx}")
+                
+                current_image_tensor_for_slot = None
+                if slot_idx == 1:
+                    current_image_tensor_for_slot = image_1
+                else:
+                    current_image_tensor_for_slot = kwargs.get(f"image_{slot_idx}")
+                
+                pil_images_for_this_slot = self._process_tensor_to_pil_list(current_image_tensor_for_slot, f"InputSlot{slot_idx}")
+                
+                current_task_seed = seed + (slot_idx - 1) if seed != 0 else 0
+                task_call_id = str(slot_idx)
 
-            tasks.append(self._generate_single_image_async(
-                api_key, current_prompt, pil_images_for_this_slot,
-                current_task_seed, max_retries, retry_indefinitely,
-                guidance_scale, num_images, aspect_ratio, output_format,
-                safety_tolerance, sync_mode, task_call_id
-            ))
-            pbar.update_absolute(slot_idx)  # Update progress bar after task is added
+                tasks.append(self._generate_single_image_async(
+                    api_key, current_prompt, pil_images_for_this_slot,
+                    current_task_seed, max_retries, retry_indefinitely,
+                    guidance_scale, num_images, aspect_ratio, output_format,
+                    safety_tolerance, sync_mode, task_call_id
+                ))
+                pbar.update_absolute(slot_idx)  # Update progress bar after task is added
 
-        if not tasks:
-            self._log("No tasks were created. This might indicate an issue with inputcount or logic.")
-            return ([self._create_error_image("No tasks generated")], "", "No tasks generated")
+            if not tasks:
+                self._log("No tasks were created. This might indicate an issue with inputcount or logic.")
+                return []
 
-        results_with_id = []
-        try:
-            results_with_id = loop.run_until_complete(asyncio.gather(*tasks))
-        finally:
-            if loop and not loop.is_closed():
+            # Run all tasks concurrently
+            return await asyncio.gather(*tasks)
+
+        # Run the async batch processing using thread pool to avoid event loop conflicts
+        def run_sync_batch():
+            """Run async batch in a new thread with its own event loop"""
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(run_batch())
+            finally:
                 loop.close()
+        
+        results_with_id = None  # Initialize results
+        try:
+            # Use thread pool executor to run async code in separate thread
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(run_sync_batch)
+                results_with_id = future.result(timeout=300)  # 5 minute timeout
+        except concurrent.futures.TimeoutError:
+            self._log("Async processing timed out after 5 minutes")
+            error_imgs = [self._create_error_image("Processing timeout")] * inputcount
+            return (error_imgs, "", "Processing timed out after 5 minutes")
+        except Exception as e:
+            self._log(f"Error in async processing: {str(e)}")
+            # Create batch of error images
+            error_imgs = [self._create_error_image(f"Async processing error: {str(e)}")] * inputcount
+            return (error_imgs, "", f"Async processing error: {str(e)}")
+        
+        # Process results (ensure results is not None if an error occurred before assignment)
+        if results_with_id is None:
+            self._log("Async processing did not yield results, possibly due to an earlier error before gather.")
+            error_imgs = [self._create_error_image("Async processing failed to produce results")] * inputcount
+            return (error_imgs, "", "Async processing failed to produce results")
         
         results_with_id.sort(key=lambda x: int(x[3]))  # Sort by call_id
         

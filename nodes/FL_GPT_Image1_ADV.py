@@ -295,90 +295,128 @@ Uses global settings for size, quality, etc., for all generations/edits.
 
         self._log(f"Note: 'gpt-image-1' model may require OpenAI organization verification. See OpenAI docs if errors occur.")
 
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        tasks = []
         max_api_retries = 3
 
-        for slot_idx in range(1, inputcount + 1):
-            current_prompt = prompt_1 if slot_idx == 1 else kwargs.get(f"prompt_{slot_idx}", f"Default prompt for slot {slot_idx}")
-            current_image_tensor = image_1 if slot_idx == 1 else kwargs.get(f"image_{slot_idx}")
-            # current_mask_tensor removed
+        # Setup async tasks for each input
+        async def run_batch():
+            tasks = []
             
-            task_call_id = str(slot_idx)
-            
-            pil_image_for_slot = self._process_tensor_to_pil(current_image_tensor, f"InputSlot{slot_idx}_Image")
-            # pil_mask_for_slot removed
-
-            endpoint = "generations"
-            # Base payload for generations
-            payload = {
-                "model": "gpt-image-1",
-                "prompt": current_prompt,
-                "n": 1,
-                "size": size_setting,
-                "response_format": "b64_json" # Crucial for getting image data to process into tensor
-            }
-
-            # Add common optional parameters
-            if quality_setting != "auto": payload["quality"] = quality_setting
-            if background_setting != "auto": payload["background"] = background_setting
-            payload["moderation"] = hardcoded_moderation # Always use hardcoded "low"
-            # output_format_setting from UI primarily informs how FL_GPT_Image1 saves/handles,
-            # for ADV node returning tensors, b64_json is the key API request.
-            # The original FL_GPT_Image1 sends 'output_format' if not png.
-
-            # Seed: OpenAI API for DALL-E generations doesn't typically use a 'seed' parameter in the request.
-            # We log it here for tracking and consistency with other ADV nodes.
-            current_slot_seed = 0
-            if seed_setting != 0:
-                # Ensure seed is within a reasonable range if OpenAI ever supports it,
-                # or just for logging consistency. The original FL_GPT_Image1 uses a 32-bit int range.
-                # For ADV, simple incrementing is fine for logging.
-                current_slot_seed = seed_setting + (slot_idx - 1)
-            
-            self._log(f"[Call {task_call_id}] Using effective seed for logging/tracking: {current_slot_seed if current_slot_seed != 0 else 'Random (seed_setting was 0)'}. (Note: OpenAI API for gpt-image-1 does not use this seed directly in the request for generation.)")
-
-            if pil_image_for_slot:
-                endpoint = "edits" # Or "variations" if no prompt is desired for image-only input. "edits" usually implies a prompt.
-                # Modify payload for edits/variations
-                payload["image"] = pil_image_for_slot
-                # Mask logic removed
-                # if pil_mask_for_slot:
-                #     payload["mask"] = pil_mask_for_slot
+            for slot_idx in range(1, inputcount + 1):
+                current_prompt = prompt_1 if slot_idx == 1 else kwargs.get(f"prompt_{slot_idx}", f"Default prompt for slot {slot_idx}")
+                current_image_tensor = image_1 if slot_idx == 1 else kwargs.get(f"image_{slot_idx}")
+                # current_mask_tensor removed
                 
-                # Parameters not typically used or differently handled for edits:
-                # FL_GPT_Image1.py *does* send 'size' for edits. To align, we will NOT delete it.
-                # The API documentation says output matches input size for edits, so 'size' might be ignored or validated.
-                # if "size" in payload: del payload["size"] # Removing this line to match FL_GPT_Image1's behavior
-                if "response_format" in payload: del payload["response_format"] # Remove, will use API default or 'output_format'
-                # Based on FL_GPT_Image1.py, if output_format_setting is not 'png' or 'auto',
-                # it sends 'output_format: <value>' for edits.
-                if output_format_setting not in ["png", "auto"]:
-                    payload["output_format"] = output_format_setting
-                # Note: 'quality', 'background', 'style', 'moderation' might behave differently or be ignored by 'gpt-image-1' for edits.
-                # The current error is only about 'response_format'. We keep others for now.
+                task_call_id = str(slot_idx)
+                
+                pil_image_for_slot = self._process_tensor_to_pil(current_image_tensor, f"InputSlot{slot_idx}_Image")
+                # pil_mask_for_slot removed
 
-            tasks.append(self._generate_single_image_async(
-                api_key, payload, endpoint, task_call_id, max_api_retries, size_setting
-            ))
+                endpoint = "generations"
+                # Base payload for generations
+                payload = {
+                    "model": "gpt-image-1",
+                    "prompt": current_prompt,
+                    "n": 1,
+                    "size": size_setting,
+                    "response_format": "b64_json" # Crucial for getting image data to process into tensor
+                }
 
-        if not tasks:
-            self._log("No tasks were created for OpenAI (gpt-image-1).")
+                # Add common optional parameters
+                if quality_setting != "auto": payload["quality"] = quality_setting
+                if background_setting != "auto": payload["background"] = background_setting
+                payload["moderation"] = hardcoded_moderation # Always use hardcoded "low"
+                # output_format_setting from UI primarily informs how FL_GPT_Image1 saves/handles,
+                # for ADV node returning tensors, b64_json is the key API request.
+                # The original FL_GPT_Image1 sends 'output_format' if not png.
+
+                # Seed: OpenAI API for DALL-E generations doesn't typically use a 'seed' parameter in the request.
+                # We log it here for tracking and consistency with other ADV nodes.
+                current_slot_seed = 0
+                if seed_setting != 0:
+                    # Ensure seed is within a reasonable range if OpenAI ever supports it,
+                    # or just for logging consistency. The original FL_GPT_Image1 uses a 32-bit int range.
+                    # For ADV, simple incrementing is fine for logging.
+                    current_slot_seed = seed_setting + (slot_idx - 1)
+                
+                self._log(f"[Call {task_call_id}] Using effective seed for logging/tracking: {current_slot_seed if current_slot_seed != 0 else 'Random (seed_setting was 0)'}. (Note: OpenAI API for gpt-image-1 does not use this seed directly in the request for generation.)")
+
+                if pil_image_for_slot:
+                    endpoint = "edits" # Or "variations" if no prompt is desired for image-only input. "edits" usually implies a prompt.
+                    # Modify payload for edits/variations
+                    payload["image"] = pil_image_for_slot
+                    # Mask logic removed
+                    # if pil_mask_for_slot:
+                    #     payload["mask"] = pil_mask_for_slot
+                    
+                    # Parameters not typically used or differently handled for edits:
+                    # FL_GPT_Image1.py *does* send 'size' for edits. To align, we will NOT delete it.
+                    # The API documentation says output matches input size for edits, so 'size' might be ignored or validated.
+                    # if "size" in payload: del payload["size"] # Removing this line to match FL_GPT_Image1's behavior
+                    if "response_format" in payload: del payload["response_format"] # Remove, will use API default or 'output_format'
+                    # Based on FL_GPT_Image1.py, if output_format_setting is not 'png' or 'auto',
+                    # it sends 'output_format: <value>' for edits.
+                    if output_format_setting not in ["png", "auto"]:
+                        payload["output_format"] = output_format_setting
+                    # Note: 'quality', 'background', 'style', 'moderation' might behave differently or be ignored by 'gpt-image-1' for edits.
+                    # The current error is only about 'response_format'. We keep others for now.
+
+                tasks.append(self._generate_single_image_async(
+                    api_key, payload, endpoint, task_call_id, max_api_retries, size_setting
+                ))
+
+            if not tasks:
+                self._log("No tasks were created for OpenAI (gpt-image-1).")
+                return []
+
+            # Run all tasks concurrently
+            return await asyncio.gather(*tasks)
+
+        # Run the async batch processing using thread pool to avoid event loop conflicts
+        def run_sync_batch():
+            """Run async batch in a new thread with its own event loop"""
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(run_batch())
+            finally:
+                loop.close()
+        
+        results_with_id = None  # Initialize results
+        try:
+            # Use thread pool executor to run async code in separate thread
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(run_sync_batch)
+                results_with_id = future.result(timeout=300)  # 5 minute timeout
+        except concurrent.futures.TimeoutError:
+            self._log("Async processing timed out after 5 minutes")
             err_w, err_h = 1024,1024
             try:
                 err_w, err_h = map(int, size_setting.split('x'))
             except:
                 pass
-            return ([self._create_error_image("No tasks generated", err_w, err_h)], "No tasks generated")
-
-        results_with_id = []
-        try:
-            results_with_id = loop.run_until_complete(asyncio.gather(*tasks))
-        finally:
-            if loop and not loop.is_closed():
-                loop.close()
+            error_imgs = [self._create_error_image("Processing timeout", err_w, err_h)] * inputcount
+            return (error_imgs, "Processing timed out after 5 minutes")
+        except Exception as e:
+            self._log(f"Error in async processing: {str(e)}")
+            err_w, err_h = 1024,1024
+            try:
+                err_w, err_h = map(int, size_setting.split('x'))
+            except:
+                pass
+            # Create batch of error images
+            error_imgs = [self._create_error_image(f"Async processing error: {str(e)}", err_w, err_h)] * inputcount
+            return (error_imgs, f"Async processing error: {str(e)}")
+        
+        # Process results (ensure results is not None if an error occurred before assignment)
+        if results_with_id is None:
+            self._log("Async processing did not yield results, possibly due to an earlier error before gather.")
+            err_w, err_h = 1024,1024
+            try:
+                err_w, err_h = map(int, size_setting.split('x'))
+            except:
+                pass
+            error_imgs = [self._create_error_image("Async processing failed to produce results", err_w, err_h)] * inputcount
+            return (error_imgs, "Async processing failed to produce results")
         
         results_with_id.sort(key=lambda x: int(x[2]))
         
