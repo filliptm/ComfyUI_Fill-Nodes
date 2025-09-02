@@ -29,6 +29,10 @@ text data patterns.
                     "default": "",
                     "description": "Path to directory containing .txt files"
                 }),
+                "title_name": ("STRING", {
+                    "default": "Word Frequency Analysis",
+                    "description": "Custom title for the graph"
+                }),
                 "max_words": ("INT", {
                     "default": 50,
                     "min": 10,
@@ -72,7 +76,7 @@ text data patterns.
     FUNCTION = "generate_word_frequency_graph"
     CATEGORY = "🏵️Fill Nodes/VFX"
 
-    def generate_word_frequency_graph(self, directory_path, max_words, min_word_length, 
+    def generate_word_frequency_graph(self, directory_path, title_name, max_words, min_word_length,
                                     image_width, image_height, color_scheme, exclude_common_words):
         
         # Validate directory path
@@ -163,7 +167,7 @@ text data patterns.
         ax.set_yticks(range(len(words)))
         ax.set_yticklabels(words, fontsize=max(8, min(14, 300 // len(words))))
         ax.set_xlabel('Word Frequency', fontsize=14, color='white')
-        ax.set_title(f'Word Frequency Analysis\n{len(txt_files)} files, {sum(counts)} total words', 
+        ax.set_title(f'{title_name}\n{len(txt_files)} files, {sum(counts)} total words',
                     fontsize=16, color='white', pad=20)
         
         # Invert y-axis so most frequent words are at the top
