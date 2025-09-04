@@ -40,8 +40,9 @@ class FL_GeminiImageEditor:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "*", "STRING")
-    RETURN_NAMES = ("image", "image_list", "API Respond")
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("image", "API Respond")
+    OUTPUT_IS_LIST = (True, False)
     FUNCTION = "generate_image"
     CATEGORY = "🏵️Fill Nodes/AI"
 
@@ -414,13 +415,9 @@ class FL_GeminiImageEditor:
                 error_img = self._create_error_image("API key required")
                 full_text = "## Error\n" + error_message + "\n\n## Instructions\n1. Enter your Google API key in the node"
 
-                # For batch size > 1, create batch of error images
-                if batch_size > 1:
-                    error_imgs = [error_img] * batch_size
-                    batch_tensor = torch.cat(error_imgs, dim=0)
-                    return (batch_tensor, full_text)
-                else:
-                    return (error_img, full_text)
+                # Create list of error images for all batch sizes
+                error_imgs = [error_img] * batch_size
+                return (error_imgs, full_text)
 
             self._log(f"Starting batch generation of {batch_size} images")
 
@@ -453,7 +450,8 @@ class FL_GeminiImageEditor:
                         max_retries=max_retries,
                         batch_id=i + 1,
                         seed=batch_seed,
-                        reference_images=reference_pil_images
+                        reference_images=reference_pil_images,
+                        always_square=always_square
                     )
                     tasks.append(task)
 
@@ -479,22 +477,19 @@ class FL_GeminiImageEditor:
             except concurrent.futures.TimeoutError:
                 self._log("Async processing timed out after 5 minutes")
                 error_imgs = [self._create_error_image("Processing timeout")] * batch_size
-                batch_tensor = torch.cat(error_imgs, dim=0)
-                return (batch_tensor, "Processing timed out after 5 minutes")
+                return (error_imgs, "Processing timed out after 5 minutes")
             except Exception as e:
                 self._log(f"Error in async processing: {str(e)}")
                 traceback.print_exc()
-                # Create batch of error images
+                # Create list of error images
                 error_imgs = [self._create_error_image(f"Async processing error: {str(e)}")] * batch_size
-                batch_tensor = torch.cat(error_imgs, dim=0)
-                return (batch_tensor, f"Async processing error: {str(e)}")
+                return (error_imgs, f"Async processing error: {str(e)}")
             
             # Process results (ensure results is not None if an error occurred before assignment)
             if results is None:
                 self._log("Async processing did not yield results, possibly due to an earlier error before gather.")
                 error_imgs = [self._create_error_image("Async processing failed to produce results")] * batch_size
-                batch_tensor = torch.cat(error_imgs, dim=0)
-                return (batch_tensor, "Async processing failed to produce results")
+                return (error_imgs, "Async processing failed to produce results")
 
             # Process results
             all_tensors = []
@@ -506,31 +501,22 @@ class FL_GeminiImageEditor:
                 all_tensors.append(img_tensor)
                 batch_texts.append(f"## Batch {batch_id} Response\n{text}")
 
-            # Combine all tensors into a batch
-            if len(all_tensors) == 1:
-                # Just return the single tensor
-                batch_tensor = all_tensors[0]
-            else:
-                # Concatenate all tensors along batch dimension
-                batch_tensor = torch.cat(all_tensors, dim=0)
-
-            self._log(f"Successfully created batch of {len(all_tensors)} images, final shape: {batch_tensor.shape}")
+            self._log(f"Successfully created list of {len(all_tensors)} images")
 
             # Combine all texts
             all_response_text = "## Batch Processing Results\n" + "\n".join(self.log_messages) + "\n\n" + "\n\n".join(
                 batch_texts)
 
-            return (batch_tensor, all_response_text)
+            return (all_tensors, all_response_text)
 
         except Exception as e:
             error_message = f"Error during batch processing: {str(e)}"
             self._log(error_message)
             traceback.print_exc()
 
-            # Create batch of error images
+            # Create list of error images
             error_imgs = [self._create_error_image(f"Error: {str(e)}")] * batch_size
-            batch_tensor = torch.cat(error_imgs, dim=0)
 
             # Combine logs and error info
             full_text = "## Processing Log\n" + "\n".join(self.log_messages) + "\n\n## Error\n" + error_message
-            return (batch_tensor, full_text)
+            return (error_imgs, full_text)
