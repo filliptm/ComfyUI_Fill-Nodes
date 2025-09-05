@@ -28,8 +28,16 @@ class FL_GeminiVideoCaptioner:
         return {
             "required": {
                 "api_key": ("STRING", {"default": "", "multiline": False}),
-                "model": (["gemini-1.0-pro-vision", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"],
-                          {"default": "gemini-1.5-flash"}),
+                "model": ([
+                    "gemini-2.5-pro",
+                    "gemini-2.5-flash",
+                    "gemini-2.5-flash-lite", 
+                    "gemini-2.0-flash",
+                    "gemini-2.0-flash-lite",
+                    "gemini-1.5-pro",
+                    "gemini-1.5-flash",
+                    "gemini-1.5-flash-8b"
+                ], {"default": "gemini-2.5-flash"}),
                 "frames_per_second": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0, "step": 0.1}),
                 "max_duration_minutes": ("FLOAT", {"default": 2.0, "min": 0.1, "max": 45.0, "step": 0.1}),
                 "prompt": ("STRING", {
@@ -41,7 +49,7 @@ class FL_GeminiVideoCaptioner:
                 "max_output_tokens": ("INT", {"default": 1024, "min": 50, "max": 8192, "step": 10}),
                 "top_p": ("FLOAT", {"default": 0.95, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "top_k": ("INT", {"default": 64, "min": 1, "max": 100, "step": 1}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffff}),
             },
             "optional": {
                 "video_path": ("STRING", {"default": ""}),
@@ -66,16 +74,10 @@ class FL_GeminiVideoCaptioner:
 
         # Validate model-specific limitations
         process_audio = process_audio == "true"
-        if model == "gemini-1.0-pro-vision" and process_audio:
-            print("[Warning] Gemini 1.0 Pro Vision does not support audio processing. Ignoring audio.")
-            process_audio = False
 
         # Calculate max frames based on model and duration limits
         max_seconds = int(max_duration_minutes * 60)
-        if model == "gemini-1.0-pro-vision":
-            max_seconds = min(max_seconds, 120)  # 2 minutes max for Gemini 1.0
-        else:
-            max_seconds = min(max_seconds, 45 * 60)  # 45 minutes max for Gemini 1.5+
+        max_seconds = min(max_seconds, 45 * 60)  # 45 minutes max for all supported models
 
         # Process based on input type (video file or image batch)
         if video_path and os.path.exists(video_path):
@@ -190,8 +192,8 @@ class FL_GeminiVideoCaptioner:
             middle_idx = len(frames) // 2
             sample_frame_tensor = image[middle_idx].unsqueeze(0) if image.shape[0] > 0 else None
 
-            # If only one frame is provided and it's a newer model, send as JPEG directly
-            if len(frames) == 1 and model in ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"]:
+            # If only one frame is provided, send as JPEG directly (all models support this)
+            if len(frames) == 1:
                 print(f"[FL_GeminiVideoCaptioner] Single frame input for {model}, using direct frame processing (JPEG).")
                 caption = self.get_caption_with_frames(
                     api_key,
@@ -322,18 +324,11 @@ class FL_GeminiVideoCaptioner:
                            process_audio, temperature, max_output_tokens, top_p, top_k, seed):
         """Send frames to Gemini API and get caption response"""
 
-        # For newer models that support direct video input
-        if model in ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"]:
-            return self.get_caption_with_video_file(
-                api_key, video_path, mime_type, prompt, model, process_audio,
-                temperature, max_output_tokens, top_p, top_k, seed
-            )
-        else:
-            # For gemini-1.0-pro-vision, we need to send individual frames
-            return self.get_caption_with_frames(
-                api_key, frames, prompt, model, temperature, max_output_tokens,
-                top_p, top_k, seed
-            )
+        # All supported models can handle direct video input
+        return self.get_caption_with_video_file(
+            api_key, video_path, mime_type, prompt, model, process_audio,
+            temperature, max_output_tokens, top_p, top_k, seed
+        )
 
     def get_caption_with_frames(self, api_key, frames, prompt, model, temperature, max_output_tokens, top_p, top_k,
                                 seed):
@@ -343,17 +338,13 @@ class FL_GeminiVideoCaptioner:
 
         content_parts = []
 
-        # Set frame limit based on model
-        max_frames = 20  # Default for Gemini 1.0
-
-        if model.startswith("gemini-1.5") or model.startswith("gemini-2.0"):
-            max_frames = min(len(frames), 60)  # Can handle more frames for newer models
-            # For these models, we should put the frames first, then the prompt
-            # This follows Google's recommendation for best results
+        # Set frame limit based on model capabilities
+        if model.startswith("gemini-2.5"):
+            max_frames = min(len(frames), 120)  # Gemini 2.5 can handle more frames
+        elif model.startswith("gemini-2.0") or model.startswith("gemini-1.5"):
+            max_frames = min(len(frames), 60)  # Gemini 2.0 and 1.5 models
         else:
-            max_frames = min(len(frames), 20)  # Limit to 20 frames for 1.0
-            # Put the prompt first for older models
-            content_parts.append({"text": prompt})
+            max_frames = min(len(frames), 60)  # Default for all supported models
 
         frames_to_process = frames[:max_frames]
 
@@ -387,9 +378,8 @@ class FL_GeminiVideoCaptioner:
             os.unlink(temp_filename)
             progress.update_absolute(i)
 
-        # For Gemini 1.5+ models, add the prompt after the frames
-        if model.startswith("gemini-1.5") or model.startswith("gemini-2.0"):
-            content_parts.append({"text": prompt})
+        # Add the prompt after the frames for all supported models
+        content_parts.append({"text": prompt})
 
         # Prepare request payload
         payload = {
@@ -415,6 +405,11 @@ class FL_GeminiVideoCaptioner:
         """Send entire video file to Gemini API (for Gemini 1.5+ models)"""
         # Use API version v1beta for all models
         api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+
+        # Check if this is a Gemini 2.5 model (known to have video processing issues)
+        is_gemini_25 = model.startswith("gemini-2.5")
+        if is_gemini_25:
+            print(f"[FL_GeminiVideoCaptioner] Warning: {model} has known video processing issues, will fallback to frame extraction if video processing fails")
 
         # For newer models (1.5+), we can send the entire video file
         print(f"[FL_GeminiVideoCaptioner] Processing video file directly with {model}")
@@ -486,7 +481,27 @@ class FL_GeminiVideoCaptioner:
 
         # Send request
         print(f"[FL_GeminiVideoCaptioner] Sending video to Gemini API ({model})...")
-        return self._send_api_request(api_url, payload)
+        response = self._send_api_request(api_url, payload)
+        
+        # Check if Gemini 2.5 failed and fallback to frame extraction
+        if is_gemini_25 and (response.startswith("Error:") or response.startswith("Failed to get caption")):
+            print(f"[FL_GeminiVideoCaptioner] {model} video processing failed, falling back to frame extraction...")
+            
+            # Extract frames and try again
+            frames, timestamps = self.extract_frames(video_path, 1.0, 300)  # 1 fps, max 5 minutes
+            
+            # Clean up temporary WebM file if we created one
+            if 'webm_path' in locals() and webm_path:
+                os.unlink(webm_path)
+            
+            if not frames:
+                return f"Error: Both video processing and frame extraction failed for {model}"
+            
+            return self.get_caption_with_frames(
+                api_key, frames, prompt, model, temperature, max_output_tokens, top_p, top_k, seed
+            )
+        
+        return response
 
     def convert_to_webm(self, input_path, max_size_mb=29):
         """Convert any video to WebM format with size limit using OpenCV

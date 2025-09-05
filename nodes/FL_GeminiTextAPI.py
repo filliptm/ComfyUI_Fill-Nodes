@@ -15,11 +15,20 @@ class FL_GeminiTextAPI:
             "required": {
                 "prompt": ("STRING", {"multiline": True}),
                 "api_key": ("STRING", {"default": "", "multiline": False}),
-                "model": (["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"],
-                          {"default": "gemini-2.0-flash"}),
+                "model": ([
+                    "gemini-2.5-pro",
+                    "gemini-2.5-flash", 
+                    "gemini-2.5-flash-lite",
+                    "gemini-2.0-flash",
+                    "gemini-2.0-flash-lite",
+                    "gemini-2.5-pro-preview-06-05",
+                    "gemini-2.5-flash-preview-05-20",
+                    "gemini-1.5-pro",
+                    "gemini-1.5-flash"
+                ], {"default": "gemini-2.5-flash"}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 1.0, "step": 0.05}),
                 "max_output_tokens": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 64}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffff}),
             },
             "optional": {
                 "system_instructions": ("STRING", {"multiline": True, "default": ""}),

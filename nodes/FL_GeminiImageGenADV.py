@@ -29,14 +29,15 @@ class FL_GeminiImageGenADV:
             "required": {
                 "inputcount": ("INT", {"default": 1, "min": 1, "max": 100, "step": 1}),
                 "api_key": ("STRING", {"default": os.getenv("GEMINI_API_KEY", ""), "multiline": False}),
-                "model": (["models/gemini-2.0-flash-exp", "models/gemini-2.0-flash-preview-image-generation"], {"default": "models/gemini-2.0-flash-preview-image-generation"}),
+                "model": (["models/gemini-2.0-flash-exp", "models/gemini-2.0-flash-preview-image-generation", "models/gemini-2.5-flash-image-preview"], {"default": "models/gemini-2.5-flash-image-preview"}),
+                "always_square": ("BOOLEAN", {"default": False, "description": "When enabled, pads images to square dimensions. When disabled, outputs original resolution as image list."}),
                 "temperature": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05}),
                 "max_retries": ("INT", {"default": 3, "min": 1, "max": 5, "step": 1}),
                 "prompt_1": ("STRING", {"multiline": False, "default": "Describe image 1", "forceInput": True}),
             },
             "optional": {
                 "image_1": ("IMAGE", {}), # Moved image_1 to optional. Default will be None if not connected.
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffff}), # Restored full seed range
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffff}), # Restored full seed range
                 "retry_indefinitely": ("BOOLEAN", {"default": False}),
                 # Subsequent image_i and prompt_i will be handled by **kwargs based on inputcount
             }
@@ -44,6 +45,7 @@ class FL_GeminiImageGenADV:
 
     RETURN_TYPES = ("IMAGE", "STRING")
     RETURN_NAMES = ("images", "API_responses")
+    OUTPUT_IS_LIST = (True, False)
     FUNCTION = "generate_images_advanced"
     CATEGORY = "🏵️Fill Nodes/AI"
     DESCRIPTION = """
@@ -207,7 +209,7 @@ Each pair triggers an asynchronous API call. Results are batched.
                 self._log(f"[Call {call_id}] Max retries ({max_retries}) reached. Giving up.")
                 return None
 
-    def _process_api_response(self, response, call_id="0"):
+    def _process_api_response(self, response, call_id="0", always_square=False):
         if response is None: # Simplified check from Editor
             self._log(f"[Call {call_id}] No valid response to process.")
             error_msg = "API Error: No content in response"
@@ -275,13 +277,19 @@ Each pair triggers an asynchronous API call. Results are batched.
                         pil_image = pil_image.convert('RGB')
                         self._log(f"[Call {call_id}] Image converted to RGB mode")
                     
-                    # Optional padding, if self.min_size is set appropriately (currently 1024 from Editor)
-                    # Consider if each image from ADV should be padded or if it's context-dependent
-                    # For now, let's assume padding is desired if min_size is met.
-                    if pil_image.width < self.min_size or pil_image.height < self.min_size:
-                         self._log(
-                             f"[Call {call_id}] Image size {pil_image.width}x{pil_image.height} is smaller than minimum {self.min_size}x{self.min_size}, padding needed")
-                         pil_image = self._pad_image_to_minimum_size(pil_image)
+                    # Store original dimensions for logging
+                    width, height = pil_image.size
+                    self._log(f"[Call {call_id}] Original image size: {width}x{height}")
+
+                    # Apply padding if always_square is enabled and image needs it
+                    if always_square and (width < self.min_size or height < self.min_size):
+                        self._log(
+                            f"[Call {call_id}] Image size {width}x{height} is smaller than minimum {self.min_size}x{self.min_size}, padding needed")
+                        pil_image = self._pad_image_to_minimum_size(pil_image)
+                    elif always_square:
+                        self._log(f"[Call {call_id}] Always square enabled but image already meets minimum size")
+                    else:
+                        self._log(f"[Call {call_id}] Always square disabled, keeping original size: {width}x{height}")
 
                     img_array = np.array(pil_image).astype(np.float32) / 255.0
                     image_tensor = torch.from_numpy(img_array).unsqueeze(0) # Batch dimension
@@ -300,7 +308,7 @@ Each pair triggers an asynchronous API call. Results are batched.
         
         return image_tensor, final_response_text
 
-    async def _generate_single_image_async(self, api_key, model_name_full, prompt_text, input_pil_images: Optional[List[Image.Image]], temperature, max_retries, retry_indefinitely, seed_val, call_id):
+    async def _generate_single_image_async(self, api_key, model_name_full, prompt_text, input_pil_images: Optional[List[Image.Image]], temperature, max_retries, retry_indefinitely, seed_val, call_id, always_square=False):
         try:
             try:
                 client_instance = genai.Client(api_key=api_key)
@@ -341,7 +349,7 @@ Each pair triggers an asynchronous API call. Results are batched.
                 lambda: self._call_gemini_api(client_instance, model_name_full, contents, gen_config_obj, retry_indefinitely, 0, max_retries, call_id)
             )
             
-            img_tensor, response_text = self._process_api_response(response, call_id)
+            img_tensor, response_text = self._process_api_response(response, call_id, always_square)
             return img_tensor, response_text, call_id # Return call_id to map results
 
         except Exception as e:
@@ -349,7 +357,7 @@ Each pair triggers an asynchronous API call. Results are batched.
             error_msg = f"Call {call_id} Error: {str(e)}"
             return self._create_error_image(error_msg), error_msg, call_id
 
-    def generate_images_advanced(self, inputcount, api_key, model, temperature, max_retries, prompt_1, image_1=None, seed=0, retry_indefinitely=False, **kwargs):
+    def generate_images_advanced(self, inputcount, api_key, model, always_square, temperature, max_retries, prompt_1, image_1=None, seed=0, retry_indefinitely=False, **kwargs):
         self.log_messages = []
         if not api_key:
             error_msg = "API key not provided."
@@ -382,7 +390,7 @@ Each pair triggers an asynchronous API call. Results are batched.
 
                 tasks.append(self._generate_single_image_async(
                     api_key, model, current_prompt, pil_images_for_this_slot,
-                    temperature, max_retries, retry_indefinitely, current_task_seed, task_call_id
+                    temperature, max_retries, retry_indefinitely, current_task_seed, task_call_id, always_square
                 ))
                 pbar.update_absolute(slot_idx) # Update progress bar after task is added
 
@@ -434,9 +442,9 @@ Each pair triggers an asynchronous API call. Results are batched.
             output_images.append(img_tensor)
             output_texts.append(f"Response for Input {call_id_res}:\n{response_text}")
 
-        batched_images = torch.cat(output_images, dim=0) if output_images else self._create_error_image("No images generated")
+        # Return as list of individual tensors instead of batched tensor to match FL_GeminiImageEditor behavior
         combined_responses = "\n\n".join(output_texts)
         
         final_log_output = "Processing Logs:\n" + "\n".join(self.log_messages) + "\n\n" + combined_responses
 
-        return (batched_images, final_log_output)
+        return (output_images if output_images else [self._create_error_image("No images generated")], final_log_output)
