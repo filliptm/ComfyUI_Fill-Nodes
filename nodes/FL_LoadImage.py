@@ -28,6 +28,16 @@ class FL_LoadImage:
     def browse_files(self, root_directory, selected_file=""):
         if selected_file and os.path.isfile(selected_file):
             image = Image.open(selected_file)
+            # Convert RGBA to RGB if needed (for WebP with transparency)
+            if image.mode == 'RGBA':
+                # Create white background and composite
+                background = Image.new('RGB', image.size, (255, 255, 255))
+                background.paste(image, mask=image.split()[-1])  # Use alpha channel as mask
+                image = background
+            elif image.mode != 'RGB':
+                # Convert other modes (P, L, etc.) to RGB
+                image = image.convert('RGB')
+            
             image_tensor = torch.from_numpy(np.array(image).astype(np.float32) / 255.0).unsqueeze(0)
             return (image_tensor, selected_file)
         else:
@@ -60,7 +70,7 @@ def get_directory_structure(path):
 
 def get_file_list(path):
     return [f for f in os.listdir(path) if
-            os.path.isfile(os.path.join(path, f)) and f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))]
+            os.path.isfile(os.path.join(path, f)) and f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'))]
 
 
 @PromptServer.instance.routes.post("/fl_file_browser/get_directory_structure")
@@ -94,6 +104,16 @@ async def api_get_thumbnail(request):
 
     try:
         with Image.open(full_path) as img:
+            # Convert RGBA to RGB if needed (for WebP with transparency)
+            if img.mode == 'RGBA':
+                # Create white background and composite
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[-1])  # Use alpha channel as mask
+                img = background
+            elif img.mode != 'RGB':
+                # Convert other modes (P, L, etc.) to RGB
+                img = img.convert('RGB')
+            
             img.thumbnail((80, 80))
             buf = io.BytesIO()
             img.save(buf, format='PNG')
