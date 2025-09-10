@@ -39,6 +39,8 @@ class FL_Fal_Gemini_ImageEdit:
                 "prompt": ("STRING", {"default": "make a photo of the man driving the car down the california coastline",
                                     "multiline": True, "forceInput": True,
                                     "description": "The prompt for image editing"}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 666666,
+                               "description": "Random seed for image generation (0 = random)"}),
                 "num_images": ("INT", {"default": 1, "min": 1, "max": 4, "step": 1,
                                      "description": "Number of images to generate"}),
                 "output_format": (["jpeg", "png"], {"default": "jpeg",
@@ -144,9 +146,12 @@ class FL_Fal_Gemini_ImageEdit:
             self._log(f"Error converting image to base64: {str(e)}")
             raise
 
-    async def _edit_images_async(self, api_key, prompt, input_images, num_images, output_format, sync_mode, max_retries, retry_indefinitely):
+    async def _edit_images_async(self, api_key, prompt, input_images, seed, num_images, output_format, sync_mode, max_retries, retry_indefinitely):
         try:
-            self._log(f"Starting image editing with prompt: '{prompt[:50]}...'")
+            # Calculate seed
+            actual_seed = seed if seed != 0 else random.randint(1, 666666)
+            
+            self._log(f"Starting image editing with seed {actual_seed} and prompt: '{prompt[:50]}...'")
             
             # Prepare image URLs from input images
             image_urls = []
@@ -175,6 +180,7 @@ class FL_Fal_Gemini_ImageEdit:
             arguments = {
                 "prompt": prompt,
                 "image_urls": image_urls,
+                "seed": actual_seed,
                 "num_images": num_images,
                 "output_format": output_format,
                 "sync_mode": sync_mode
@@ -322,7 +328,7 @@ class FL_Fal_Gemini_ImageEdit:
             error_msg = f"Error: {str(e)}"
             return self._create_error_image(error_msg), "", "", error_msg
 
-    def edit_images(self, api_key, prompt, num_images=1, output_format="jpeg", sync_mode=False, max_retries=3, 
+    def edit_images(self, api_key, prompt, seed=0, num_images=1, output_format="jpeg", sync_mode=False, max_retries=3,
                    image_1=None, image_2=None, image_3=None, image_4=None, image_5=None, retry_indefinitely=False, **kwargs):
         self.log_messages = []
         if not api_key:
@@ -356,7 +362,7 @@ class FL_Fal_Gemini_ImageEdit:
             asyncio.set_event_loop(loop)
             try:
                 return loop.run_until_complete(self._edit_images_async(
-                    api_key, prompt, input_images, num_images, output_format, 
+                    api_key, prompt, input_images, seed, num_images, output_format,
                     sync_mode, max_retries, retry_indefinitely
                 ))
             finally:
