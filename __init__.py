@@ -111,6 +111,7 @@ from .nodes.FL_BlackFrameReject import FL_BlackFrameReject
 from .nodes.FL_PixVerseAPI import FL_PixVerseAPI
 from .nodes.FL_Fal_Pixverse import FL_Fal_Pixverse
 from .nodes.FL_Fal_Kontext import FL_Fal_Kontext
+from .nodes.FL_Fal_Gemini_ImageEdit import FL_Fal_Gemini_ImageEdit
 from .nodes.FL_Fal_Seedance_i2v import FL_Fal_Seedance_i2v
 from .nodes.FL_Prompt import FL_PromptBasic
 from .nodes.FL_PromptMulti import FL_PromptMulti
@@ -259,6 +260,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_PixVerseAPI": FL_PixVerseAPI,
     "FL_Fal_Pixverse": FL_Fal_Pixverse,
     "FL_Fal_Kontext": FL_Fal_Kontext,
+    "FL_Fal_Gemini_ImageEdit": FL_Fal_Gemini_ImageEdit,
     "FL_Fal_Seedance_i2v": FL_Fal_Seedance_i2v,
     "FL_PromptBasic": FL_PromptBasic,
     "FL_PromptMulti": FL_PromptMulti,
@@ -403,6 +405,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_PixVerseAPI": "FL PixVerse API",
     "FL_Fal_Pixverse": "FL Fal Pixverse API",
     "FL_Fal_Kontext": "FL Fal Kontext API",
+    "FL_Fal_Gemini_ImageEdit": "FL Fal Gemini Image Edit",
     "FL_Fal_Seedance_i2v": "FL Fal Seedance i2v",
     "FL_PromptBasic": "FL Prompt Basic",
     "FL_PromptMulti": "FL Prompt Multi",
