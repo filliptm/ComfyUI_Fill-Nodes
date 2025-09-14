@@ -144,12 +144,49 @@ class FL_Fal_Seedream_Edit:
         return pil_images if pil_images else None
 
     def _convert_image_to_url(self, pil_image: Image.Image) -> str:
-        """Convert PIL image to base64 data URI"""
+        """Convert PIL image to base64 data URI with size optimization"""
         try:
+            # First, try to compress the image to reduce payload size
+            max_dimension = 2048  # Reduce from potentially 4096 to 2048 max
+            original_size = pil_image.size
+            
+            # Convert RGBA to RGB if necessary (JPEG doesn't support transparency)
+            if pil_image.mode == 'RGBA':
+                # Create a white background and composite the RGBA image onto it
+                background = Image.new('RGB', pil_image.size, (255, 255, 255))
+                background.paste(pil_image, mask=pil_image.split()[-1])  # Use alpha channel as mask
+                pil_image = background
+                self._log(f"Converted RGBA image to RGB with white background")
+            elif pil_image.mode != 'RGB':
+                # Convert any other mode to RGB
+                pil_image = pil_image.convert('RGB')
+                self._log(f"Converted image mode to RGB")
+            
+            # Resize if image is too large
+            if max(pil_image.size) > max_dimension:
+                ratio = max_dimension / max(pil_image.size)
+                new_size = (int(pil_image.size[0] * ratio), int(pil_image.size[1] * ratio))
+                pil_image = pil_image.resize(new_size, Image.Resampling.LANCZOS)
+                self._log(f"Resized image from {original_size} to {new_size} to reduce payload size")
+            
+            # Try JPEG first for smaller file size
             buffered = io.BytesIO()
-            pil_image.save(buffered, format="PNG")
+            pil_image.save(buffered, format="JPEG", quality=85, optimize=True)
+            jpeg_size = len(buffered.getvalue())
+            
+            # If JPEG is still too large (>800KB per image to stay well under 4MB total), reduce quality
+            if jpeg_size > 800 * 1024:
+                buffered = io.BytesIO()
+                pil_image.save(buffered, format="JPEG", quality=70, optimize=True)
+                self._log(f"Reduced JPEG quality to 70% to manage payload size")
+            
             img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-            img_data_uri = f"data:image/png;base64,{img_base64}"
+            img_data_uri = f"data:image/jpeg;base64,{img_base64}"
+            
+            # Log the approximate size
+            payload_size = len(img_data_uri)
+            self._log(f"Image payload size: ~{payload_size // 1024}KB")
+            
             return img_data_uri
         except Exception as e:
             self._log(f"Error converting image to base64: {str(e)}")
@@ -165,15 +202,24 @@ class FL_Fal_Seedream_Edit:
             # Prepare image URLs from input images
             image_urls = []
             if input_images:
+                total_payload_size = 0
                 for i, pil_image in enumerate(input_images):
                     try:
                         img_url = self._convert_image_to_url(pil_image)
                         image_urls.append(img_url)
+                        total_payload_size += len(img_url)
                         self._log(f"Successfully converted image {i+1} to data URI")
                     except Exception as e:
                         self._log(f"Error converting image {i+1} to data URI: {str(e)}")
                         error_msg = f"Error: Failed to convert image {i+1}: {str(e)}"
                         return self._create_error_image(error_msg), "", str(actual_seed), error_msg
+                
+                # Check if total payload size is approaching the 4MB limit
+                max_payload_size = 3.5 * 1024 * 1024  # 3.5MB to leave room for other data
+                if total_payload_size > max_payload_size:
+                    self._log(f"Warning: Total payload size ({total_payload_size // 1024}KB) is approaching API limits")
+                else:
+                    self._log(f"Total payload size: ~{total_payload_size // 1024}KB (within limits)")
             else:
                 error_msg = "Error: No images provided for editing"
                 return self._create_error_image(error_msg), "", str(actual_seed), error_msg
