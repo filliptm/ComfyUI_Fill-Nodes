@@ -252,6 +252,20 @@ app.registerExtension({
             node.addCustomWidget(sourcePickerWidget);
             node.addCustomWidget(targetPickerWidget);
 
+            // Find expand/contract widgets and add descriptions if needed
+            const expandWidget = node.widgets.find(w => w.name === "expand_pixels");
+            const contractWidget = node.widgets.find(w => w.name === "contract_pixels");
+            
+            if (expandWidget) {
+                expandWidget.options = expandWidget.options || {};
+                expandWidget.options.tooltip = "Expand replacement area by N pixels (dilation)";
+            }
+            
+            if (contractWidget) {
+                contractWidget.options = contractWidget.options || {};
+                contractWidget.options.tooltip = "Contract replacement area by N pixels (erosion)";
+            }
+
             // Recompute node size after adding widgets
             node.setSize(node.computeSize());
         }
