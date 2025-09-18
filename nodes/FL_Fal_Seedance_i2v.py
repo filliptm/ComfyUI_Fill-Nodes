@@ -196,7 +196,9 @@ class FL_Fal_Seedance_i2v:
             if seed >= 0:
                 arguments["seed"] = seed
             
-            print(f"[Fal Seedance] Making API call with arguments: {arguments}")
+            # Print arguments without exposing potentially large base64 data
+            safe_arguments = {k: v if not (isinstance(v, str) and v.startswith('data:')) else f"<data_uri_{len(v)}_chars>" for k, v in arguments.items()}
+            print(f"[Fal Seedance] Making API call with arguments: {safe_arguments}")
             
             # Force reload the fal_client module to avoid caching issues
             import sys

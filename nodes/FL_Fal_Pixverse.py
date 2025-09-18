@@ -194,7 +194,9 @@ class FL_Fal_Pixverse:
                     # Remove any None values from arguments
                     arguments = {k: v for k, v in arguments.items() if v is not None}
                     
-                    print(f"[Fal Pixverse] API arguments: {arguments}")
+                    # Print arguments without exposing potentially large base64 data
+                    safe_arguments = {k: v if not (isinstance(v, str) and v.startswith('data:')) else f"<data_uri_{len(v)}_chars>" for k, v in arguments.items()}
+                    print(f"[Fal Pixverse] API arguments: {safe_arguments}")
                     
                     # Set the API key as an environment variable for fal_client (using cleaned key)
                     # Print the first few characters of the key for debugging (don't print the whole key for security)

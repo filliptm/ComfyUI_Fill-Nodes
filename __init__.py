@@ -116,6 +116,8 @@ from .nodes.FL_Fal_Gemini_ImageEdit import FL_Fal_Gemini_ImageEdit
 from .nodes.FL_Fal_Seedance_i2v import FL_Fal_Seedance_i2v
 from .nodes.FL_Fal_Seedream_Edit import FL_Fal_Seedream_Edit
 from .nodes.FL_Fal_Pixverse_Transition import FL_Fal_Pixverse_Transition
+from .nodes.FL_Fal_Pixverse_LipSync import FL_Fal_Pixverse_LipSync
+from .nodes.FL_Fal_Kling_AIAvatar import FL_Fal_Kling_AIAvatar
 from .nodes.FL_Prompt import FL_PromptBasic
 from .nodes.FL_PromptMulti import FL_PromptMulti
 from .nodes.FL_PaddingRemover import FL_PaddingRemover
@@ -268,6 +270,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_Fal_Seedance_i2v": FL_Fal_Seedance_i2v,
     "FL_Fal_Seedream_Edit": FL_Fal_Seedream_Edit,
     "FL_Fal_Pixverse_Transition": FL_Fal_Pixverse_Transition,
+    "FL_Fal_Pixverse_LipSync": FL_Fal_Pixverse_LipSync,
+    "FL_Fal_Kling_AIAvatar": FL_Fal_Kling_AIAvatar,
     "FL_PromptBasic": FL_PromptBasic,
     "FL_PromptMulti": FL_PromptMulti,
     "FL_PaddingRemover": FL_PaddingRemover,
@@ -416,6 +420,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Fal_Seedance_i2v": "FL Fal Seedance i2v",
     "FL_Fal_Seedream_Edit": "FL Fal Seedream Edit",
     "FL_Fal_Pixverse_Transition": "FL Fal Pixverse Transition",
+    "FL_Fal_Pixverse_LipSync": "FL Fal Pixverse LipSync",
+    "FL_Fal_Kling_AIAvatar": "FL Fal Kling AI Avatar",
     "FL_PromptBasic": "FL Prompt Basic",
     "FL_PromptMulti": "FL Prompt Multi",
     "FL_PaddingRemover": "FL Padding Remover",

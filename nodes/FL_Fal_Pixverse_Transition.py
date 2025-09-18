@@ -199,7 +199,9 @@ class FL_Fal_Pixverse_Transition:
                         del os.environ["FAL_KEY"]
                     os.environ["FAL_KEY"] = clean_api_key
                     
-                    print(f"[Fal Pixverse Transition] API arguments: {arguments}")
+                    # Print arguments without exposing potentially large base64 data
+                    safe_arguments = {k: v if not (isinstance(v, str) and v.startswith('data:')) else f"<data_uri_{len(v)}_chars>" for k, v in arguments.items()}
+                    print(f"[Fal Pixverse Transition] API arguments: {safe_arguments}")
                     print(f"[Fal Pixverse Transition] Calling Fal AI API with fal_client...")
                     
                     # Define a callback for queue updates
