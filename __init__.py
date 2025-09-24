@@ -60,6 +60,8 @@ from .nodes.FL_KsamplerBasic import FL_KsamplerBasic
 from .nodes.FL_KsamplerFractals import FL_FractalKSampler
 from .nodes.FL_UpscaleModel import FL_UpscaleModel
 from .nodes.FL_SaveCSV import FL_SaveCSV
+from .nodes.FL_LoadCSV import FL_LoadCSV
+from .nodes.FL_CSVExtractor import FL_CSVExtractor
 from. nodes.FL_KSamplerXYZPlot import FL_KSamplerXYZPlot
 from .nodes.FL_SamplerStrings import FL_SamplerStrings
 from .nodes.FL_SchedulerStrings import FL_SchedulerStrings
@@ -213,6 +215,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_FractalKSampler": FL_FractalKSampler,
     "FL_UpscaleModel": FL_UpscaleModel,
     "FL_SaveCSV": FL_SaveCSV,
+    "FL_LoadCSV": FL_LoadCSV,
+    "FL_CSVExtractor": FL_CSVExtractor,
     "FL_KSamplerXYZPlot": FL_KSamplerXYZPlot,
     "FL_SamplerStrings": FL_SamplerStrings,
     "FL_SchedulerStrings": FL_SchedulerStrings,
@@ -363,6 +367,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_FractalKSampler": "FL Fractal KSampler",
     "FL_UpscaleModel": "FL Upscale Model",
     "FL_SaveCSV": "FL Save CSV",
+    "FL_LoadCSV": "FL Load CSV",
+    "FL_CSVExtractor": "FL CSV Extractor",
     "FL_KSamplerXYZPlot": "FL KSampler XYZ Plot",
     "FL_SamplerStrings": "FL Sampler String XYZ",
     "FL_SchedulerStrings": "FL Scheduler String XYZ",
