@@ -6,6 +6,8 @@ import numpy as np
 from PIL import Image
 import time
 import traceback
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from google import genai
 from google.genai import types
 from google.oauth2 import service_account
@@ -19,11 +21,13 @@ class FL_VertexGemini25FlashImage:
             "required": {
                 "prompt": ("STRING", {"multiline": True, "default": ""}),
                 "service_account_json": ("STRING", {"default": "", "multiline": False}),
-                "candidate_count": ("INT", {"default": 1, "min": 1, "max": 8, "step": 1}),
+                "batch_count": ("INT", {"default": 1, "min": 1, "max": 8, "step": 1}),
                 "temperature": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.1}),
             },
             "optional": {
-                "reference_image": ("IMAGE",),
+                "reference_image_1": ("IMAGE",),
+                "reference_image_2": ("IMAGE",),
+                "reference_image_3": ("IMAGE",),
             }
         }
 
@@ -114,8 +118,9 @@ class FL_VertexGemini25FlashImage:
         return img_tensor
 
     def generate_image(self, prompt: str, service_account_json: str,
-                      candidate_count: int = 1,
-                      temperature: float = 1.0, reference_image=None):
+                      batch_count: int = 1,
+                      temperature: float = 1.0, reference_image_1=None,
+                      reference_image_2=None, reference_image_3=None):
         """Generate image using Gemini 2.5 Flash Image API"""
 
         # Reset log messages
@@ -177,19 +182,27 @@ class FL_VertexGemini25FlashImage:
             # Build the contents for the API call
             contents = []
 
-            # Add reference image if provided
-            if reference_image is not None:
-                pil_reference = self._process_tensor_to_pil(reference_image, "Reference Image")
-                if pil_reference:
-                    # Prepare image for Vertex AI
-                    image_for_api = self._prepare_image_for_api(pil_reference)
-                    if not image_for_api:
-                        error_message = "Failed to prepare reference image"
-                        self._log(error_message)
-                        error_frame = self._create_error_frame(error_message)
-                        return (error_frame, error_message)
-                    contents.append(image_for_api)
-                    self._log("Reference image added to request")
+            # Add reference images if provided (up to 3)
+            reference_images = [reference_image_1, reference_image_2, reference_image_3]
+            image_count = 0
+
+            for i, ref_image in enumerate(reference_images, 1):
+                if ref_image is not None:
+                    pil_reference = self._process_tensor_to_pil(ref_image, f"Reference Image {i}")
+                    if pil_reference:
+                        # Prepare image for Vertex AI
+                        image_for_api = self._prepare_image_for_api(pil_reference)
+                        if not image_for_api:
+                            error_message = f"Failed to prepare reference image {i}"
+                            self._log(error_message)
+                            error_frame = self._create_error_frame(error_message)
+                            return (error_frame, error_message)
+                        contents.append(image_for_api)
+                        image_count += 1
+                        self._log(f"Reference image {i} added to request")
+
+            if image_count > 0:
+                self._log(f"Total reference images: {image_count}")
 
             # Add the prompt
             contents.append(prompt)
@@ -197,44 +210,60 @@ class FL_VertexGemini25FlashImage:
             # Build the configuration
             # Note: Vertex AI doesn't support aspect_ratio in current version
             # Users can specify desired aspect ratio in the prompt text itself
+            # candidate_count is hardcoded to 1, use batch_count for multiple images
             config = types.GenerateContentConfig(
                 response_modalities=["IMAGE"],
-                candidate_count=candidate_count,
+                candidate_count=1,
                 temperature=temperature
             )
 
-            self._log(f"Generating image with prompt: {prompt[:100]}...")
-            self._log(f"Candidates: {candidate_count}, Temperature: {temperature}")
+            self._log(f"Generating {batch_count} image(s) with prompt: {prompt[:100]}...")
+            self._log(f"Temperature: {temperature}")
 
-            # Make the API call
-            response = client.models.generate_content(
-                model="gemini-2.5-flash-image",
-                contents=contents,
-                config=config
-            )
+            # Function to make a single API call
+            def generate_single_image(batch_idx):
+                try:
+                    self._log(f"Starting batch {batch_idx + 1}/{batch_count}...")
 
-            self._log("API response received")
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash-image",
+                        contents=contents,
+                        config=config
+                    )
 
-            # Extract images from response
+                    self._log(f"Batch {batch_idx + 1} API response received")
+
+                    # Extract image from response
+                    for candidate in response.candidates:
+                        for part in candidate.content.parts:
+                            if hasattr(part, 'inline_data') and part.inline_data:
+                                image_data = part.inline_data.data
+                                pil_image = Image.open(io.BytesIO(image_data))
+
+                                self._log(f"Batch {batch_idx + 1} image received: {pil_image.width}x{pil_image.height}")
+
+                                # Convert to tensor format [H, W, 3]
+                                img_array = np.array(pil_image).astype(np.float32) / 255.0
+
+                                # Handle RGBA images
+                                if img_array.shape[-1] == 4:
+                                    img_array = img_array[:, :, :3]
+
+                                return torch.from_numpy(img_array)
+
+                    return None
+                except Exception as e:
+                    self._log(f"Error in batch {batch_idx + 1}: {str(e)}")
+                    return None
+
+            # Generate images in parallel using ThreadPoolExecutor
             generated_images = []
-            for candidate in response.candidates:
-                for part in candidate.content.parts:
-                    if hasattr(part, 'inline_data') and part.inline_data:
-                        # Convert inline data to PIL Image
-                        image_data = part.inline_data.data
-                        pil_image = Image.open(io.BytesIO(image_data))
-
-                        self._log(f"Image received: {pil_image.width}x{pil_image.height}")
-
-                        # Convert to tensor format [H, W, 3]
-                        img_array = np.array(pil_image).astype(np.float32) / 255.0
-
-                        # Handle RGBA images
-                        if img_array.shape[-1] == 4:
-                            img_array = img_array[:, :, :3]
-
-                        img_tensor = torch.from_numpy(img_array)
-                        generated_images.append(img_tensor)
+            with ThreadPoolExecutor(max_workers=batch_count) as executor:
+                futures = [executor.submit(generate_single_image, i) for i in range(batch_count)]
+                for future in futures:
+                    result = future.result()
+                    if result is not None:
+                        generated_images.append(result)
 
             if not generated_images:
                 error_message = "No images generated by the API"
