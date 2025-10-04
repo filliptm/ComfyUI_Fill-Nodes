@@ -511,11 +511,72 @@ class FL_Veo3VideoGen:
             # Check if video_bytes is available (Vertex AI)
             if hasattr(video_file, 'video_bytes') and video_file.video_bytes:
                 self._log(f"Using video_bytes from Video object")
+
+                video_data = video_file.video_bytes
+                self._log(f"video_bytes size: {len(video_data)} bytes")
+
+                # Check if data is base64 encoded
+                # Raw MP4 files start with specific magic bytes
+                # MP4/M4V: 0x66747970 ('ftyp') at offset 4
+                # Base64 encoded data will be ASCII/UTF-8 text
+                is_base64 = False
+                try:
+                    if isinstance(video_data, bytes):
+                        # Check first 20 bytes
+                        test_header = video_data[:20]
+                        self._log(f"Video data header (hex): {test_header.hex()}")
+
+                        # Try to decode as ASCII - base64 is ASCII
+                        try:
+                            test_str = test_header.decode('ascii')
+                            # Check if it looks like base64 (no control chars, valid base64 chars)
+                            # Common base64 patterns for video might start with various chars
+                            # But we can check if it's printable ASCII which binary MP4 is not
+                            if all(c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=\n\r' for c in test_str):
+                                is_base64 = True
+                                self._log(f"Detected base64-encoded video data")
+                        except UnicodeDecodeError:
+                            # Binary data, not base64
+                            self._log(f"Video data is binary (not base64)")
+                            pass
+                except Exception as e:
+                    self._log(f"Error checking video data format: {str(e)}")
+
+                # Decode base64 if needed
+                if is_base64:
+                    try:
+                        original_size = len(video_data)
+                        video_data = base64.b64decode(video_data)
+                        self._log(f"Decoded base64 video data: {original_size} -> {len(video_data)} bytes")
+
+                        # Verify it's now a valid video file
+                        video_header = video_data[:20] if len(video_data) >= 20 else video_data
+                        self._log(f"Decoded video header (hex): {video_header.hex()}")
+                    except Exception as e:
+                        self._log(f"Failed to decode base64 video data: {str(e)}")
+                        traceback.print_exc()
+                        return self._create_error_frame(f"Base64 decode error: {str(e)}"), "", str(e)
+
+                # Write the video data to file
                 with open(temp_file, 'wb') as f:
-                    f.write(video_file.video_bytes)
+                    f.write(video_data)
 
                 file_size = os.path.getsize(temp_file)
                 self._log(f"Video saved: {file_size} bytes")
+
+                # Verify the file is a valid MP4
+                with open(temp_file, 'rb') as f:
+                    file_header = f.read(20)
+                    self._log(f"Saved file header (hex): {file_header.hex()}")
+                    # Check for MP4 signature (ftyp at offset 4-7)
+                    if len(file_header) >= 8:
+                        ftyp_check = file_header[4:8]
+                        if ftyp_check == b'ftyp':
+                            self._log(f"Verified valid MP4 file signature")
+                        else:
+                            self._log(f"WARNING: File may not be a valid MP4 (ftyp signature not found)")
+                    else:
+                        self._log(f"WARNING: File too small to verify MP4 signature")
 
             # Otherwise try using the URI (Google AI API)
             elif hasattr(video_file, 'uri') and video_file.uri:
