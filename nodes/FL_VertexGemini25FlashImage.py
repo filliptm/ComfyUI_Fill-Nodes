@@ -1,6 +1,7 @@
 import os
 import io
 import json
+import base64
 import torch
 import numpy as np
 from PIL import Image
@@ -265,7 +266,31 @@ class FL_VertexGemini25FlashImage:
                                 if hasattr(part.inline_data, 'mime_type'):
                                     self._log(f"Batch {batch_idx + 1} - inline_data mime_type: {part.inline_data.mime_type}")
 
-                                # Check image header to identify format
+                                # Check if data is base64 encoded (starts with base64 characters)
+                                # Raw binary images start with magic bytes (e.g., PNG: \x89PNG, JPEG: \xff\xd8)
+                                # Base64 encoded data will be ASCII/UTF-8 text
+                                is_base64 = False
+                                try:
+                                    # Check if the data looks like base64 (ASCII text)
+                                    if isinstance(image_data, bytes):
+                                        # Try to decode as ASCII - base64 is ASCII
+                                        test_str = image_data[:20].decode('ascii')
+                                        # Check if it starts with common base64 PNG prefix
+                                        if test_str.startswith('iVBORw0KG') or test_str.startswith('/9j/'):
+                                            is_base64 = True
+                                            self._log(f"Batch {batch_idx + 1} - Detected base64-encoded data")
+                                except:
+                                    pass
+
+                                # Decode base64 if needed
+                                if is_base64:
+                                    try:
+                                        image_data = base64.b64decode(image_data)
+                                        self._log(f"Batch {batch_idx + 1} - Decoded base64, new size: {len(image_data)} bytes")
+                                    except Exception as e:
+                                        self._log(f"Batch {batch_idx + 1} - Failed to decode base64: {str(e)}")
+
+                                # Check image header to identify format (after potential base64 decode)
                                 image_header = image_data[:16] if len(image_data) >= 16 else image_data
                                 self._log(f"Batch {batch_idx + 1} - image header (hex): {image_header.hex()}")
 
