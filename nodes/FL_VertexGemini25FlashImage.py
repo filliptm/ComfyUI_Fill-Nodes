@@ -261,6 +261,14 @@ class FL_VertexGemini25FlashImage:
                                 image_data = part.inline_data.data
                                 self._log(f"Batch {batch_idx + 1} - inline_data size: {len(image_data)} bytes")
 
+                                # Check mime type if available
+                                if hasattr(part.inline_data, 'mime_type'):
+                                    self._log(f"Batch {batch_idx + 1} - inline_data mime_type: {part.inline_data.mime_type}")
+
+                                # Check image header to identify format
+                                image_header = image_data[:16] if len(image_data) >= 16 else image_data
+                                self._log(f"Batch {batch_idx + 1} - image header (hex): {image_header.hex()}")
+
                                 pil_image = Image.open(io.BytesIO(image_data))
                                 self._log(f"Batch {batch_idx + 1} image received: {pil_image.width}x{pil_image.height}")
 
