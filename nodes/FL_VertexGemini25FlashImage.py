@@ -233,13 +233,35 @@ class FL_VertexGemini25FlashImage:
 
                     self._log(f"Batch {batch_idx + 1} API response received")
 
+                    # Log response structure for debugging
+                    self._log(f"Batch {batch_idx + 1} - Number of candidates: {len(response.candidates) if hasattr(response, 'candidates') else 'N/A'}")
+
+                    # Check for prompt feedback (content filtering, safety blocks, etc.)
+                    if hasattr(response, 'prompt_feedback') and response.prompt_feedback:
+                        self._log(f"Batch {batch_idx + 1} - Prompt feedback: {response.prompt_feedback}")
+
                     # Extract image from response
-                    for candidate in response.candidates:
-                        for part in candidate.content.parts:
+                    image_found = False
+                    for candidate_idx, candidate in enumerate(response.candidates):
+                        self._log(f"Batch {batch_idx + 1} - Candidate {candidate_idx}: {len(candidate.content.parts) if hasattr(candidate, 'content') else 'N/A'} parts")
+
+                        # Check for finish reason (safety blocks, etc.)
+                        if hasattr(candidate, 'finish_reason'):
+                            self._log(f"Batch {batch_idx + 1} - Candidate {candidate_idx} finish_reason: {candidate.finish_reason}")
+
+                        # Check for safety ratings
+                        if hasattr(candidate, 'safety_ratings') and candidate.safety_ratings:
+                            self._log(f"Batch {batch_idx + 1} - Candidate {candidate_idx} safety_ratings: {candidate.safety_ratings}")
+
+                        for part_idx, part in enumerate(candidate.content.parts):
+                            self._log(f"Batch {batch_idx + 1} - Part {part_idx} type: {type(part).__name__}")
+                            self._log(f"Batch {batch_idx + 1} - Part {part_idx} has inline_data: {hasattr(part, 'inline_data')}")
+
                             if hasattr(part, 'inline_data') and part.inline_data:
                                 image_data = part.inline_data.data
-                                pil_image = Image.open(io.BytesIO(image_data))
+                                self._log(f"Batch {batch_idx + 1} - inline_data size: {len(image_data)} bytes")
 
+                                pil_image = Image.open(io.BytesIO(image_data))
                                 self._log(f"Batch {batch_idx + 1} image received: {pil_image.width}x{pil_image.height}")
 
                                 # Convert to tensor format [H, W, 3]
@@ -249,11 +271,18 @@ class FL_VertexGemini25FlashImage:
                                 if img_array.shape[-1] == 4:
                                     img_array = img_array[:, :, :3]
 
+                                image_found = True
                                 return torch.from_numpy(img_array)
+                            elif hasattr(part, 'text'):
+                                self._log(f"Batch {batch_idx + 1} - Part {part_idx} contains text: {part.text[:100] if len(part.text) > 100 else part.text}")
+
+                    if not image_found:
+                        self._log(f"Batch {batch_idx + 1} - WARNING: No image data found in response")
 
                     return None
                 except Exception as e:
                     self._log(f"Error in batch {batch_idx + 1}: {str(e)}")
+                    self._log(f"Batch {batch_idx + 1} - Full traceback: {traceback.format_exc()}")
                     return None
 
             # Generate images in parallel using ThreadPoolExecutor
