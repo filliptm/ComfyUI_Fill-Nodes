@@ -61,10 +61,14 @@ class FL_Fal_Seedream_Edit:
                 "image_9": ("IMAGE", {"description": "Ninth input image to edit"}),
                 "image_10": ("IMAGE", {"description": "Tenth input image to edit"}),
                 "retry_indefinitely": ("BOOLEAN", {"default": False}),
-                "custom_width": ("INT", {"default": 1280, "min": 1024, "max": 4096, "step": 64,
-                                       "description": "Custom width (overrides image_size if both custom dimensions provided)"}),
-                "custom_height": ("INT", {"default": 1280, "min": 1024, "max": 4096, "step": 64,
-                                        "description": "Custom height (overrides image_size if both custom dimensions provided)"}),
+                "use_custom_resolution": ("BOOLEAN", {"default": False,
+                                                        "description": "Override preset image size with custom width/height"}),
+                "auto_scale_to_minimum": ("BOOLEAN", {"default": True,
+                                                      "description": "Auto-scale dimensions below 1024 to meet minimum while preserving aspect ratio"}),
+                "custom_width": ("INT", {"default": 1280, "min": 256, "max": 4096, "step": 8,
+                                       "description": "Custom width (auto-scaled to meet API minimums if needed)"}),
+                "custom_height": ("INT", {"default": 1280, "min": 256, "max": 4096, "step": 8,
+                                        "description": "Custom height (auto-scaled to meet API minimums if needed)"}),
             }
         }
 
@@ -192,7 +196,7 @@ class FL_Fal_Seedream_Edit:
             self._log(f"Error converting image to base64: {str(e)}")
             raise
 
-    async def _edit_images_async(self, api_key, prompt, input_images, image_size, num_images, seed, sync_mode, max_retries, retry_indefinitely, custom_width, custom_height):
+    async def _edit_images_async(self, api_key, prompt, input_images, image_size, num_images, seed, sync_mode, max_retries, retry_indefinitely, use_custom_resolution, auto_scale_to_minimum, custom_width, custom_height):
         try:
             # Calculate seed
             actual_seed = seed if seed != 0 else random.randint(1, 2147483647)
@@ -233,13 +237,73 @@ class FL_Fal_Seedream_Edit:
             
             # Prepare image size parameter
             image_size_param = image_size
-            # Check if custom dimensions are provided and valid
-            if custom_width and custom_height and custom_width >= 1024 and custom_height >= 1024:
-                image_size_param = {
-                    "width": custom_width,
-                    "height": custom_height
-                }
-                self._log(f"Using custom image size: {custom_width}x{custom_height}")
+            # Check if custom dimensions are requested and valid
+            if use_custom_resolution:
+                if custom_width and custom_height and custom_width >= 1024 and custom_height >= 1024:
+                    image_size_param = {
+                        "width": custom_width,
+                        "height": custom_height
+                    }
+                    self._log(f"Using custom image size: {custom_width}x{custom_height}")
+                elif custom_width and custom_height:
+                    # Custom dimensions provided but below minimum
+                    aspect_ratio = custom_width / custom_height
+                    self._log(f"Custom dimensions {custom_width}x{custom_height} below minimum. Aspect ratio: {aspect_ratio:.2f}")
+                    
+                    if auto_scale_to_minimum:
+                        # Scale up dimensions to meet minimum while preserving aspect ratio
+                        min_dimension = min(custom_width, custom_height)
+                        if min_dimension < 1024:
+                            scale_factor = 1024 / min_dimension
+                            scaled_width = int(custom_width * scale_factor)
+                            scaled_height = int(custom_height * scale_factor)
+                            
+                            # Ensure we don't exceed maximum dimensions
+                            if scaled_width > 4096 or scaled_height > 4096:
+                                max_scale = min(4096 / custom_width, 4096 / custom_height)
+                                scaled_width = int(custom_width * max_scale)
+                                scaled_height = int(custom_height * max_scale)
+                            
+                            # Round to nearest 64 pixels for better compatibility
+                            scaled_width = (scaled_width // 64) * 64
+                            scaled_height = (scaled_height // 64) * 64
+                            
+                            # Ensure minimums after rounding
+                            scaled_width = max(1024, scaled_width)
+                            scaled_height = max(1024, scaled_height)
+                            
+                            image_size_param = {
+                                "width": scaled_width,
+                                "height": scaled_height
+                            }
+                            self._log(f"Auto-scaled from {custom_width}x{custom_height} to {scaled_width}x{scaled_height} preserving aspect ratio")
+                    else:
+                        # Map aspect ratios to presets (with tolerance)
+                        if aspect_ratio >= 2.1:  # ~21:9 ratio
+                            image_size_param = "landscape_16_9"  # Closest available wide option
+                            self._log(f"Selected landscape_16_9 based on wide aspect ratio")
+                        elif aspect_ratio >= 1.6:  # ~16:9 ratio
+                            image_size_param = "landscape_16_9"
+                            self._log(f"Selected landscape_16_9 based on 16:9 aspect ratio")
+                        elif aspect_ratio >= 1.2:  # ~4:3 ratio
+                            image_size_param = "landscape_4_3"
+                            self._log(f"Selected landscape_4_3 based on 4:3 aspect ratio")
+                        elif aspect_ratio >= 0.9:  # ~1:1 ratio
+                            image_size_param = "square_hd" if "hd" in image_size else "square"
+                            self._log(f"Selected square based on 1:1 aspect ratio")
+                        elif aspect_ratio >= 0.7:  # ~3:4 ratio
+                            image_size_param = "portrait_4_3"
+                            self._log(f"Selected portrait_4_3 based on 3:4 aspect ratio")
+                        elif aspect_ratio >= 0.5:  # ~9:16 ratio
+                            image_size_param = "portrait_16_9"
+                            self._log(f"Selected portrait_16_9 based on 9:16 aspect ratio")
+                        else:  # Very tall
+                            image_size_param = "portrait_16_9"
+                            self._log(f"Selected portrait_16_9 based on tall aspect ratio")
+                else:
+                    self._log("Custom resolution requested but dimensions are invalid or missing. Using preset image size.")
+                    image_size_param = image_size
+                    self._log(f"Using preset image size: {image_size}")
             else:
                 self._log(f"Using preset image size: {image_size}")
             
@@ -396,7 +460,8 @@ class FL_Fal_Seedream_Edit:
     def edit_images(self, api_key, prompt, image_size="square_hd", num_images=1, seed=0, sync_mode=False, max_retries=3,
                    image_1=None, image_2=None, image_3=None, image_4=None, image_5=None,
                    image_6=None, image_7=None, image_8=None, image_9=None, image_10=None,
-                   retry_indefinitely=False, custom_width=1280, custom_height=1280, **kwargs):
+                   retry_indefinitely=False, use_custom_resolution=False, auto_scale_to_minimum=True,
+                   custom_width=1280, custom_height=1280, **kwargs):
         self.log_messages = []
         if not api_key:
             error_msg = "API key not provided."
@@ -437,7 +502,8 @@ class FL_Fal_Seedream_Edit:
             try:
                 return loop.run_until_complete(self._edit_images_async(
                     api_key, prompt, input_images, image_size, num_images, seed, 
-                    sync_mode, max_retries, retry_indefinitely, custom_width, custom_height
+                    sync_mode, max_retries, retry_indefinitely, use_custom_resolution, 
+                    auto_scale_to_minimum, custom_width, custom_height
                 ))
             finally:
                 loop.close()

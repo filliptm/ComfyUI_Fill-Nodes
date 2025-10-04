@@ -24,6 +24,7 @@ class FL_VertexGemini25FlashImage:
                 "service_account_json": ("STRING", {"default": "", "multiline": False}),
                 "batch_count": ("INT", {"default": 1, "min": 1, "max": 8, "step": 1}),
                 "temperature": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.1}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 666666}),
             },
             "optional": {
                 "reference_image_1": ("IMAGE",),
@@ -120,12 +121,15 @@ class FL_VertexGemini25FlashImage:
 
     def generate_image(self, prompt: str, service_account_json: str,
                       batch_count: int = 1,
-                      temperature: float = 1.0, reference_image_1=None,
+                      temperature: float = 1.0, seed: int = 0, reference_image_1=None,
                       reference_image_2=None, reference_image_3=None):
         """Generate image using Gemini 2.5 Flash Image API"""
 
         # Reset log messages
         self.log_messages = []
+
+        # Log seed parameter (not sent to API, just for node tracking)
+        self._log(f"Seed parameter: {seed} (not sent to API)")
 
         try:
             # Validate service account JSON file
