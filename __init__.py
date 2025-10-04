@@ -149,6 +149,7 @@ from .nodes.FL_Image_Crop import FL_ImageCrop
 from .nodes.FL_WanFirstLastFrameToVideo import FL_WanFirstLastFrameToVideo
 from .nodes.FL_VertexVeo3 import FL_Veo3VideoGen
 from .nodes.FL_VertexGemini25FlashImage import FL_VertexGemini25FlashImage
+from .nodes.FL_SaveRGBAAnimatedWebP import FL_SaveRGBAAnimatedWebP
 
 
 NODE_CLASS_MAPPINGS = {
@@ -305,6 +306,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_WanFirstLastFrameToVideo": FL_WanFirstLastFrameToVideo,
     "FL_Veo3VideoGen": FL_Veo3VideoGen,
     "FL_VertexGemini25FlashImage": FL_VertexGemini25FlashImage,
+    "FL_SaveRGBAAnimatedWebP": FL_SaveRGBAAnimatedWebP,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -461,6 +463,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_WanFirstLastFrameToVideo": "FL Wan First Frame Last Frame",
     "FL_Veo3VideoGen": "FL Vertex Veo3",
     "FL_VertexGemini25FlashImage": "FL Vertex Gemini 2.5 Flash Image",
+    "FL_SaveRGBAAnimatedWebP": "FL Save RGBA Animated WebP",
 }
 
 
