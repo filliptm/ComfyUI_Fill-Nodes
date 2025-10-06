@@ -6,9 +6,6 @@ from pathlib import Path
 from comfy.utils import ProgressBar
 import folder_paths
 
-# Import film_arch from same directory
-from .film_arch import Interpolator
-
 
 class FL_FILM:
     """

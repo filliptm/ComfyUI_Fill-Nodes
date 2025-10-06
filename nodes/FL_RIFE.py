@@ -6,9 +6,6 @@ from pathlib import Path
 from comfy.utils import ProgressBar
 import folder_paths
 
-# Import rife_arch from same directory
-from .rife_arch import IFNet
-
 
 class FL_RIFE:
     """
@@ -106,6 +103,9 @@ class FL_RIFE:
         print(f"🔄 Loading RIFE model {ckpt_name} (arch {config['arch']}) on {self.device}...")
 
         try:
+            # Lazy import to avoid loading architecture at module import time
+            from .rife_arch import IFNet
+
             # Initialize model with correct architecture
             self.model = IFNet(arch_ver=config["arch"])
 
