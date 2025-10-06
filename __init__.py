@@ -120,6 +120,7 @@ from .nodes.FL_Fal_Seedream_Edit import FL_Fal_Seedream_Edit
 from .nodes.FL_Fal_Pixverse_Transition import FL_Fal_Pixverse_Transition
 from .nodes.FL_Fal_Pixverse_LipSync import FL_Fal_Pixverse_LipSync
 from .nodes.FL_Fal_Kling_AIAvatar import FL_Fal_Kling_AIAvatar
+from .nodes.FL_Fal_Sora import FL_Fal_Sora
 from .nodes.FL_Prompt import FL_PromptBasic
 from .nodes.FL_PromptMulti import FL_PromptMulti
 from .nodes.FL_PaddingRemover import FL_PaddingRemover
@@ -153,6 +154,21 @@ from .nodes.FL_SaveRGBAAnimatedWebP import FL_SaveRGBAAnimatedWebP
 
 from .nodes.FL_RIFE import FL_RIFE
 from .nodes.FL_FILM import FL_FILM
+from .nodes.FL_Audio_BPM_Analyzer import FL_Audio_BPM_Analyzer
+from .nodes.FL_Audio_Beat_Visualizer import FL_Audio_Beat_Visualizer
+from .nodes.FL_Audio_Crop import FL_Audio_Crop
+from .nodes.FL_Audio_Drum_Detector import FL_Audio_Drum_Detector
+from .nodes.FL_Audio_Envelope_Visualizer import FL_Audio_Envelope_Visualizer
+from .nodes.FL_Audio_Music_Video_Sequencer import FL_Audio_Music_Video_Sequencer
+from .nodes.FL_Audio_Reactive_Brightness import FL_Audio_Reactive_Brightness
+from .nodes.FL_Audio_Reactive_Edge_Glow import FL_Audio_Reactive_Edge_Glow
+from .nodes.FL_Audio_Reactive_Envelope import FL_Audio_Reactive_Envelope
+from .nodes.FL_Audio_Reactive_Saturation import FL_Audio_Reactive_Saturation
+from .nodes.FL_Audio_Reactive_Scale import FL_Audio_Reactive_Scale
+from .nodes.FL_Audio_Reactive_Speed import FL_Audio_Reactive_Speed
+from .nodes.FL_Audio_Segment_Extractor import FL_Audio_Segment_Extractor
+from .nodes.FL_Audio_Separation import FL_Audio_Separation
+from .nodes.FL_Audio_Shot_Iterator import FL_Audio_Shot_Iterator
 
 NODE_CLASS_MAPPINGS = {
     "FL_SaveWebM": FL_SaveWebM,
@@ -281,6 +297,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_Fal_Pixverse_Transition": FL_Fal_Pixverse_Transition,
     "FL_Fal_Pixverse_LipSync": FL_Fal_Pixverse_LipSync,
     "FL_Fal_Kling_AIAvatar": FL_Fal_Kling_AIAvatar,
+    "FL_Fal_Sora": FL_Fal_Sora,
     "FL_PromptBasic": FL_PromptBasic,
     "FL_PromptMulti": FL_PromptMulti,
     "FL_PaddingRemover": FL_PaddingRemover,
@@ -311,6 +328,21 @@ NODE_CLASS_MAPPINGS = {
     "FL_Veo3VideoGen": FL_Veo3VideoGen,
     "FL_VertexGemini25FlashImage": FL_VertexGemini25FlashImage,
     "FL_SaveRGBAAnimatedWebP": FL_SaveRGBAAnimatedWebP,
+    "FL_Audio_BPM_Analyzer": FL_Audio_BPM_Analyzer,
+    "FL_Audio_Beat_Visualizer": FL_Audio_Beat_Visualizer,
+    "FL_Audio_Crop": FL_Audio_Crop,
+    "FL_Audio_Drum_Detector": FL_Audio_Drum_Detector,
+    "FL_Audio_Envelope_Visualizer": FL_Audio_Envelope_Visualizer,
+    "FL_Audio_Music_Video_Sequencer": FL_Audio_Music_Video_Sequencer,
+    "FL_Audio_Reactive_Brightness": FL_Audio_Reactive_Brightness,
+    "FL_Audio_Reactive_Edge_Glow": FL_Audio_Reactive_Edge_Glow,
+    "FL_Audio_Reactive_Envelope": FL_Audio_Reactive_Envelope,
+    "FL_Audio_Reactive_Saturation": FL_Audio_Reactive_Saturation,
+    "FL_Audio_Reactive_Scale": FL_Audio_Reactive_Scale,
+    "FL_Audio_Reactive_Speed": FL_Audio_Reactive_Speed,
+    "FL_Audio_Segment_Extractor": FL_Audio_Segment_Extractor,
+    "FL_Audio_Separation": FL_Audio_Separation,
+    "FL_Audio_Shot_Iterator": FL_Audio_Shot_Iterator,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -438,6 +470,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Fal_Pixverse_Transition": "FL Fal Pixverse Transition",
     "FL_Fal_Pixverse_LipSync": "FL Fal Pixverse LipSync",
     "FL_Fal_Kling_AIAvatar": "FL Fal Kling AI Avatar",
+    "FL_Fal_Sora": "FL Fal Sora 2",
     "FL_PromptBasic": "FL Prompt Basic",
     "FL_PromptMulti": "FL Prompt Multi",
     "FL_PaddingRemover": "FL Padding Remover",
@@ -470,6 +503,21 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Veo3VideoGen": "FL Vertex Veo3",
     "FL_VertexGemini25FlashImage": "FL Vertex Gemini 2.5 Flash Image",
     "FL_SaveRGBAAnimatedWebP": "FL Save RGBA Animated WebP",
+    "FL_Audio_BPM_Analyzer": "FL Audio BPM Analyzer",
+    "FL_Audio_Beat_Visualizer": "FL Audio Beat Visualizer",
+    "FL_Audio_Crop": "FL Audio Crop",
+    "FL_Audio_Drum_Detector": "FL Audio Drum Detector",
+    "FL_Audio_Envelope_Visualizer": "FL Audio Envelope Visualizer",
+    "FL_Audio_Music_Video_Sequencer": "FL Audio Music Video Sequencer",
+    "FL_Audio_Reactive_Brightness": "FL Audio Reactive Brightness",
+    "FL_Audio_Reactive_Edge_Glow": "FL Audio Reactive Edge Glow",
+    "FL_Audio_Reactive_Envelope": "FL Audio Reactive Envelope",
+    "FL_Audio_Reactive_Saturation": "FL Audio Reactive Saturation",
+    "FL_Audio_Reactive_Scale": "FL Audio Reactive Scale",
+    "FL_Audio_Reactive_Speed": "FL Audio Reactive Speed",
+    "FL_Audio_Segment_Extractor": "FL Audio Segment Extractor",
+    "FL_Audio_Separation": "FL Audio Separation",
+    "FL_Audio_Shot_Iterator": "FL Audio Shot Iterator",
 }
 
 
