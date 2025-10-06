@@ -26,3 +26,4 @@ google-cloud-storage
 fal-client
 runwayml
 httpx
+huggingface_hub

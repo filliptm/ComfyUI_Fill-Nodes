@@ -151,6 +151,8 @@ from .nodes.FL_VertexVeo3 import FL_Veo3VideoGen
 from .nodes.FL_VertexGemini25FlashImage import FL_VertexGemini25FlashImage
 from .nodes.FL_SaveRGBAAnimatedWebP import FL_SaveRGBAAnimatedWebP
 
+from .nodes.FL_RIFE import FL_RIFE
+from .nodes.FL_FILM import FL_FILM
 
 NODE_CLASS_MAPPINGS = {
     "FL_SaveWebM": FL_SaveWebM,
@@ -296,6 +298,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_VideoCrossfade": FL_VideoCrossfade,
     "FL_VideoCadence": FL_VideoCadence,
     "FL_VideoCadenceCompile": FL_VideoCadenceCompile,
+    "FL_RIFE": FL_RIFE,
+    "FL_FILM": FL_FILM,
     "FL_GeminiImageGenADV": FL_GeminiImageGenADV,
     "FL_GPT_Image1_ADV": FL_GPT_Image1_ADV,
     "FL_ImageBatch": FL_ImageBatch,
@@ -451,6 +455,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_VideoCrossfade": "FL Video Crossfade",
     "FL_VideoCadence": "FL Video Cadence",
     "FL_VideoCadenceCompile": "FL Video Cadence Compile",
+    "FL_FILM": "FL FILM Frame Interpolation",
+    "FL_RIFE": "FL RIFE Frame Interpolation",
     "FL_GeminiImageGenADV": "FL Gemini Image Gen ADV",
     "FL_GPT_Image1_ADV": "FL GPT Image1 ADV",
     "FL_ImageBatch": "FL Image Batch",

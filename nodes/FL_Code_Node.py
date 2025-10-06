@@ -11,7 +11,7 @@ class FL_CodeNode:
             "optional": {
                 "code_input": (
                 "STRING", {"default": "outputs[0] = 'hello, world!'", "multiline": True, "dynamicPrompts": False}),
-                "file": ("STRING", {"default": "./res/hello.py", "multiline": False, "dynamicPrompts": False}),
+                "file": ("STRING", {"default": "", "multiline": False, "dynamicPrompts": False}),
                 "use_file": ("BOOLEAN", {"default": False}),
                 "run_always": ("BOOLEAN", {"default": False})
             }}
