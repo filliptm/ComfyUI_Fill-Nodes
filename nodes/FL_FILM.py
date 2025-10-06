@@ -188,12 +188,3 @@ class FL_FILM:
 
         print(f"✅ Interpolation complete: {batch_size} → {result.shape[0]} frames")
         return (result,)
-
-
-NODE_CLASS_MAPPINGS = {
-    "FL_FILM": FL_FILM
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "FL_FILM": "FL FILM Frame Interpolation"
-}

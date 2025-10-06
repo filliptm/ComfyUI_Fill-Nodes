@@ -207,12 +207,3 @@ class FL_RIFE:
 
         print(f"✅ Interpolation complete: {batch_size} → {result.shape[0]} frames")
         return (result,)
-
-
-NODE_CLASS_MAPPINGS = {
-    "FL_RIFE": FL_RIFE
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "FL_RIFE": "FL RIFE Frame Interpolation"
-}
