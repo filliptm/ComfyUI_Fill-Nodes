@@ -1,174 +1,212 @@
-from .nodes.FL_Image_Randomizer import FL_ImageRandomizer
-from .nodes.FL_Image_Caption_Saver import FL_ImageCaptionSaver
-from .nodes.FL_Image_Dimension_Display import FL_ImageDimensionDisplay
-from .nodes.FL_GeminiVideoCaptioner import FL_GeminiVideoCaptioner
-from .nodes.FL_GeminiImageEditor import FL_GeminiImageEditor
-from .nodes.FL_GPT_Image1 import FL_GPT_Image1
-from .nodes.FL_Code_Node import FL_CodeNode
-from .nodes.FL_Video_Caption_Saver import FL_VideoCaptionSaver
-from .nodes.FL_Image_Pixelator import FL_ImagePixelator
-from .nodes.FL_Image_AddToBatch import FL_ImageAddToBatch
-from .nodes.FL_DirectoryCrawl import FL_DirectoryCrawl
-from .nodes.FL_Ascii import FL_Ascii
-from .nodes.FL_ReplaceColor import FL_ReplaceColor
-from .nodes.FL_ImageAddNoise import FL_ImageAddNoise
-from .nodes.FL_WordFrequencyGraph import FL_WordFrequencyGraph
-from .nodes.FL_Glitch import FL_Glitch
-from .nodes.FL_Ripple import FL_Ripple
-from .nodes.FL_PixelSort import FL_PixelSort
-from .nodes.FL_HexagonalPattern import FL_HexagonalPattern
-from .nodes.FL_NFTGenerator import FL_NFTGenerator
-from .nodes.FL_HalfTone import FL_HalftonePattern
-from .nodes.FL_RandomRange import FL_RandomNumber
-from .nodes.FL_PromptSelector import FL_PromptSelector
-from .nodes.FL_Shader import FL_Shadertoy
-from .nodes.FL_PixelArt import FL_PixelArtShader
-from .nodes.FL_InfiniteZoom import FL_InfiniteZoom
-from .nodes.FL_PaperDrawn import FL_PaperDrawn
-from .nodes.FL_ImageNotes import FL_ImageNotes
-from .nodes.FL_ImageCollage import FL_ImageCollage
-from .nodes.FL_KsamplerSettings import FL_KsamplerSettings
-from .nodes.FL_RetroEffect import FL_RetroEffect
-from .nodes.FL_InpaintCrop import FL_InpaintCrop
-from .nodes.FL_InpaintCrop import FL_Inpaint_Stitch
-from .nodes.FL_SD_Slices import FL_SDUltimate_Slices
-from .nodes.FL_BatchAligned import FL_BatchAlign
-from .nodes.FL_VideoCropNStitch import FL_VideoCropMask
-from .nodes.FL_VideoCropNStitch import FL_VideoRecompose
-from .nodes.FL_SeparateMasks import FL_SeparateMaskComponents
-from .nodes.FL_PasteOnCanvas import FL_PasteOnCanvas
-from .nodes.FL_BulletHellGame import FL_BulletHellGame
-from .nodes.FL_TetrisGame import FL_TetrisGame
-from .nodes.FL_Dither import FL_Dither
-from .nodes.FL_SystemCheck import FL_SystemCheck
-from .nodes.FL_ColorPicker import FL_ColorPicker
-from .nodes.FL_GradGen import FL_GradGenerator
-from .nodes.FL_MirrorAndAppendCaptions import FL_MirrorAndAppendCaptions
-from .nodes.FL_ImageCaptionLayout import FL_ImageCaptionLayout
-from .nodes.FL_HFHubModelUploader import FL_HFHubModelUploader
-from .nodes.FL_ZipDirectory import FL_ZipDirectory
-from .nodes.FL_ZipSave import FL_ZipSave
-from .nodes.FL_GPT_Vision import FL_GPT_Vision
-from .nodes.FL_TimeLine import FL_TimeLine
-from .nodes.FL_SimpleGPTVision import FL_SimpleGPTVision
-from .nodes.FL_DiscordWebhook import FL_SendToDiscordWebhook
-from .nodes.FL_HF_Character import FL_HF_Character
-from .nodes.FL_CaptionToCSV import FL_CaptionToCSV
-from .nodes.FL_KsamplerPlus import FL_KsamplerPlus
-from .nodes.FL_KsamplerPlusV2 import FL_KsamplerPlusV2
-from .nodes.FL_KsamplerBasic import FL_KsamplerBasic
-from .nodes.FL_KsamplerFractals import FL_FractalKSampler
-from .nodes.FL_UpscaleModel import FL_UpscaleModel
-from .nodes.FL_SaveCSV import FL_SaveCSV
-from .nodes.FL_LoadCSV import FL_LoadCSV
-from .nodes.FL_CSVExtractor import FL_CSVExtractor
-from. nodes.FL_KSamplerXYZPlot import FL_KSamplerXYZPlot
-from .nodes.FL_SamplerStrings import FL_SamplerStrings
-from .nodes.FL_SchedulerStrings import FL_SchedulerStrings
-from .nodes.FL_ImageCaptionLayoutPDF import FL_ImageCaptionLayoutPDF
-from .nodes.FL_Dalle3 import FL_Dalle3
-from .nodes.FL_SaveImages import FL_SaveImages
-from .nodes.FL_LoadImage import FL_LoadImage
-from .nodes.FL_PDFLoader import FL_PDFLoader
-from .nodes.FL_PDFToImage import FL_PDFToImages
-from .nodes.FL_PDFSaver import FL_PDFSaver
-from .nodes.FL_ImagesToPDF import FL_ImagesToPDF
-from .nodes.FL_PDFMerger import FL_PDFMerger
-from .nodes.FL_PDFTextExtractor import FL_PDFTextExtractor
-from .nodes.FL_PDFImageExtractor import FL_PDFImageExtractor
-from .nodes.FL_BulkPDFLoader import FL_BulkPDFLoader
-from .nodes.FL_TextToPDF import FL_TextToPDF
-from .nodes.FL_PDFEncryptor import FL_PDFEncryptor
-from .nodes.FL_SaveAndDisplayImage import FL_SaveAndDisplayImage
-from .nodes.FL_OllamaCaptioner import FL_OllamaCaptioner
-from .nodes.FL_ImageAdjuster import FL_ImageAdjuster
-from .nodes.FL_Caption_Saver_V2 import FL_CaptionSaver_V2
-from .nodes.FL_PathTypeChecker import FL_PathTypeChecker
-from .nodes.FL_SaveWebpImages import FL_SaveWebPImage
-from .nodes.FL_MadLibGenerator import FL_MadLibGenerator
-from .nodes.FL_Math import FL_Math
-from .nodes.FL_ImageSlicer import FL_ImageSlicer
-from .nodes.FL_ImageSelector import FL_ImageSelector
-from .nodes.FL_ImageAspectCropper import FL_ImageAspectCropper
-from .nodes.FL_HF_UploaderAbsolute import FL_HF_UploaderAbsolute
-from .nodes.FL_ImageBatchListConverter import FL_ImageListToImageBatch, FL_ImageBatchToImageList
-from .nodes.FL_ImageBatchToGrid import FL_ImageBatchToGrid
-from .nodes.FL_ApplyMask import FL_ApplyMask
-from .nodes.FL_ProResVideo import FL_ProResVideo
-from .nodes.FL_Padding import FL_Padding
-from .nodes.FL_GoogleDriveDownloader import FL_GoogleDriveDownloader
-from .nodes.FL_NodeLoader import FL_NodeLoader
-from .nodes.FL_NodePackLoader import FL_NodePackLoader
-from .nodes.FL_API_Base64_ImageLoader import FL_API_Base64_ImageLoader
-from .nodes.FL_API_ImageSaver import FL_API_ImageSaver
-from .nodes.FL_GoogleDriveImageDownloader import FL_GoogleDriveImageDownloader
-from .nodes.FL_AnimeLineExtractor import FL_AnimeLineExtractor
-from .nodes.FL_HunyuanDelight import FL_HunyuanDelight
-from .nodes.FL_ClipScanner import FL_ClipScanner
-from .nodes.FL_VideoCut import FL_VideoCut
-from .nodes.FL_GeminiTextAPI import FL_GeminiTextAPI
-from .nodes.FL_JS import FL_JS
-from .nodes.FL_HFDatasetDownloader import FL_HFDatasetDownloader
-from .nodes.FL_WF_Agent import FL_WF_Agent
-from .nodes.FL_BlackFrameReject import FL_BlackFrameReject
-from .nodes.FL_PixVerseAPI import FL_PixVerseAPI
-from .nodes.FL_Fal_Pixverse import FL_Fal_Pixverse
-from .nodes.FL_Fal_Kontext import FL_Fal_Kontext
-from .nodes.FL_Fal_Gemini_ImageEdit import FL_Fal_Gemini_ImageEdit
-from .nodes.FL_Fal_Seedance_i2v import FL_Fal_Seedance_i2v
-from .nodes.FL_Fal_Seedream_Edit import FL_Fal_Seedream_Edit
-from .nodes.FL_Fal_Pixverse_Transition import FL_Fal_Pixverse_Transition
-from .nodes.FL_Fal_Pixverse_LipSync import FL_Fal_Pixverse_LipSync
-from .nodes.FL_Fal_Kling_AIAvatar import FL_Fal_Kling_AIAvatar
-from .nodes.FL_Fal_Sora import FL_Fal_Sora
-from .nodes.FL_Prompt import FL_PromptBasic
-from .nodes.FL_PromptMulti import FL_PromptMulti
-from .nodes.FL_PaddingRemover import FL_PaddingRemover
-from .nodes.FL_GPT_Text import FL_GPT_Text
-from .nodes.FL_GoogleCloudStorage import FL_GoogleCloudStorage
-from .nodes.FL_Switch import FL_Switch
-from .nodes.FL_Switch_Big import FL_Switch_Big
-from .nodes.FL_PasteByMask import FL_PasteByMask
-from .nodes.FL_ModelInspector import FL_ModelInspector
-from .nodes.FL_Float import FL_Float
-from .nodes.FL_UnloadModel import FL_UnloadModel, FL_UnloadAllModels
-from .nodes.FL_VideoTrim import FL_VideoTrim
-from .nodes.FL_VideoBatchSplitter import FL_VideoBatchSplitter
-from .nodes.FL_VideoCrossfade import FL_VideoCrossfade
-from .nodes.FL_VideoCadence import FL_VideoCadence
-from .nodes.FL_VideoCadenceCompile import FL_VideoCadenceCompile
-from .nodes.FL_GeminiImageGenADV import FL_GeminiImageGenADV
-from .nodes.FL_GPT_Image1_ADV import FL_GPT_Image1_ADV
-from .nodes.FL_ImageBatch import FL_ImageBatch
-from .nodes.FL_Hedra_API import FL_Hedra_API
-from .nodes.FL_RunwayImageAPI import FL_RunwayImageAPI
-from .nodes.FL_RunwayAct2 import FL_RunwayAct2
-from .nodes.FL_Image_Blank import FL_ImageBlank
-from .nodes.FL_TextOverlay import FL_TextOverlayNode
-from .nodes.FL_SaveWebM import FL_SaveWebM
-from .nodes.FL_Image_Crop import FL_ImageCrop
-from .nodes.FL_WanFirstLastFrameToVideo import FL_WanFirstLastFrameToVideo
-from .nodes.FL_VertexVeo3 import FL_Veo3VideoGen
-from .nodes.FL_VertexGemini25FlashImage import FL_VertexGemini25FlashImage
-from .nodes.FL_SaveRGBAAnimatedWebP import FL_SaveRGBAAnimatedWebP
+# AI NODES
+from .nodes.ai.FL_Fal_Gemini_ImageEdit import FL_Fal_Gemini_ImageEdit
+from .nodes.ai.FL_Fal_Kling_AIAvatar import FL_Fal_Kling_AIAvatar
+from .nodes.ai.FL_Fal_Kontext import FL_Fal_Kontext
+from .nodes.ai.FL_Fal_Pixverse import FL_Fal_Pixverse
+from .nodes.ai.FL_Fal_Pixverse_LipSync import FL_Fal_Pixverse_LipSync
+from .nodes.ai.FL_Fal_Pixverse_Transition import FL_Fal_Pixverse_Transition
+from .nodes.ai.FL_Fal_Seedance_i2v import FL_Fal_Seedance_i2v
+from .nodes.ai.FL_Fal_Seedream_Edit import FL_Fal_Seedream_Edit
+from .nodes.ai.FL_Fal_Sora import FL_Fal_Sora
+from .nodes.ai.FL_GeminiImageEditor import FL_GeminiImageEditor
+from .nodes.ai.FL_GeminiImageGenADV import FL_GeminiImageGenADV
+from .nodes.ai.FL_GeminiTextAPI import FL_GeminiTextAPI
+from .nodes.ai.FL_GeminiVideoCaptioner import FL_GeminiVideoCaptioner
+from .nodes.ai.FL_Hedra_API import FL_Hedra_API
+from .nodes.ai.FL_HunyuanDelight import FL_HunyuanDelight
+from .nodes.ai.FL_PixVerseAPI import FL_PixVerseAPI
+from .nodes.ai.FL_RunwayAct2 import FL_RunwayAct2
+from .nodes.ai.FL_RunwayImageAPI import FL_RunwayImageAPI
+from .nodes.ai.FL_VertexGemini25FlashImage import FL_VertexGemini25FlashImage
+from .nodes.ai.FL_VertexVeo3 import FL_Veo3VideoGen
 
-from .nodes.FL_RIFE import FL_RIFE
-from .nodes.FL_FILM import FL_FILM
-from .nodes.FL_Audio_BPM_Analyzer import FL_Audio_BPM_Analyzer
-from .nodes.FL_Audio_Beat_Visualizer import FL_Audio_Beat_Visualizer
-from .nodes.FL_Audio_Crop import FL_Audio_Crop
-from .nodes.FL_Audio_Drum_Detector import FL_Audio_Drum_Detector
-from .nodes.FL_Audio_Envelope_Visualizer import FL_Audio_Envelope_Visualizer
-from .nodes.FL_Audio_Music_Video_Sequencer import FL_Audio_Music_Video_Sequencer
-from .nodes.FL_Audio_Reactive_Brightness import FL_Audio_Reactive_Brightness
-from .nodes.FL_Audio_Reactive_Edge_Glow import FL_Audio_Reactive_Edge_Glow
-from .nodes.FL_Audio_Reactive_Envelope import FL_Audio_Reactive_Envelope
-from .nodes.FL_Audio_Reactive_Saturation import FL_Audio_Reactive_Saturation
-from .nodes.FL_Audio_Reactive_Scale import FL_Audio_Reactive_Scale
-from .nodes.FL_Audio_Reactive_Speed import FL_Audio_Reactive_Speed
-from .nodes.FL_Audio_Segment_Extractor import FL_Audio_Segment_Extractor
-from .nodes.FL_Audio_Separation import FL_Audio_Separation
-from .nodes.FL_Audio_Shot_Iterator import FL_Audio_Shot_Iterator
+# API_TOOLS NODES
+from .nodes.api_tools.FL_API_Base64_ImageLoader import FL_API_Base64_ImageLoader
+from .nodes.api_tools.FL_API_ImageSaver import FL_API_ImageSaver
+
+# AUDIO NODES
+from .nodes.audio.FL_Audio_BPM_Analyzer import FL_Audio_BPM_Analyzer
+from .nodes.audio.FL_Audio_Beat_Visualizer import FL_Audio_Beat_Visualizer
+from .nodes.audio.FL_Audio_Crop import FL_Audio_Crop
+from .nodes.audio.FL_Audio_Drum_Detector import FL_Audio_Drum_Detector
+from .nodes.audio.FL_Audio_Envelope_Visualizer import FL_Audio_Envelope_Visualizer
+from .nodes.audio.FL_Audio_Music_Video_Sequencer import FL_Audio_Music_Video_Sequencer
+from .nodes.audio.FL_Audio_Reactive_Brightness import FL_Audio_Reactive_Brightness
+from .nodes.audio.FL_Audio_Reactive_Edge_Glow import FL_Audio_Reactive_Edge_Glow
+from .nodes.audio.FL_Audio_Reactive_Envelope import FL_Audio_Reactive_Envelope
+from .nodes.audio.FL_Audio_Reactive_Saturation import FL_Audio_Reactive_Saturation
+from .nodes.audio.FL_Audio_Reactive_Scale import FL_Audio_Reactive_Scale
+from .nodes.audio.FL_Audio_Reactive_Speed import FL_Audio_Reactive_Speed
+from .nodes.audio.FL_Audio_Segment_Extractor import FL_Audio_Segment_Extractor
+from .nodes.audio.FL_Audio_Separation import FL_Audio_Separation
+from .nodes.audio.FL_Audio_Shot_Iterator import FL_Audio_Shot_Iterator
+
+# CAPTIONING NODES
+from .nodes.captioning.FL_CSVExtractor import FL_CSVExtractor
+from .nodes.captioning.FL_CaptionToCSV import FL_CaptionToCSV
+from .nodes.captioning.FL_Caption_Saver_V2 import FL_CaptionSaver_V2
+from .nodes.captioning.FL_ImageCaptionLayout import FL_ImageCaptionLayout
+from .nodes.captioning.FL_ImageCaptionLayoutPDF import FL_ImageCaptionLayoutPDF
+from .nodes.captioning.FL_Image_Caption_Saver import FL_ImageCaptionSaver
+from .nodes.captioning.FL_LoadCSV import FL_LoadCSV
+from .nodes.captioning.FL_MirrorAndAppendCaptions import FL_MirrorAndAppendCaptions
+from .nodes.captioning.FL_OllamaCaptioner import FL_OllamaCaptioner
+from .nodes.captioning.FL_SaveCSV import FL_SaveCSV
+from .nodes.captioning.FL_Video_Caption_Saver import FL_VideoCaptionSaver
+from .nodes.captioning.FL_WordFrequencyGraph import FL_WordFrequencyGraph
+
+# DISCORD NODES
+from .nodes.discord.FL_DiscordWebhook import FL_SendToDiscordWebhook
+
+# EXPERIMENTS NODES
+from .nodes.experiments.FL_BatchAligned import FL_BatchAlign
+from .nodes.experiments.FL_ColorPicker import FL_ColorPicker
+from .nodes.experiments.FL_GradGen import FL_GradGenerator
+from .nodes.experiments.FL_NFTGenerator import FL_NFTGenerator
+
+# FILE_OPERATIONS NODES
+from .nodes.file_operations.FL_ZipDirectory import FL_ZipDirectory
+from .nodes.file_operations.FL_ZipSave import FL_ZipSave
+
+# GAMES NODES
+from .nodes.games.FL_BulletHellGame import FL_BulletHellGame
+from .nodes.games.FL_TetrisGame import FL_TetrisGame
+
+# GOOGLE_DRIVE NODES
+from .nodes.google_drive.FL_GoogleCloudStorage import FL_GoogleCloudStorage
+from .nodes.google_drive.FL_GoogleDriveDownloader import FL_GoogleDriveDownloader
+from .nodes.google_drive.FL_GoogleDriveImageDownloader import FL_GoogleDriveImageDownloader
+
+# GPT NODES
+from .nodes.gpt.FL_Dalle3 import FL_Dalle3
+from .nodes.gpt.FL_GPT_Image1 import FL_GPT_Image1
+from .nodes.gpt.FL_GPT_Image1_ADV import FL_GPT_Image1_ADV
+from .nodes.gpt.FL_GPT_Text import FL_GPT_Text
+from .nodes.gpt.FL_GPT_Vision import FL_GPT_Vision
+from .nodes.gpt.FL_SimpleGPTVision import FL_SimpleGPTVision
+
+# HUGGING_FACE NODES
+from .nodes.hugging_face.FL_HFDatasetDownloader import FL_HFDatasetDownloader
+from .nodes.hugging_face.FL_HFHubModelUploader import FL_HFHubModelUploader
+from .nodes.hugging_face.FL_HF_Character import FL_HF_Character
+from .nodes.hugging_face.FL_HF_UploaderAbsolute import FL_HF_UploaderAbsolute
+
+# IMAGE NODES
+from .nodes.image.FL_AnimeLineExtractor import FL_AnimeLineExtractor
+from .nodes.image.FL_ApplyMask import FL_ApplyMask
+from .nodes.image.FL_BlackFrameReject import FL_BlackFrameReject
+from .nodes.image.FL_ImageAddNoise import FL_ImageAddNoise
+from .nodes.image.FL_ImageAdjuster import FL_ImageAdjuster
+from .nodes.image.FL_ImageAspectCropper import FL_ImageAspectCropper
+from .nodes.image.FL_ImageBatch import FL_ImageBatch
+from .nodes.image.FL_ImageBatchListConverter import FL_ImageListToImageBatch, FL_ImageBatchToImageList
+from .nodes.image.FL_ImageBatchToGrid import FL_ImageBatchToGrid
+from .nodes.image.FL_ImageNotes import FL_ImageNotes
+from .nodes.image.FL_ImageSelector import FL_ImageSelector
+from .nodes.image.FL_ImageSlicer import FL_ImageSlicer
+from .nodes.image.FL_Image_AddToBatch import FL_ImageAddToBatch
+from .nodes.image.FL_Image_Blank import FL_ImageBlank
+from .nodes.image.FL_Image_Crop import FL_ImageCrop
+from .nodes.image.FL_Image_Dimension_Display import FL_ImageDimensionDisplay
+from .nodes.image.FL_Image_Randomizer import FL_ImageRandomizer
+from .nodes.image.FL_LoadImage import FL_LoadImage
+from .nodes.image.FL_PaddingRemover import FL_PaddingRemover
+from .nodes.image.FL_ReplaceColor import FL_ReplaceColor
+from .nodes.image.FL_SaveAndDisplayImage import FL_SaveAndDisplayImage
+from .nodes.image.FL_SaveImages import FL_SaveImages
+from .nodes.image.FL_SaveRGBAAnimatedWebP import FL_SaveRGBAAnimatedWebP
+from .nodes.image.FL_SaveWebM import FL_SaveWebM
+from .nodes.image.FL_SaveWebpImages import FL_SaveWebPImage
+
+# KSAMPLERS NODES
+from .nodes.ksamplers.FL_KsamplerBasic import FL_KsamplerBasic
+from .nodes.ksamplers.FL_KsamplerPlus import FL_KsamplerPlus
+from .nodes.ksamplers.FL_KsamplerPlusV2 import FL_KsamplerPlusV2
+from .nodes.ksamplers.FL_KsamplerSettings import FL_KsamplerSettings
+from .nodes.ksamplers.FL_SamplerStrings import FL_SamplerStrings
+from .nodes.ksamplers.FL_SchedulerStrings import FL_SchedulerStrings
+from .nodes.ksamplers.FL_KSamplerXYZPlot import FL_KSamplerXYZPlot
+
+# LOADERS NODES
+from .nodes.loaders.FL_NodeLoader import FL_NodeLoader
+from .nodes.loaders.FL_NodePackLoader import FL_NodePackLoader
+from .nodes.loaders.FL_UpscaleModel import FL_UpscaleModel
+
+# PDF NODES
+from .nodes.pdf.FL_BulkPDFLoader import FL_BulkPDFLoader
+from .nodes.pdf.FL_ImagesToPDF import FL_ImagesToPDF
+from .nodes.pdf.FL_PDFEncryptor import FL_PDFEncryptor
+from .nodes.pdf.FL_PDFImageExtractor import FL_PDFImageExtractor
+from .nodes.pdf.FL_PDFLoader import FL_PDFLoader
+from .nodes.pdf.FL_PDFMerger import FL_PDFMerger
+from .nodes.pdf.FL_PDFSaver import FL_PDFSaver
+from .nodes.pdf.FL_PDFTextExtractor import FL_PDFTextExtractor
+from .nodes.pdf.FL_PDFToImage import FL_PDFToImages
+from .nodes.pdf.FL_TextToPDF import FL_TextToPDF
+
+# PROMPTING NODES
+from .nodes.prompting.FL_MadLibGenerator import FL_MadLibGenerator
+from .nodes.prompting.FL_Prompt import FL_PromptBasic
+from .nodes.prompting.FL_PromptMulti import FL_PromptMulti
+from .nodes.prompting.FL_PromptSelector import FL_PromptSelector
+
+# UTILITY NODES
+from .nodes.utility.FL_ClipScanner import FL_ClipScanner
+from .nodes.utility.FL_Code_Node import FL_CodeNode
+from .nodes.utility.FL_DirectoryCrawl import FL_DirectoryCrawl
+from .nodes.utility.FL_Float import FL_Float
+from .nodes.utility.FL_InpaintCrop import FL_InpaintCrop
+from .nodes.utility.FL_InpaintCrop import FL_Inpaint_Stitch
+from .nodes.utility.FL_JS import FL_JS
+from .nodes.utility.FL_Math import FL_Math
+from .nodes.utility.FL_ModelInspector import FL_ModelInspector
+from .nodes.utility.FL_Padding import FL_Padding
+from .nodes.utility.FL_PasteByMask import FL_PasteByMask
+from .nodes.utility.FL_PasteOnCanvas import FL_PasteOnCanvas
+from .nodes.utility.FL_PathTypeChecker import FL_PathTypeChecker
+from .nodes.utility.FL_RandomRange import FL_RandomNumber
+from .nodes.utility.FL_SD_Slices import FL_SDUltimate_Slices
+from .nodes.utility.FL_SeparateMasks import FL_SeparateMaskComponents
+from .nodes.utility.FL_Switch import FL_Switch
+from .nodes.utility.FL_Switch_Big import FL_Switch_Big
+from .nodes.utility.FL_SystemCheck import FL_SystemCheck
+from .nodes.utility.FL_UnloadModel import FL_UnloadModel, FL_UnloadAllModels
+from .nodes.utility.FL_VideoCropNStitch import FL_VideoCropMask
+from .nodes.utility.FL_VideoCropNStitch import FL_VideoRecompose
+
+# VFX NODES
+from .nodes.vfx.FL_Ascii import FL_Ascii
+from .nodes.vfx.FL_Dither import FL_Dither
+from .nodes.vfx.FL_Glitch import FL_Glitch
+from .nodes.vfx.FL_HalfTone import FL_HalftonePattern
+from .nodes.vfx.FL_HexagonalPattern import FL_HexagonalPattern
+from .nodes.vfx.FL_ImageCollage import FL_ImageCollage
+from .nodes.vfx.FL_Image_Pixelator import FL_ImagePixelator
+from .nodes.vfx.FL_InfiniteZoom import FL_InfiniteZoom
+from .nodes.vfx.FL_PaperDrawn import FL_PaperDrawn
+from .nodes.vfx.FL_PixelArt import FL_PixelArtShader
+from .nodes.vfx.FL_PixelSort import FL_PixelSort
+from .nodes.vfx.FL_RetroEffect import FL_RetroEffect
+from .nodes.vfx.FL_Ripple import FL_Ripple
+from .nodes.vfx.FL_Shader import FL_Shadertoy
+from .nodes.vfx.FL_TextOverlay import FL_TextOverlayNode
+
+# VIDEO NODES
+from .nodes.video.FL_FILM import FL_FILM
+from .nodes.video.FL_ProResVideo import FL_ProResVideo
+from .nodes.video.FL_RIFE import FL_RIFE
+from .nodes.video.FL_VideoBatchSplitter import FL_VideoBatchSplitter
+from .nodes.video.FL_VideoCadence import FL_VideoCadence
+from .nodes.video.FL_VideoCadenceCompile import FL_VideoCadenceCompile
+from .nodes.video.FL_VideoCrossfade import FL_VideoCrossfade
+from .nodes.video.FL_VideoCut import FL_VideoCut
+from .nodes.video.FL_VideoTrim import FL_VideoTrim
+
+# WIP NODES
+from .nodes.wip.FL_KsamplerFractals import FL_FractalKSampler
+from .nodes.wip.FL_TimeLine import FL_TimeLine
+from .nodes.wip.FL_WF_Agent import FL_WF_Agent
+from .nodes.wip.FL_WanFirstLastFrameToVideo import FL_WanFirstLastFrameToVideo
 
 NODE_CLASS_MAPPINGS = {
     "FL_SaveWebM": FL_SaveWebM,
