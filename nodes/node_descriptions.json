@@ -1,0 +1,1038 @@
+{
+  "ai": [
+    {
+      "class": "FL_Fal_Gemini_ImageEdit",
+      "file": "FL_Fal_Gemini_ImageEdit.py",
+      "description": "A ComfyUI node for the Fal AI Gemini 2.5 Flash Image Edit API. Takes multiple images and a prompt to edit them using Gemini's multimodal capabilities.",
+      "category": "ai"
+    },
+    {
+      "class": "FL_Fal_Kling_AIAvatar",
+      "file": "FL_Fal_Kling_AIAvatar.py",
+      "description": "A ComfyUI node for the Fal AI Kling Video AI Avatar API. Takes an image and audio to generate realistic avatar videos.",
+      "category": "ai"
+    },
+    {
+      "class": "FL_Fal_Kontext",
+      "file": "FL_Fal_Kontext.py",
+      "description": "A ComfyUI node for the Fal AI Flux Pro Kontext API. Takes multiple image/prompt pairs and generates new images using Fal AI's flux-pro/kontext endpoint. Supports async processing for multiple inputs.",
+      "category": "ai"
+    },
+    {
+      "class": "FL_Fal_Pixverse",
+      "file": "FL_Fal_Pixverse.py",
+      "description": "A ComfyUI node for the Fal AI Image-to-Video API. Takes an image and converts it to a video using Fal AI's pixverse/v4/image-to-video endpoint. Downloads the video, extracts frames, and returns them as image tensors.",
+      "category": "ai"
+    },
+    {
+      "class": "FL_Fal_Pixverse_LipSync",
+      "file": "FL_Fal_Pixverse_LipSync.py",
+      "description": "A ComfyUI node for the Fal AI Pixverse LipSync API. Takes a video and audio/text and generates realistic lipsync animations.",
+      "category": "ai"
+    },
+    {
+      "class": "FL_Fal_Pixverse_Transition",
+      "file": "FL_Fal_Pixverse_Transition.py",
+      "description": "A ComfyUI node for the Fal AI Pixverse v5 Transition API. Takes two images and creates a transition video between them using Fal AI's transition endpoint. Downloads the video, extracts frames, and returns them as image tensors.",
+      "category": "ai"
+    },
+    {
+      "class": "FL_Fal_Seedance_i2v",
+      "file": "FL_Fal_Seedance_i2v.py",
+      "description": null,
+      "category": "ai"
+    },
+    {
+      "class": "FL_Fal_Seedream_Edit",
+      "file": "FL_Fal_Seedream_Edit.py",
+      "description": "A ComfyUI node for the Fal AI ByteDance Seedream v4 Edit API. Takes multiple images and a prompt to edit them using Seedream's capabilities.",
+      "category": "ai"
+    },
+    {
+      "class": "FL_Fal_Sora",
+      "file": "FL_Fal_Sora.py",
+      "description": null,
+      "category": "ai"
+    },
+    {
+      "class": "FL_GeminiImageEditor",
+      "file": "FL_GeminiImageEditor.py",
+      "description": null,
+      "category": "ai"
+    },
+    {
+      "class": "FL_GeminiImageGenADV",
+      "file": "FL_GeminiImageGenADV.py",
+      "description": null,
+      "category": "ai"
+    },
+    {
+      "class": "FL_GeminiTextAPI",
+      "file": "FL_GeminiTextAPI.py",
+      "description": null,
+      "category": "ai"
+    },
+    {
+      "class": "FL_GeminiVideoCaptioner",
+      "file": "FL_GeminiVideoCaptioner.py",
+      "description": "Node for captioning videos using Google's Gemini API. Note: All videos (from file or image batch) are converted to WebM format with a size limit of just under 30MB to ensure compatibility with the Gemini API payload limitations. Video quality will be adjusted automatically to meet the size requirement.",
+      "category": "ai"
+    },
+    {
+      "class": "FL_Hedra_API",
+      "file": "FL_Hedra_API.py",
+      "description": null,
+      "category": "ai"
+    },
+    {
+      "class": "FL_HunyuanDelight",
+      "file": "FL_HunyuanDelight.py",
+      "description": null,
+      "category": "ai"
+    },
+    {
+      "class": "FL_PixVerseAPI",
+      "file": "FL_PixVerseAPI.py",
+      "description": "A ComfyUI node for the PixVerse Image-to-Video API. Takes an image and converts it to a video using PixVerse's API. Downloads the video, extracts frames, and returns them as image tensors.",
+      "category": "ai"
+    },
+    {
+      "class": "FL_RunwayAct2",
+      "file": "FL_RunwayAct2.py",
+      "description": null,
+      "category": "ai"
+    },
+    {
+      "class": "FL_RunwayImageAPI",
+      "file": "FL_RunwayImageAPI.py",
+      "description": null,
+      "category": "ai"
+    },
+    {
+      "class": "FL_VertexGemini25FlashImage",
+      "file": "FL_VertexGemini25FlashImage.py",
+      "description": null,
+      "category": "ai"
+    },
+    {
+      "class": "FL_Veo3VideoGen",
+      "file": "FL_VertexVeo3.py",
+      "description": null,
+      "category": "ai"
+    }
+  ],
+  "api_tools": [
+    {
+      "class": "FL_API_Base64_ImageLoader",
+      "file": "FL_API_Base64_ImageLoader.py",
+      "description": null,
+      "category": "api_tools"
+    },
+    {
+      "class": "FL_API_ImageSaver",
+      "file": "FL_API_ImageSaver.py",
+      "description": null,
+      "category": "api_tools"
+    }
+  ],
+  "audio": [
+    {
+      "class": "FL_Audio_Beat_Visualizer",
+      "file": "FL_Audio_Beat_Visualizer.py",
+      "description": "A ComfyUI node for generating beat visualization frames. Creates frames that alternate between black and white on beat switches.",
+      "category": "audio"
+    },
+    {
+      "class": "FL_Audio_BPM_Analyzer",
+      "file": "FL_Audio_BPM_Analyzer.py",
+      "description": "A ComfyUI node for BPM and beat detection using Librosa. Analyzes the entire audio once and outputs beat positions for use in segmentation.",
+      "category": "audio"
+    },
+    {
+      "class": "FL_Audio_Crop",
+      "file": "FL_Audio_Crop.py",
+      "description": "A ComfyUI node for cropping (trimming) audio to a specific start and end time.",
+      "category": "audio"
+    },
+    {
+      "class": "FL_Audio_Drum_Detector",
+      "file": "FL_Audio_Drum_Detector.py",
+      "description": "A ComfyUI node for detecting drum elements (kicks, snares, hi-hats) from audio. Uses onset detection with frequency band analysis to classify drum types.",
+      "category": "audio"
+    },
+    {
+      "class": "FL_Audio_Envelope_Visualizer",
+      "file": "FL_Audio_Envelope_Visualizer.py",
+      "description": "A ComfyUI node for visualizing audio envelopes as frames. Creates white frames that fade to black based on envelope values.",
+      "category": "audio"
+    },
+    {
+      "class": "FL_Audio_Music_Video_Sequencer",
+      "file": "FL_Audio_Music_Video_Sequencer.py",
+      "description": "A ComfyUI node for generating complete music video shot sequences. Takes beat positions and a pattern, outputs a full edit list for the entire song.",
+      "category": "audio"
+    },
+    {
+      "class": "FL_Audio_Reactive_Brightness",
+      "file": "FL_Audio_Reactive_Brightness.py",
+      "description": "A ComfyUI node for applying audio-reactive brightness/luminance changes to frames. Adjusts brightness based on envelope values from drum detection.",
+      "category": "audio"
+    },
+    {
+      "class": "FL_Audio_Reactive_Edge_Glow",
+      "file": "FL_Audio_Reactive_Edge_Glow.py",
+      "description": "A ComfyUI node for applying audio-reactive edge detection and glow effect. Detects edges and adds glowing outline that pulses with the audio.",
+      "category": "audio"
+    },
+    {
+      "class": "FL_Audio_Reactive_Envelope",
+      "file": "FL_Audio_Reactive_Envelope.py",
+      "description": "A ComfyUI node for generating per-frame control envelopes from drum detections. Creates ADSR envelopes for kicks, snares, and hi-hats across the entire song.",
+      "category": "audio"
+    },
+    {
+      "class": "FL_Audio_Reactive_Saturation",
+      "file": "FL_Audio_Reactive_Saturation.py",
+      "description": "A ComfyUI node for applying audio-reactive saturation changes to frames. Adjusts color saturation based on envelope values from drum detection.",
+      "category": "audio"
+    },
+    {
+      "class": "FL_Audio_Reactive_Scale",
+      "file": "FL_Audio_Reactive_Scale.py",
+      "description": "A ComfyUI node for applying audio-reactive scale/zoom effect to frames. Scales frames based on envelope values from drum detection.",
+      "category": "audio"
+    },
+    {
+      "class": "FL_Audio_Reactive_Speed",
+      "file": "FL_Audio_Reactive_Speed.py",
+      "description": "A ComfyUI node for applying audio-reactive speed/time remapping to frames. Speeds up or slows down playback based on envelope values from drum detection.",
+      "category": "audio"
+    },
+    {
+      "class": "FL_Audio_Segment_Extractor",
+      "file": "FL_Audio_Segment_Extractor.py",
+      "description": "A ComfyUI node for extracting audio segments based on pre-analyzed beat positions. Takes beat positions from FL_Audio_BPM_Analyzer and extracts specific beat ranges.",
+      "category": "audio"
+    },
+    {
+      "class": "FL_Audio_Separation",
+      "file": "FL_Audio_Separation.py",
+      "description": "A ComfyUI node for separating audio into four sources: bass, drums, other, and vocals. Uses the Hybrid Demucs model from torchaudio.",
+      "category": "audio"
+    },
+    {
+      "class": "FL_Audio_Shot_Iterator",
+      "file": "FL_Audio_Shot_Iterator.py",
+      "description": "A ComfyUI node for extracting individual shot data from a music video sequence. Takes sequence JSON and shot index, outputs frame count and shot details.",
+      "category": "audio"
+    }
+  ],
+  "captioning": [
+    {
+      "class": "FL_CaptionSaver_V2",
+      "file": "FL_Caption_Saver_V2.py",
+      "description": null,
+      "category": "captioning"
+    },
+    {
+      "class": "FL_CaptionToCSV",
+      "file": "FL_CaptionToCSV.py",
+      "description": null,
+      "category": "captioning"
+    },
+    {
+      "class": "FL_CSVExtractor",
+      "file": "FL_CSVExtractor.py",
+      "description": null,
+      "category": "captioning"
+    },
+    {
+      "class": "FL_ImageCaptionSaver",
+      "file": "FL_Image_Caption_Saver.py",
+      "description": null,
+      "category": "captioning"
+    },
+    {
+      "class": "FL_ImageCaptionLayout",
+      "file": "FL_ImageCaptionLayout.py",
+      "description": null,
+      "category": "captioning"
+    },
+    {
+      "class": "FL_ImageCaptionLayoutPDF",
+      "file": "FL_ImageCaptionLayoutPDF.py",
+      "description": null,
+      "category": "captioning"
+    },
+    {
+      "class": "FL_LoadCSV",
+      "file": "FL_LoadCSV.py",
+      "description": null,
+      "category": "captioning"
+    },
+    {
+      "class": "FL_MirrorAndAppendCaptions",
+      "file": "FL_MirrorAndAppendCaptions.py",
+      "description": null,
+      "category": "captioning"
+    },
+    {
+      "class": "FL_OllamaCaptioner",
+      "file": "FL_OllamaCaptioner.py",
+      "description": null,
+      "category": "captioning"
+    },
+    {
+      "class": "FL_SaveCSV",
+      "file": "FL_SaveCSV.py",
+      "description": null,
+      "category": "captioning"
+    },
+    {
+      "class": "FL_VideoCaptionSaver",
+      "file": "FL_Video_Caption_Saver.py",
+      "description": null,
+      "category": "captioning"
+    },
+    {
+      "class": "FL_WordFrequencyGraph",
+      "file": "FL_WordFrequencyGraph.py",
+      "description": null,
+      "category": "captioning"
+    }
+  ],
+  "discord": [
+    {
+      "class": "FL_SendToDiscordWebhook",
+      "file": "FL_DiscordWebhook.py",
+      "description": null,
+      "category": "discord"
+    }
+  ],
+  "experiments": [
+    {
+      "class": "FL_BatchAlign",
+      "file": "FL_BatchAligned.py",
+      "description": null,
+      "category": "experiments"
+    },
+    {
+      "class": "FL_ColorPicker",
+      "file": "FL_ColorPicker.py",
+      "description": null,
+      "category": "experiments"
+    },
+    {
+      "class": "FL_GradGenerator",
+      "file": "FL_GradGen.py",
+      "description": null,
+      "category": "experiments"
+    },
+    {
+      "class": "FL_NFTGenerator",
+      "file": "FL_NFTGenerator.py",
+      "description": null,
+      "category": "experiments"
+    }
+  ],
+  "file_operations": [
+    {
+      "class": "FL_ZipDirectory",
+      "file": "FL_ZipDirectory.py",
+      "description": null,
+      "category": "file_operations"
+    },
+    {
+      "class": "FL_ZipSave",
+      "file": "FL_ZipSave.py",
+      "description": null,
+      "category": "file_operations"
+    }
+  ],
+  "games": [
+    {
+      "class": "FL_BulletHellGame",
+      "file": "FL_BulletHellGame.py",
+      "description": null,
+      "category": "games"
+    },
+    {
+      "class": "FL_TetrisGame",
+      "file": "FL_TetrisGame.py",
+      "description": null,
+      "category": "games"
+    }
+  ],
+  "google_drive": [
+    {
+      "class": "FL_GoogleCloudStorage",
+      "file": "FL_GoogleCloudStorage.py",
+      "description": "A ComfyUI node for uploading images and videos to Google Cloud Storage. Can handle single images, batches of images, and optionally compile batches into videos.",
+      "category": "google_drive"
+    },
+    {
+      "class": "FL_GoogleDriveDownloader",
+      "file": "FL_GoogleDriveDownloader.py",
+      "description": null,
+      "category": "google_drive"
+    },
+    {
+      "class": "FL_GoogleDriveImageDownloader",
+      "file": "FL_GoogleDriveImageDownloader.py",
+      "description": null,
+      "category": "google_drive"
+    }
+  ],
+  "gpt": [
+    {
+      "class": "FL_Dalle3",
+      "file": "FL_Dalle3.py",
+      "description": null,
+      "category": "gpt"
+    },
+    {
+      "class": "FL_GPT_Image1",
+      "file": "FL_GPT_Image1.py",
+      "description": null,
+      "category": "gpt"
+    },
+    {
+      "class": "FL_GPT_Image1_ADV",
+      "file": "FL_GPT_Image1_ADV.py",
+      "description": null,
+      "category": "gpt"
+    },
+    {
+      "class": "FL_GPT_Text",
+      "file": "FL_GPT_Text.py",
+      "description": null,
+      "category": "gpt"
+    },
+    {
+      "class": "FL_GPT_Vision",
+      "file": "FL_GPT_Vision.py",
+      "description": null,
+      "category": "gpt"
+    },
+    {
+      "class": "FL_SimpleGPTVision",
+      "file": "FL_SimpleGPTVision.py",
+      "description": null,
+      "category": "gpt"
+    }
+  ],
+  "hugging_face": [
+    {
+      "class": "FL_HF_Character",
+      "file": "FL_HF_Character.py",
+      "description": null,
+      "category": "hugging_face"
+    },
+    {
+      "class": "FL_HF_UploaderAbsolute",
+      "file": "FL_HF_UploaderAbsolute.py",
+      "description": null,
+      "category": "hugging_face"
+    },
+    {
+      "class": "FL_HFDatasetDownloader",
+      "file": "FL_HFDatasetDownloader.py",
+      "description": null,
+      "category": "hugging_face"
+    },
+    {
+      "class": "FL_HFHubModelUploader",
+      "file": "FL_HFHubModelUploader.py",
+      "description": null,
+      "category": "hugging_face"
+    }
+  ],
+  "image": [
+    {
+      "class": "FL_AnimeLineExtractor",
+      "file": "FL_AnimeLineExtractor.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ApplyMask",
+      "file": "FL_ApplyMask.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_BlackFrameReject",
+      "file": "FL_BlackFrameReject.py",
+      "description": "A node that filters out images from a batch based on the percentage of black pixels. Images with a black pixel percentage above the threshold are rejected.",
+      "category": "image"
+    },
+    {
+      "class": "FL_ImageAddToBatch",
+      "file": "FL_Image_AddToBatch.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ImageBlank",
+      "file": "FL_Image_Blank.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ImageCrop",
+      "file": "FL_Image_Crop.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ImageDimensionDisplay",
+      "file": "FL_Image_Dimension_Display.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ImageRandomizer",
+      "file": "FL_Image_Randomizer.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ImageAddNoise",
+      "file": "FL_ImageAddNoise.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ImageAdjuster",
+      "file": "FL_ImageAdjuster.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ImageAspectCropper",
+      "file": "FL_ImageAspectCropper.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ImageBatch",
+      "file": "FL_ImageBatch.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ImageListToImageBatch",
+      "file": "FL_ImageBatchListConverter.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ImageBatchToGrid",
+      "file": "FL_ImageBatchToGrid.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ImageNotes",
+      "file": "FL_ImageNotes.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ImageSelector",
+      "file": "FL_ImageSelector.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ImageSlicer",
+      "file": "FL_ImageSlicer.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_LoadImage",
+      "file": "FL_LoadImage.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_PaddingRemover",
+      "file": "FL_PaddingRemover.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_ReplaceColor",
+      "file": "FL_ReplaceColor.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_SaveImages",
+      "file": "FL_SaveImages.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_SaveRGBAAnimatedWebP",
+      "file": "FL_SaveRGBAAnimatedWebP.py",
+      "description": null,
+      "category": "image"
+    },
+    {
+      "class": "FL_SaveWebM",
+      "file": "FL_SaveWebM.py",
+      "description": null,
+      "category": "image"
+    }
+  ],
+  "ksamplers": [
+    {
+      "class": "FL_KsamplerBasic",
+      "file": "FL_KsamplerBasic.py",
+      "description": null,
+      "category": "ksamplers"
+    },
+    {
+      "class": "FL_KsamplerPlus",
+      "file": "FL_KsamplerPlus.py",
+      "description": null,
+      "category": "ksamplers"
+    },
+    {
+      "class": "FL_KsamplerPlusV2",
+      "file": "FL_KsamplerPlusV2.py",
+      "description": null,
+      "category": "ksamplers"
+    },
+    {
+      "class": "FL_KsamplerSettings",
+      "file": "FL_KsamplerSettings.py",
+      "description": null,
+      "category": "ksamplers"
+    },
+    {
+      "class": "FL_KSamplerXYZPlot",
+      "file": "FL_KSamplerXYZPlot.py",
+      "description": null,
+      "category": "ksamplers"
+    },
+    {
+      "class": "FL_SamplerStrings",
+      "file": "FL_SamplerStrings.py",
+      "description": null,
+      "category": "ksamplers"
+    },
+    {
+      "class": "FL_SchedulerStrings",
+      "file": "FL_SchedulerStrings.py",
+      "description": null,
+      "category": "ksamplers"
+    }
+  ],
+  "loaders": [
+    {
+      "class": "FL_NodeLoader",
+      "file": "FL_NodeLoader.py",
+      "description": null,
+      "category": "loaders"
+    },
+    {
+      "class": "FL_NodePackLoader",
+      "file": "FL_NodePackLoader.py",
+      "description": null,
+      "category": "loaders"
+    },
+    {
+      "class": "FL_UpscaleModel",
+      "file": "FL_UpscaleModel.py",
+      "description": null,
+      "category": "loaders"
+    }
+  ],
+  "pdf": [
+    {
+      "class": "FL_BulkPDFLoader",
+      "file": "FL_BulkPDFLoader.py",
+      "description": null,
+      "category": "pdf"
+    },
+    {
+      "class": "FL_ImagesToPDF",
+      "file": "FL_ImagesToPDF.py",
+      "description": null,
+      "category": "pdf"
+    },
+    {
+      "class": "FL_PDFEncryptor",
+      "file": "FL_PDFEncryptor.py",
+      "description": null,
+      "category": "pdf"
+    },
+    {
+      "class": "FL_PDFImageExtractor",
+      "file": "FL_PDFImageExtractor.py",
+      "description": null,
+      "category": "pdf"
+    },
+    {
+      "class": "FL_PDFLoader",
+      "file": "FL_PDFLoader.py",
+      "description": null,
+      "category": "pdf"
+    },
+    {
+      "class": "FL_PDFMerger",
+      "file": "FL_PDFMerger.py",
+      "description": null,
+      "category": "pdf"
+    },
+    {
+      "class": "FL_PDFSaver",
+      "file": "FL_PDFSaver.py",
+      "description": null,
+      "category": "pdf"
+    },
+    {
+      "class": "FL_PDFTextExtractor",
+      "file": "FL_PDFTextExtractor.py",
+      "description": null,
+      "category": "pdf"
+    },
+    {
+      "class": "FL_PDFToImages",
+      "file": "FL_PDFToImage.py",
+      "description": null,
+      "category": "pdf"
+    },
+    {
+      "class": "FL_TextToPDF",
+      "file": "FL_TextToPDF.py",
+      "description": null,
+      "category": "pdf"
+    }
+  ],
+  "prompting": [
+    {
+      "class": "FL_MadLibGenerator",
+      "file": "FL_MadLibGenerator.py",
+      "description": null,
+      "category": "prompting"
+    },
+    {
+      "class": "FL_PromptBasic",
+      "file": "FL_Prompt.py",
+      "description": null,
+      "category": "prompting"
+    },
+    {
+      "class": "FL_PromptMulti",
+      "file": "FL_PromptMulti.py",
+      "description": null,
+      "category": "prompting"
+    },
+    {
+      "class": "FL_PromptSelector",
+      "file": "FL_PromptSelector.py",
+      "description": null,
+      "category": "prompting"
+    }
+  ],
+  "utility": [
+    {
+      "class": "FL_ClipScanner",
+      "file": "FL_ClipScanner.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_CodeNode",
+      "file": "FL_Code_Node.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_DirectoryCrawl",
+      "file": "FL_DirectoryCrawl.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_Float",
+      "file": "FL_Float.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_InpaintCrop",
+      "file": "FL_InpaintCrop.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_JS",
+      "file": "FL_JS.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_Math",
+      "file": "FL_Math.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_ModelInspector",
+      "file": "FL_ModelInspector.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_Padding",
+      "file": "FL_Padding.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_PasteByMask",
+      "file": "FL_PasteByMask.py",
+      "description": "Pastes `image_to_paste` onto `image_base` using `mask` to determine the location. The `resize_behavior` parameter determines how the image to paste is resized to fit the mask. If `mask_mapping_optional` obtained from a 'Separate Mask Components' node is used, it will control which image gets pasted onto which base image.",
+      "category": "utility"
+    },
+    {
+      "class": "FL_PasteOnCanvas",
+      "file": "FL_PasteOnCanvas.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_PathTypeChecker",
+      "file": "FL_PathTypeChecker.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_RandomNumber",
+      "file": "FL_RandomRange.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_SDUltimate_Slices",
+      "file": "FL_SD_Slices.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_SeparateMaskComponents",
+      "file": "FL_SeparateMasks.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_Switch",
+      "file": "FL_Switch.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_Switch_Big",
+      "file": "FL_Switch_Big.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_SystemCheck",
+      "file": "FL_SystemCheck.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_UnloadModel",
+      "file": "FL_UnloadModel.py",
+      "description": null,
+      "category": "utility"
+    },
+    {
+      "class": "FL_VideoCropMask",
+      "file": "FL_VideoCropNStitch.py",
+      "description": null,
+      "category": "utility"
+    }
+  ],
+  "vfx": [
+    {
+      "class": "FL_Ascii",
+      "file": "FL_Ascii.py",
+      "description": null,
+      "category": "vfx"
+    },
+    {
+      "class": "FL_Dither",
+      "file": "FL_Dither.py",
+      "description": null,
+      "category": "vfx"
+    },
+    {
+      "class": "FL_Glitch",
+      "file": "FL_Glitch.py",
+      "description": null,
+      "category": "vfx"
+    },
+    {
+      "class": "FL_HalftonePattern",
+      "file": "FL_HalfTone.py",
+      "description": null,
+      "category": "vfx"
+    },
+    {
+      "class": "FL_HexagonalPattern",
+      "file": "FL_HexagonalPattern.py",
+      "description": null,
+      "category": "vfx"
+    },
+    {
+      "class": "FL_ImagePixelator",
+      "file": "FL_Image_Pixelator.py",
+      "description": null,
+      "category": "vfx"
+    },
+    {
+      "class": "FL_ImageCollage",
+      "file": "FL_ImageCollage.py",
+      "description": null,
+      "category": "vfx"
+    },
+    {
+      "class": "FL_InfiniteZoom",
+      "file": "FL_InfiniteZoom.py",
+      "description": null,
+      "category": "vfx"
+    },
+    {
+      "class": "FL_PaperDrawn",
+      "file": "FL_PaperDrawn.py",
+      "description": null,
+      "category": "vfx"
+    },
+    {
+      "class": "FL_PixelArtShader",
+      "file": "FL_PixelArt.py",
+      "description": null,
+      "category": "vfx"
+    },
+    {
+      "class": "FL_PixelSort",
+      "file": "FL_PixelSort.py",
+      "description": null,
+      "category": "vfx"
+    },
+    {
+      "class": "FL_RetroEffect",
+      "file": "FL_RetroEffect.py",
+      "description": null,
+      "category": "vfx"
+    },
+    {
+      "class": "FL_Ripple",
+      "file": "FL_Ripple.py",
+      "description": null,
+      "category": "vfx"
+    },
+    {
+      "class": "FL_Shadertoy",
+      "file": "FL_Shader.py",
+      "description": null,
+      "category": "vfx"
+    },
+    {
+      "class": "FL_TextOverlayNode",
+      "file": "FL_TextOverlay.py",
+      "description": null,
+      "category": "vfx"
+    }
+  ],
+  "video": [
+    {
+      "class": "FL_FILM",
+      "file": "FL_FILM.py",
+      "description": "FILM (Frame Interpolation for Large Motion) frame interpolation node. Generates intermediate frames between input frames, especially good for large motion. Downloads model to cache folder on first use.",
+      "category": "video"
+    },
+    {
+      "class": "FL_ProResVideo",
+      "file": "FL_ProResVideo.py",
+      "description": null,
+      "category": "video"
+    },
+    {
+      "class": "FL_RIFE",
+      "file": "FL_RIFE.py",
+      "description": "RIFE (Real-Time Intermediate Flow Estimation) frame interpolation node. Generates intermediate frames between input frames for smooth slow-motion effects. Downloads models to cache folder on first use.",
+      "category": "video"
+    },
+    {
+      "class": "FL_VideoBatchSplitter",
+      "file": "FL_VideoBatchSplitter.py",
+      "description": null,
+      "category": "video"
+    },
+    {
+      "class": "FL_VideoCadence",
+      "file": "FL_VideoCadence.py",
+      "description": null,
+      "category": "video"
+    },
+    {
+      "class": "FL_VideoCadenceCompile",
+      "file": "FL_VideoCadenceCompile.py",
+      "description": null,
+      "category": "video"
+    },
+    {
+      "class": "FL_VideoCrossfade",
+      "file": "FL_VideoCrossfade.py",
+      "description": null,
+      "category": "video"
+    },
+    {
+      "class": "FL_VideoCut",
+      "file": "FL_VideoCut.py",
+      "description": "A node that detects scene cuts in a batch of images (video frames) and outputs the segmented clips as MP4 files to a specified folder.",
+      "category": "video"
+    },
+    {
+      "class": "FL_VideoTrim",
+      "file": "FL_VideoTrim.py",
+      "description": null,
+      "category": "video"
+    }
+  ],
+  "wip": [
+    {
+      "class": "FL_FractalKSampler",
+      "file": "FL_KsamplerFractals.py",
+      "description": null,
+      "category": "wip"
+    },
+    {
+      "class": "FL_TimeLine",
+      "file": "FL_TimeLine.py",
+      "description": null,
+      "category": "wip"
+    },
+    {
+      "class": "FL_WanFirstLastFrameToVideo",
+      "file": "FL_WanFirstLastFrameToVideo.py",
+      "description": null,
+      "category": "wip"
+    },
+    {
+      "class": "FL_WF_Agent",
+      "file": "FL_WF_Agent.py",
+      "description": "A node that uses Gemini AI to generate and execute JavaScript code for workflow manipulation",
+      "category": "wip"
+    }
+  ]
+}
