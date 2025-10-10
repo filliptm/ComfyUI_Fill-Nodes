@@ -131,7 +131,18 @@ class FL_KsamplerPlus:
             if use_sliced_conditioning:
                 batch_size = 1
 
-            b, c, h, w = latent_image["samples"].shape
+            # Handle variable tensor dimensions (4D or 5D)
+            latent_shape = latent_image["samples"].shape
+            if len(latent_shape) == 5:
+                # 5D tensor: [batch, frames, channels, height, width]
+                b, f, c, h, w = latent_shape
+                logging.info(f"Processing 5D latent tensor with shape: {latent_shape}")
+            elif len(latent_shape) == 4:
+                # 4D tensor: [batch, channels, height, width]
+                b, c, h, w = latent_shape
+            else:
+                raise ValueError(f"Unexpected latent tensor shape: {latent_shape}. Expected 4D or 5D tensor.")
+
             base_slice_height = h // y_slices
             base_slice_width = w // x_slices
             overlap_height = int(base_slice_height * overlap)
@@ -145,7 +156,11 @@ class FL_KsamplerPlus:
                 x_start = max(0, x * base_slice_width - overlap_width)
                 x_end = min(w, (x + 1) * base_slice_width + overlap_width)
 
-                section = latent_image["samples"][:, :, y_start:y_end, x_start:x_end].to(device=device)
+                # Handle both 4D and 5D tensor slicing
+                if len(latent_shape) == 5:
+                    section = latent_image["samples"][:, :, :, y_start:y_end, x_start:x_end].to(device=device)
+                else:
+                    section = latent_image["samples"][:, :, y_start:y_end, x_start:x_end].to(device=device)
 
                 if use_sliced_conditioning:
                     region = (x_start * 8, y_start * 8, x_end * 8, y_end * 8)
@@ -188,8 +203,12 @@ class FL_KsamplerPlus:
 
                 # Initialize samples tensor if it hasn't been initialized yet
                 if samples is None:
-                    processed_channels = processed_sections[0].shape[1]
-                    samples = torch.zeros((b, processed_channels, h, w), device=device)
+                    if len(latent_shape) == 5:
+                        processed_channels = processed_sections[0].shape[2]
+                        samples = torch.zeros((b, f, processed_channels, h, w), device=device)
+                    else:
+                        processed_channels = processed_sections[0].shape[1]
+                        samples = torch.zeros((b, processed_channels, h, w), device=device)
 
                 for (_, y_start, y_end, x_start, x_end, _, _), processed_section in zip(batch_sections,
                                                                                         processed_sections):
@@ -207,10 +226,17 @@ class FL_KsamplerPlus:
                     processed_section = processed_section.to(device=device)
                     blend_mask = blend_mask.to(device=device)
 
-                    samples[:, :, y_start:y_end, x_start:x_end] = (
-                            samples[:, :, y_start:y_end, x_start:x_end] * (1 - blend_mask) +
-                            processed_section * blend_mask
-                    )
+                    # Handle both 4D and 5D tensor blending
+                    if len(latent_shape) == 5:
+                        samples[:, :, :, y_start:y_end, x_start:x_end] = (
+                                samples[:, :, :, y_start:y_end, x_start:x_end] * (1 - blend_mask) +
+                                processed_section * blend_mask
+                        )
+                    else:
+                        samples[:, :, y_start:y_end, x_start:x_end] = (
+                                samples[:, :, y_start:y_end, x_start:x_end] * (1 - blend_mask) +
+                                processed_section * blend_mask
+                        )
 
                 if device.type == 'cuda':
                     torch.cuda.empty_cache()
