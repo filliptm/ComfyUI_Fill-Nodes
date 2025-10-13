@@ -207,6 +207,7 @@ from .nodes.wip.FL_KsamplerFractals import FL_FractalKSampler
 from .nodes.wip.FL_TimeLine import FL_TimeLine
 from .nodes.wip.FL_WF_Agent import FL_WF_Agent
 from .nodes.wip.FL_WanFirstLastFrameToVideo import FL_WanFirstLastFrameToVideo
+from .nodes.wip.FL_QwenImageEditStrength import FL_QwenImageEditStrength
 
 NODE_CLASS_MAPPINGS = {
     "FL_SaveWebM": FL_SaveWebM,
@@ -381,6 +382,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_Audio_Segment_Extractor": FL_Audio_Segment_Extractor,
     "FL_Audio_Separation": FL_Audio_Separation,
     "FL_Audio_Shot_Iterator": FL_Audio_Shot_Iterator,
+    "FL_QwenImageEditStrength": FL_QwenImageEditStrength,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -556,6 +558,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Audio_Segment_Extractor": "FL Audio Segment Extractor",
     "FL_Audio_Separation": "FL Audio Separation",
     "FL_Audio_Shot_Iterator": "FL Audio Shot Iterator",
+    "FL_QwenImageEditStrength": "FL Qwen Image Edit with Strength",
 }
 
 
