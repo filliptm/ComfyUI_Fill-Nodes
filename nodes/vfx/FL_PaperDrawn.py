@@ -2,6 +2,7 @@ import glfw
 import ctypes
 import torch
 import numpy as np
+import json
 from PIL import Image
 import OpenGL.GL as gl
 
@@ -135,6 +136,34 @@ void main()
 """
 
 class FL_PaperDrawn:
+    def t2p(self, t):
+        """Tensor to PIL"""
+        if t is not None:
+            i = 255.0 * t.cpu().numpy().squeeze()
+            p = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
+        return p
+
+    def p2t(self, p):
+        """PIL to Tensor"""
+        if p is not None:
+            i = np.array(p).astype(np.float32) / 255.0
+            t = torch.from_numpy(i).unsqueeze(0)
+        return t
+
+    def prepare_mask_batch(self, mask, total_images):
+        """Prepare mask batch to match image batch size"""
+        if mask is None:
+            return None
+        mask_images = [self.t2p(m) for m in mask]
+        if len(mask_images) < total_images:
+            mask_images = mask_images * (total_images // len(mask_images) + 1)
+        return mask_images[:total_images]
+
+    def process_mask(self, mask, target_size):
+        """Resize and convert mask to grayscale"""
+        mask = mask.resize(target_size, Image.LANCZOS)
+        return mask.convert('L') if mask.mode != 'L' else mask
+
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -142,11 +171,17 @@ class FL_PaperDrawn:
                 "image": ("IMAGE",),
             },
             "optional": {
-                "angle_num": ("FLOAT", {"default": 3.0, "min": 1.0, "max": 10.0, "step": 1.0}),
-                "samp_num": ("FLOAT", {"default": 2.2, "min": 1.0, "max": 10.0, "step": 0.1}),
-                "line_width": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0, "step": 0.1}),
-                "vignette": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.1}),
-                "fps": ("INT", {"default": 30, "min": 1, "max": 120, "step": 1}),
+                # Audio reactivity (optional - at top for visibility)
+                "envelope_json": ("STRING", {"default": "", "description": "Optional: Envelope JSON for audio-reactive blending"}),
+                "blend_intensity": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05, "description": "Audio-reactive blend intensity"}),
+                "invert": ("BOOLEAN", {"default": False, "description": "Invert envelope (show sketch when quiet)"}),
+                "mask": ("IMAGE", {"default": None, "description": "Optional mask to control where effect is applied"}),
+                # Effect parameters
+                "angle_num": ("FLOAT", {"default": 3.0, "min": 1.0, "max": 10.0, "step": 1.0, "description": "Number of sketch angles"}),
+                "samp_num": ("FLOAT", {"default": 2.2, "min": 1.0, "max": 10.0, "step": 0.1, "description": "Sample density"}),
+                "line_width": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0, "step": 0.1, "description": "Line thickness"}),
+                "vignette": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.1, "description": "Vignette strength"}),
+                "fps": ("INT", {"default": 30, "min": 1, "max": 120, "step": 1, "description": "Frames per second"}),
             },
         }
 
@@ -154,20 +189,178 @@ class FL_PaperDrawn:
     FUNCTION = "apply_shader"
     CATEGORY = "🏵️Fill Nodes/VFX"
 
-    def apply_shader(self, image, angle_num, samp_num, line_width, vignette, fps):
+    def apply_shader(self, image, angle_num=3.0, samp_num=2.2, line_width=1.0, vignette=0.0, fps=30, envelope_json="", blend_intensity=1.0, invert=False, mask=None):
+        # Check if audio-reactive mode is enabled
+        use_audio_reactive = envelope_json and envelope_json.strip() != ""
+
+        if use_audio_reactive:
+            return self._apply_audio_reactive(image, angle_num, samp_num, line_width, vignette, fps, envelope_json, blend_intensity, invert, mask)
+        else:
+            return self._apply_static(image, angle_num, samp_num, line_width, vignette, fps, mask)
+
+    def _apply_static(self, image, angle_num, samp_num, line_width, vignette, fps, mask=None):
+        """Original static paper drawn effect"""
         result = []
         total_images = len(image)
         frame_time = 1.0 / fps
 
+        # Prepare mask batch if provided
+        mask_images = self.prepare_mask_batch(mask, total_images) if mask is not None else None
+
         pbar = ProgressBar(total_images)
         for i, img in enumerate(image, start=1):
-            img = self.t2p(img)
-            result_img = self.process_image(img, angle_num, samp_num, line_width, vignette, i * frame_time)
+            img_pil = self.t2p(img)
+            result_img = self.process_image(img_pil, angle_num, samp_num, line_width, vignette, i * frame_time)
+
+            # Apply mask if provided
+            if mask_images is not None:
+                mask_img = self.process_mask(mask_images[i-1], result_img.size)
+                # Blend original and effect based on mask
+                result_array = np.array(result_img).astype(np.float32)
+                original_array = np.array(img_pil).astype(np.float32)
+                mask_array = np.array(mask_img).astype(np.float32) / 255.0
+
+                # Expand mask to 3 channels
+                if len(mask_array.shape) == 2:
+                    mask_array = np.stack([mask_array] * 3, axis=-1)
+
+                # Blend: mask=1.0 shows effect, mask=0.0 shows original
+                blended = result_array * mask_array + original_array * (1.0 - mask_array)
+                result_img = Image.fromarray(blended.astype(np.uint8))
+
             result_img = self.p2t(result_img)
             result.append(result_img)
             pbar.update_absolute(i)
 
         return (torch.cat(result, dim=0),)
+
+    def _apply_audio_reactive(self, image, angle_num, samp_num, line_width, vignette, fps, envelope_json, blend_intensity, invert, mask=None):
+        """Audio-reactive blending between original and paper drawn effect"""
+        print(f"\n{'='*60}")
+        print(f"[FL Paper Drawn] Audio-reactive mode enabled")
+        print(f"[FL Paper Drawn] Effect params: angle={angle_num}, samp={samp_num}, line={line_width}, vignette={vignette}")
+        print(f"[FL Paper Drawn] Blend intensity = {blend_intensity}, Invert = {invert}")
+        print(f"{'='*60}\n")
+
+        try:
+            # Parse envelope JSON
+            envelope_data = json.loads(envelope_json)
+            envelope = envelope_data['envelope']
+
+            batch_size = len(image)
+            num_envelope_frames = len(envelope)
+
+            print(f"[FL Paper Drawn] Input frames: {batch_size}")
+            print(f"[FL Paper Drawn] Envelope frames: {num_envelope_frames}")
+
+            # Handle frame count mismatch
+            if batch_size != num_envelope_frames:
+                print(f"[FL Paper Drawn] WARNING: Frame count mismatch! Using min({batch_size}, {num_envelope_frames})")
+                max_frames = min(batch_size, num_envelope_frames)
+            else:
+                max_frames = batch_size
+
+            # Prepare mask batch if provided
+            mask_images = self.prepare_mask_batch(mask, max_frames) if mask is not None else None
+
+            # First pass: Generate paper drawn effect for all frames
+            print(f"[FL Paper Drawn] Generating paper drawn effect...")
+            effect_frames = []
+            frame_time = 1.0 / fps
+
+            pbar = ProgressBar(max_frames * 2)  # Double progress for two passes
+
+            for frame_idx in range(max_frames):
+                frame = image[frame_idx]
+                frame_pil = self.t2p(frame)
+
+                # Process with shader using static parameters
+                effect_img = self.process_image(
+                    frame_pil,
+                    angle_num,
+                    samp_num,
+                    line_width,
+                    vignette,
+                    (frame_idx + 1) * frame_time
+                )
+
+                # Apply mask to this frame's effect if provided
+                if mask_images is not None:
+                    mask_img = self.process_mask(mask_images[frame_idx], effect_img.size)
+                    # Blend original and effect based on mask
+                    effect_array = np.array(effect_img).astype(np.float32)
+                    original_array = np.array(frame_pil).astype(np.float32)
+                    mask_array = np.array(mask_img).astype(np.float32) / 255.0
+
+                    # Expand mask to 3 channels
+                    if len(mask_array.shape) == 2:
+                        mask_array = np.stack([mask_array] * 3, axis=-1)
+
+                    # Blend: mask=1.0 shows effect, mask=0.0 shows original
+                    blended = effect_array * mask_array + original_array * (1.0 - mask_array)
+                    effect_img = Image.fromarray(blended.astype(np.uint8))
+
+                effect_tensor = self.p2t(effect_img)
+                effect_frames.append(effect_tensor)
+
+                if frame_idx % 50 == 0:
+                    print(f"[FL Paper Drawn] Effect generation: {frame_idx}/{max_frames}")
+
+                pbar.update_absolute(frame_idx + 1)
+
+            # Stack effect frames
+            effect_batch = torch.cat(effect_frames, dim=0)
+
+            # Second pass: Blend based on envelope
+            print(f"[FL Paper Drawn] Blending with envelope...")
+            result = []
+
+            for frame_idx in range(max_frames):
+                # Get envelope value for this frame
+                envelope_value = envelope[frame_idx]
+
+                # Invert if requested
+                if invert:
+                    blend_amount = (1.0 - envelope_value) * blend_intensity
+                else:
+                    blend_amount = envelope_value * blend_intensity
+
+                # Clamp blend amount to 0-1 range
+                blend_amount = max(0.0, min(1.0, blend_amount))
+
+                # Get original and effect frames
+                original_frame = image[frame_idx]
+                effect_frame = effect_batch[frame_idx]
+
+                # Blend: (1 - blend) * original + blend * effect
+                blended_frame = (1.0 - blend_amount) * original_frame + blend_amount * effect_frame
+
+                result.append(blended_frame)
+
+                if frame_idx % 100 == 0 or frame_idx < 5:
+                    print(f"[FL Paper Drawn] Frame {frame_idx}: envelope={envelope_value:.3f}, blend={blend_amount:.3f}")
+
+                pbar.update_absolute(max_frames + frame_idx + 1)
+
+            # Stack all frames
+            output_tensor = torch.stack(result, dim=0)
+
+            print(f"\n{'='*60}")
+            print(f"[FL Paper Drawn] Audio-reactive processing complete!")
+            print(f"[FL Paper Drawn] Output frames: {output_tensor.shape[0]}")
+            print(f"{'='*60}\n")
+
+            return (output_tensor,)
+
+        except Exception as e:
+            print(f"\n{'='*60}")
+            print(f"[FL Paper Drawn] ERROR in audio-reactive mode: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            print(f"[FL Paper Drawn] Falling back to static mode...")
+            print(f"{'='*60}\n")
+            # Fallback to static mode on error
+            return self._apply_static(image, angle_num, samp_num, line_width, vignette, fps, mask)
 
     def process_image(self, image, angle_num, samp_num, line_width, vignette, time):
         # Convert the PIL image to a numpy array
@@ -277,15 +470,3 @@ class FL_PaperDrawn:
         processed_image = Image.fromarray((img_array * 255).astype(np.uint8))
 
         return processed_image
-
-    def t2p(self, t):
-        if t is not None:
-            i = 255.0 * t.cpu().numpy().squeeze()
-            p = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
-        return p
-
-    def p2t(self, p):
-        if p is not None:
-            i = np.array(p).astype(np.float32) / 255.0
-            t = torch.from_numpy(i).unsqueeze(0)
-        return t
