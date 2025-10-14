@@ -55,10 +55,24 @@ class FL_QwenImageEditStrength:
         images_vl = []
         llama_template = "<|im_start|>system\nDescribe the key features of the input image (color, shape, size, texture, objects, background), then explain how the user's text instruction should alter or modify the image. Generate a new image that meets the user's requirements while maintaining consistency with the original input where appropriate.<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n"
         image_prompt = ""
+        image_dimensions = None  # Track first image dimensions for validation
 
         for i, (image, strength) in enumerate(images):
             if image is not None:
                 samples = image.movedim(-1, 1)
+
+                # Validate that all images have the same dimensions when using VAE
+                if vae is not None:
+                    current_dims = (samples.shape[2], samples.shape[3])  # (height, width)
+                    if image_dimensions is None:
+                        image_dimensions = current_dims
+                    elif current_dims != image_dimensions:
+                        raise ValueError(
+                            f"Image size mismatch: Image {i+1} has dimensions {current_dims[0]}x{current_dims[1]}, "
+                            f"but the first image has dimensions {image_dimensions[0]}x{image_dimensions[1]}. "
+                            f"All images must have the same dimensions when using VAE encoding. "
+                            f"Please resize your images to match before connecting them to this node."
+                        )
 
                 # Resize for vision model (384x384)
                 total = int(384 * 384)
@@ -69,15 +83,9 @@ class FL_QwenImageEditStrength:
                 s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
                 images_vl.append(s.movedim(1, -1))
 
-                # Encode to latents if VAE is provided
+                # Encode to latents if VAE is provided (using original dimensions)
                 if vae is not None:
-                    total = int(1024 * 1024)
-                    scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
-                    width = round(samples.shape[3] * scale_by / 8.0) * 8
-                    height = round(samples.shape[2] * scale_by / 8.0) * 8
-
-                    s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
-                    latent = vae.encode(s.movedim(1, -1)[:, :, :, :3])
+                    latent = vae.encode(samples.movedim(1, -1)[:, :, :, :3])
 
                     individual_latents.append(latent)
                     strengths.append(strength)

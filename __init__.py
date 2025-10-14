@@ -149,6 +149,7 @@ from .nodes.prompting.FL_MadLibGenerator import FL_MadLibGenerator
 from .nodes.prompting.FL_Prompt import FL_PromptBasic
 from .nodes.prompting.FL_PromptMulti import FL_PromptMulti
 from .nodes.prompting.FL_PromptSelector import FL_PromptSelector
+from .nodes.prompting.FL_PromptSelectorBasic import FL_PromptSelectorBasic
 
 # UTILITY NODES
 from .nodes.utility.FL_ClipScanner import FL_ClipScanner
@@ -339,6 +340,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_Fal_Sora": FL_Fal_Sora,
     "FL_PromptBasic": FL_PromptBasic,
     "FL_PromptMulti": FL_PromptMulti,
+    "FL_PromptSelectorBasic": FL_PromptSelectorBasic,
     "FL_PaddingRemover": FL_PaddingRemover,
     "FL_GPT_Text": FL_GPT_Text,
     "FL_GoogleCloudStorage": FL_GoogleCloudStorage,
@@ -410,6 +412,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_HalftonePattern": "FL Halftone",
     "FL_RandomNumber": "FL Random Number",
     "FL_PromptSelector": "FL Prompt Selector",
+    "FL_PromptSelectorBasic": "FL Prompt Selector Basic",
     "FL_Shadertoy": "FL Shadertoy",
     "FL_PixelArtShader": "FL Pixel Art",
     "FL_InfiniteZoom": "FL Infinite Zoom",
@@ -513,6 +516,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Fal_Sora": "FL Fal Sora 2",
     "FL_PromptBasic": "FL Prompt Basic",
     "FL_PromptMulti": "FL Prompt Multi",
+    "FL_PromptSelectorBasic": "FL Prompt Selector Basic",
     "FL_PaddingRemover": "FL Padding Remover",
     "FL_GPT_Text": "FL GPT Text",
     "FL_GoogleCloudStorage": "FL Google Cloud Storage Uploader",
