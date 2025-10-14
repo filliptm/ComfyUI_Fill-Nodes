@@ -161,6 +161,7 @@ from .nodes.utility.FL_InpaintCrop import FL_Inpaint_Stitch
 from .nodes.utility.FL_JS import FL_JS
 from .nodes.utility.FL_Math import FL_Math
 from .nodes.utility.FL_ModelInspector import FL_ModelInspector
+from .nodes.utility.FL_NumberConverter import FL_IntToFloat, FL_FloatToInt
 from .nodes.utility.FL_Padding import FL_Padding
 from .nodes.utility.FL_PasteByMask import FL_PasteByMask
 from .nodes.utility.FL_PasteOnCanvas import FL_PasteOnCanvas
@@ -385,6 +386,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_Audio_Separation": FL_Audio_Separation,
     "FL_Audio_Shot_Iterator": FL_Audio_Shot_Iterator,
     "FL_QwenImageEditStrength": FL_QwenImageEditStrength,
+    "FL_IntToFloat": FL_IntToFloat,
+    "FL_FloatToInt": FL_FloatToInt,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -563,6 +566,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Audio_Separation": "FL Audio Separation",
     "FL_Audio_Shot_Iterator": "FL Audio Shot Iterator",
     "FL_QwenImageEditStrength": "FL Qwen Image Edit with Strength",
+    "FL_IntToFloat": "FL Int to Float",
+    "FL_FloatToInt": "FL Float to Int",
 }
 
 
