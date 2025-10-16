@@ -9,8 +9,8 @@ class FL_Audio_Shot_Iterator:
     Takes sequence JSON and shot index, outputs frame count and shot details.
     """
 
-    RETURN_TYPES = ("INT", "INT", "INT", "INT", "INT", "FLOAT", "FLOAT", "BOOLEAN")
-    RETURN_NAMES = ("frame_count", "start_frame", "end_frame", "start_beat", "beat_count", "start_time", "duration", "is_last_shot")
+    RETURN_TYPES = ("INT", "INT", "INT", "INT", "INT", "FLOAT", "FLOAT", "BOOLEAN", "INT")
+    RETURN_NAMES = ("frame_count", "start_frame", "end_frame", "start_beat", "beat_count", "start_time", "duration", "is_last_shot", "total_frames")
     FUNCTION = "get_shot"
     CATEGORY = "🏵️Fill Nodes/Audio"
 
@@ -29,7 +29,7 @@ class FL_Audio_Shot_Iterator:
             }
         }
 
-    def get_shot(self, sequence_json: str, shot_index: int) -> Tuple[int, int, int, int, int, float, float, bool]:
+    def get_shot(self, sequence_json: str, shot_index: int) -> Tuple[int, int, int, int, int, float, float, bool, int]:
         """
         Extract shot data from sequence JSON
 
@@ -38,7 +38,7 @@ class FL_Audio_Shot_Iterator:
             shot_index: Shot index (0-based)
 
         Returns:
-            Tuple of (frame_count, start_frame, end_frame, start_beat, beat_count, start_time, duration, is_last_shot)
+            Tuple of (frame_count, start_frame, end_frame, start_beat, beat_count, start_time, duration, is_last_shot, total_frames)
         """
         print(f"\n{'='*60}")
         print(f"[FL Shot Iterator] DEBUG: Function called")
@@ -58,12 +58,12 @@ class FL_Audio_Shot_Iterator:
             except (json.JSONDecodeError, KeyError) as e:
                 error_msg = f"Error parsing sequence JSON: {e}"
                 print(f"[FL Shot Iterator] ERROR: {error_msg}")
-                return 0, 0, 0, 0, 0, 0.0, 0.0, False
+                return 0, 0, 0, 0, 0, 0.0, 0.0, False, 0
 
             # Validate shot index
             if shot_index < 0 or shot_index >= total_shots:
                 print(f"[FL Shot Iterator] ERROR: shot_index ({shot_index}) out of range (0-{total_shots-1})")
-                return 0, 0, 0, 0, 0, 0.0, 0.0, False
+                return 0, 0, 0, 0, 0, 0.0, 0.0, False, 0
 
             # Get shot data
             shot = shots[shot_index]
@@ -77,15 +77,19 @@ class FL_Audio_Shot_Iterator:
             duration = shot['duration']
             is_last_shot = (shot_index == total_shots - 1)
 
+            # Get total frames from metadata
+            total_frames = metadata.get('total_frames', 0)
+
             print(f"\n{'='*60}")
             print(f"[FL Shot Iterator] Shot {shot_index} data:")
             print(f"[FL Shot Iterator]   Beats: {start_beat} to {shot['end_beat']} ({beat_count} beats)")
             print(f"[FL Shot Iterator]   Time: {start_time:.3f}s to {shot['end_time']:.3f}s ({duration:.3f}s)")
             print(f"[FL Shot Iterator]   Frames: {start_frame} to {end_frame} ({frame_count} frames)")
             print(f"[FL Shot Iterator]   Is last shot: {is_last_shot}")
+            print(f"[FL Shot Iterator]   Total frames in sequence: {total_frames}")
             print(f"{'='*60}\n")
 
-            return frame_count, start_frame, end_frame, start_beat, beat_count, start_time, duration, is_last_shot
+            return frame_count, start_frame, end_frame, start_beat, beat_count, start_time, duration, is_last_shot, total_frames
 
         except Exception as e:
             error_msg = f"Error: {str(e)}"
@@ -94,4 +98,4 @@ class FL_Audio_Shot_Iterator:
             import traceback
             traceback.print_exc()
             print(f"{'='*60}\n")
-            return 0, 0, 0, 0, 0, 0.0, 0.0, False
+            return 0, 0, 0, 0, 0, 0.0, 0.0, False, 0

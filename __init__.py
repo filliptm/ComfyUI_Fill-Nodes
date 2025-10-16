@@ -7,6 +7,7 @@ from .nodes.ai.FL_Fal_Pixverse_LipSync import FL_Fal_Pixverse_LipSync
 from .nodes.ai.FL_Fal_Pixverse_Transition import FL_Fal_Pixverse_Transition
 from .nodes.ai.FL_Fal_Seedance_i2v import FL_Fal_Seedance_i2v
 from .nodes.ai.FL_Fal_Seedream_Edit import FL_Fal_Seedream_Edit
+from .nodes.ai.FL_Fal_SeedVR_Upscale import FL_Fal_SeedVR_Upscale
 from .nodes.ai.FL_Fal_Sora import FL_Fal_Sora
 from .nodes.ai.FL_GeminiImageEditor import FL_GeminiImageEditor
 from .nodes.ai.FL_GeminiImageGenADV import FL_GeminiImageGenADV
@@ -335,6 +336,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_Fal_Gemini_ImageEdit": FL_Fal_Gemini_ImageEdit,
     "FL_Fal_Seedance_i2v": FL_Fal_Seedance_i2v,
     "FL_Fal_Seedream_Edit": FL_Fal_Seedream_Edit,
+    "FL_Fal_SeedVR_Upscale": FL_Fal_SeedVR_Upscale,
     "FL_Fal_Pixverse_Transition": FL_Fal_Pixverse_Transition,
     "FL_Fal_Pixverse_LipSync": FL_Fal_Pixverse_LipSync,
     "FL_Fal_Kling_AIAvatar": FL_Fal_Kling_AIAvatar,
@@ -513,6 +515,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Fal_Gemini_ImageEdit": "FL Fal Gemini Image Edit",
     "FL_Fal_Seedance_i2v": "FL Fal Seedance i2v",
     "FL_Fal_Seedream_Edit": "FL Fal Seedream Edit",
+    "FL_Fal_SeedVR_Upscale": "FL Fal SeedVR Upscale",
     "FL_Fal_Pixverse_Transition": "FL Fal Pixverse Transition",
     "FL_Fal_Pixverse_LipSync": "FL Fal Pixverse LipSync",
     "FL_Fal_Kling_AIAvatar": "FL Fal Kling AI Avatar",
