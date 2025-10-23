@@ -103,6 +103,7 @@ from .nodes.image.FL_ImageBatch import FL_ImageBatch
 from .nodes.image.FL_ImageBatchListConverter import FL_ImageListToImageBatch, FL_ImageBatchToImageList
 from .nodes.image.FL_ImageBatchToGrid import FL_ImageBatchToGrid
 from .nodes.image.FL_ImageNotes import FL_ImageNotes
+from .nodes.image.FL_ImageOverlay import FL_ImageOverlay
 from .nodes.image.FL_ImageSelector import FL_ImageSelector
 from .nodes.image.FL_ImageSlicer import FL_ImageSlicer
 from .nodes.image.FL_Image_AddToBatch import FL_ImageAddToBatch
@@ -307,6 +308,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_Math": FL_Math,
     "FL_ImageSlicer": FL_ImageSlicer,
     "FL_ImageSelector": FL_ImageSelector,
+    "FL_ImageOverlay": FL_ImageOverlay,
     "FL_ImageAspectCropper": FL_ImageAspectCropper,
     "FL_HF_UploaderAbsolute": FL_HF_UploaderAbsolute,
     "FL_ImageListToImageBatch": FL_ImageListToImageBatch,
@@ -486,6 +488,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Math": "FL Math",
     "FL_ImageSlicer": "FL Image Slicer",
     "FL_ImageSelector": "FL Image Selector",
+    "FL_ImageOverlay": "FL Image Overlay",
     "FL_ImageAspectCropper": "FL Image Aspect Cropper",
     "FL_HF_UploaderAbsolute": "FL HF Uploader Absolute",
     "FL_ImageListToImageBatch": "FL Image List To Image Batch",
