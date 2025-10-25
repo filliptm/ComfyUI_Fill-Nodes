@@ -51,7 +51,14 @@ class FL_RIFE:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.model = None
         self.current_ckpt = None
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        # Device selection: CUDA > MPS (Apple Silicon) > CPU
+        if torch.cuda.is_available():
+            self.device = torch.device("cuda")
+        elif torch.backends.mps.is_available():
+            self.device = torch.device("mps")
+        else:
+            self.device = torch.device("cpu")
 
     def download_model(self, ckpt_name):
         """Download RIFE model weights to cache from HuggingFace"""
@@ -104,7 +111,7 @@ class FL_RIFE:
 
         try:
             # Lazy import to avoid loading architecture at module import time
-            from .rife_arch import IFNet
+            from ..rife_arch import IFNet
 
             # Initialize model with correct architecture
             self.model = IFNet(arch_ver=config["arch"])
