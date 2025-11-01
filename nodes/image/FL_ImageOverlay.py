@@ -1,7 +1,10 @@
 import torch
 import numpy as np
+import io
+import base64
 from PIL import Image, ImageFilter
 from ..utils import tensor_to_pil, pil_to_tensor
+from server import PromptServer
 
 
 class FL_ImageOverlay:
@@ -46,16 +49,18 @@ class FL_ImageOverlay:
                 "invert_mask": ("BOOLEAN", {"default": False}),
                 "mask_feather": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
                 "boundary_behavior": (["clip", "extend_canvas"], {"default": "clip"}),
+                "show_preview": ("BOOLEAN", {"default": False, "label": "Show Preview on Node"}),
             },
         }
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "overlay_images"
+    OUTPUT_NODE = True
     CATEGORY = "🏵️Fill Nodes/Image"
 
     def overlay_images(self, base_image, overlay_image, mask, x_offset, y_offset,
                       alignment, resize_overlay, blend_mode, opacity, invert_mask,
-                      mask_feather, boundary_behavior):
+                      mask_feather, boundary_behavior, show_preview=False):
         # Process batch - use first image from each batch
         base_pil = tensor_to_pil(base_image, batch_index=0)
         overlay_pil = tensor_to_pil(overlay_image, batch_index=0)
@@ -100,6 +105,11 @@ class FL_ImageOverlay:
             base_pil, overlay_pil, mask_pil, x_pos, y_pos,
             blend_mode, opacity, boundary_behavior
         )
+
+        # Send preview to frontend if enabled
+        if show_preview:
+            display_image = self.prepare_image_for_display(result_pil)
+            PromptServer.instance.send_sync("fl_image_overlay", {"image": display_image})
 
         # Convert back to tensor
         result_tensor = pil_to_tensor(result_pil)
@@ -266,3 +276,17 @@ class FL_ImageOverlay:
         # Convert back to PIL
         result_np = (result_np * 255).astype(np.uint8)
         return Image.fromarray(result_np, mode='RGB')
+
+    def prepare_image_for_display(self, pil_image):
+        """Convert PIL image to base64 for frontend display"""
+        # Create a copy to avoid modifying the original
+        display_img = pil_image.copy()
+
+        # Resize image if it's too large for preview
+        max_size = (512, 512)
+        display_img.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+        buffered = io.BytesIO()
+        display_img.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+        return f"data:image/png;base64,{img_str}"

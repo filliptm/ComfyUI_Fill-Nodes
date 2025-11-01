@@ -3,7 +3,10 @@ import torch.nn.functional as F
 from torchvision.ops import masks_to_boxes
 from torchvision.transforms.functional import resize as tv_resize, InterpolationMode
 import numpy as np
+import io
+import base64
 from PIL import Image
+from server import PromptServer
 
 class FL_PasteOnCanvas:
     @classmethod
@@ -20,6 +23,7 @@ class FL_PasteOnCanvas:
                 "resize_algorithm": (["bilinear", "nearest", "bicubic", "lanczos"],),
                 "include_alpha": ("BOOLEAN", {"default": False}),
                 "use_full_mask": ("BOOLEAN", {"default": False}),
+                "show_preview": ("BOOLEAN", {"default": False, "label": "Show Preview on Node"}),
             },
             "optional": {
                 "mask": ("IMAGE",),
@@ -29,10 +33,11 @@ class FL_PasteOnCanvas:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "cut_and_paste"
+    OUTPUT_NODE = True
     CATEGORY = "🏵️Fill Nodes/Utility"
 
     def cut_and_paste(self, image, canvas_width, canvas_height, background_red, background_green, background_blue,
-                      padding, resize_algorithm, include_alpha, use_full_mask, mask=None, bg_image_optional=None):
+                      padding, resize_algorithm, include_alpha, use_full_mask, show_preview=True, mask=None, bg_image_optional=None):
         # Ensure inputs are in the correct format
         image = self.tensor_to_rgba(image)
         B, H, W, C = image.shape
@@ -127,6 +132,11 @@ class FL_PasteOnCanvas:
         if not include_alpha:
             canvas = canvas[..., :3]
 
+        # Send preview to frontend if enabled
+        if show_preview:
+            display_image = self.prepare_image_for_display(canvas)
+            PromptServer.instance.send_sync("fl_paste_on_canvas", {"image": display_image})
+
         return (canvas,)
 
     def prepare_background_image(self, bg_image_optional, canvas_width, canvas_height, batch_size):
@@ -176,3 +186,27 @@ class FL_PasteOnCanvas:
         if len(tensor.shape) == 4:
             return tensor.mean(dim=-1)
         return tensor
+
+    def prepare_image_for_display(self, tensor_image):
+        """Convert tensor image to base64 for frontend display"""
+        # Take the first image from the batch
+        if tensor_image.shape[0] > 0:
+            img_tensor = tensor_image[0]
+        else:
+            img_tensor = tensor_image
+
+        # Convert to numpy and PIL
+        img_np = (img_tensor.cpu().numpy() * 255).astype('uint8')
+        pil_image = Image.fromarray(img_np)
+
+        # Create a copy to avoid modifying the original
+        display_img = pil_image.copy()
+
+        # Resize image if it's too large for preview
+        max_size = (512, 512)
+        display_img.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+        buffered = io.BytesIO()
+        display_img.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+        return f"data:image/png;base64,{img_str}"
