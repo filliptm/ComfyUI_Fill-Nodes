@@ -45,7 +45,13 @@ class FL_FILM:
         self.cache_dir = Path(__file__).parent.parent / "cache" / "film_models"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.model = None
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        # Device selection: CUDA or CPU only
+        # MPS not supported - TorchScript model uses grid_sample with border padding
+        if torch.cuda.is_available():
+            self.device = torch.device("cuda")
+        else:
+            self.device = torch.device("cpu")
 
     def download_model(self):
         """Download FILM model weights to cache from HuggingFace"""
