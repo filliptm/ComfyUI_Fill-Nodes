@@ -34,6 +34,7 @@ class FL_PathAnimator:
     DESCRIPTION = """
 Creates animated shapes that follow user-drawn paths.
 Open the path editor to draw trajectories on a reference image, then shapes will follow these paths over time.
+Outputs WAN ATI-compatible coordinate strings with proper 121-point resampling for stable video generation.
 """
 
     @classmethod
@@ -60,7 +61,7 @@ Open the path editor to draw trajectories on a reference image, then shapes will
                 "rotation_speed": ("FLOAT", {"default": 0.0, "min": -360.0, "max": 360.0, "step": 1.0}),
                 "border_width": ("INT", {"default": 0, "min": 0, "max": 20, "step": 1}),
                 "border_color": ("STRING", {"default": 'white'}),
-                "paths_data": ("STRING", {"default": '{"paths": [], "image_size": {"width": 512, "height": 512}}', "multiline": True}),
+                "paths_data": ("STRING", {"default": '{"paths": [], "canvas_size": {"width": 512, "height": 512}}', "multiline": True}),
             }
         }
 
@@ -136,13 +137,81 @@ Open the path editor to draw trajectories on a reference image, then shapes will
             rotated.append((new_x, new_y))
         return rotated
 
+    def resample_path_uniform(self, points, num_samples=121):
+        """
+        Resample path to exactly num_samples points with even arc-length spacing.
+        This matches KJNodes "path" sampling method and is CRITICAL for WAN ATI stability.
+
+        Args:
+            points: List of {x, y} dicts representing the path
+            num_samples: Number of points to resample to (default 121 for WAN ATI)
+
+        Returns:
+            List of {x, y} dicts with exactly num_samples points evenly distributed along the arc
+        """
+        if len(points) == 0:
+            return []
+
+        # SOLUTION 1: Support static single points
+        if len(points) == 1:
+            # Single point - repeat for all samples (creates static anchor)
+            return [{'x': points[0]['x'], 'y': points[0]['y']} for _ in range(num_samples)]
+
+        # Calculate cumulative arc lengths along the path
+        cumulative_lengths = [0.0]
+        for i in range(len(points) - 1):
+            dx = points[i + 1]['x'] - points[i]['x']
+            dy = points[i + 1]['y'] - points[i]['y']
+            length = math.sqrt(dx * dx + dy * dy)
+            cumulative_lengths.append(cumulative_lengths[-1] + length)
+
+        total_length = cumulative_lengths[-1]
+
+        # Handle zero-length path (all points are the same)
+        if total_length == 0:
+            return [{'x': points[0]['x'], 'y': points[0]['y']} for _ in range(num_samples)]
+
+        # Resample at even intervals along the arc
+        resampled = []
+        for i in range(num_samples):
+            # Calculate target distance along path
+            if num_samples == 1:
+                target_length = 0
+            else:
+                target_length = (i / (num_samples - 1)) * total_length
+
+            # Find segment containing target length
+            for j in range(len(cumulative_lengths) - 1):
+                if cumulative_lengths[j] <= target_length <= cumulative_lengths[j + 1]:
+                    # Interpolate within this segment
+                    seg_length = cumulative_lengths[j + 1] - cumulative_lengths[j]
+                    if seg_length > 0:
+                        t = (target_length - cumulative_lengths[j]) / seg_length
+                    else:
+                        t = 0
+
+                    x = points[j]['x'] + t * (points[j + 1]['x'] - points[j]['x'])
+                    y = points[j]['y'] + t * (points[j + 1]['y'] - points[j]['y'])
+                    resampled.append({'x': x, 'y': y})
+                    break
+            else:
+                # Fallback to last point (shouldn't happen with correct logic)
+                resampled.append({'x': points[-1]['x'], 'y': points[-1]['y']})
+
+        return resampled
+
     def interpolate_path(self, points, t):
         """
         Interpolate position along a path at time t (0.0 to 1.0)
         Returns (x, y) coordinates
+
+        NOTE: This is used for visualization/animation only.
+        For WAN ATI output, use resample_path_uniform() instead.
         """
         if len(points) == 0:
             return (0, 0)
+
+        # Support static single points
         if len(points) == 1:
             return (points[0]['x'], points[0]['y'])
 
@@ -179,7 +248,7 @@ Open the path editor to draw trajectories on a reference image, then shapes will
     def animate_paths(self, frame_width, frame_height, frame_count, shape, shape_size,
                      shape_color, bg_color, blur_radius=0.0, trail_length=0.0,
                      rotation_speed=0.0, border_width=0, border_color='white',
-                     paths_data='{"paths": [], "image_size": {"width": 512, "height": 512}}'):
+                     paths_data='{"paths": [], "canvas_size": {"width": 512, "height": 512}}'):
 
         # Parse colors
         shape_color = parse_color(shape_color)
@@ -213,6 +282,11 @@ Open the path editor to draw trajectories on a reference image, then shapes will
                     'y': point['y'] * scale_y
                 })
             scaled_path['points'] = scaled_points
+
+            # Preserve isSinglePoint flag if it exists
+            if 'isSinglePoint' in path:
+                scaled_path['isSinglePoint'] = path['isSinglePoint']
+
             scaled_paths.append(scaled_path)
 
         images_list = []
@@ -270,12 +344,31 @@ Open the path editor to draw trajectories on a reference image, then shapes will
         out_images = torch.cat(images_list, dim=0)
         out_masks = torch.cat(masks_list, dim=0)
 
-        # Format coordinate string output
-        # Convert scaled paths to coordinate string format (list of tracks)
-        # Each path becomes a separate track so they all animate simultaneously
-        coord_string = json.dumps([
-            [{"x": int(point["x"]), "y": int(point["y"])} for point in path.get("points", [])]
-            for path in scaled_paths
-        ])
+        # SOLUTION 2 & 3: Generate WAN ATI-compatible coordinate string
+        # Resample each path to exactly 121 points with visibility flags
+        coord_tracks = []
+        for path in scaled_paths:
+            points = path.get('points', [])
+
+            # Check if this is a single-point path (static anchor)
+            is_single_point = path.get('isSinglePoint', False) or len(points) == 1
+
+            # Resample to exactly 121 points for WAN ATI compatibility
+            resampled_points = self.resample_path_uniform(points, num_samples=121)
+
+            # Add visibility flag (1.0 = visible, required by WAN ATI)
+            # Format: [{"x": x, "y": y}, {"x": x, "y": y}, ...]
+            # The visibility will be added as a third coordinate when processed by ATI
+            track_coords = [
+                {"x": int(round(p["x"])), "y": int(round(p["y"]))}
+                for p in resampled_points
+            ]
+
+            coord_tracks.append(track_coords)
+
+        # Output as list of tracks (each track is a list of 121 {x, y} points)
+        coord_string = json.dumps(coord_tracks)
+
+        print(f"FL_PathAnimator: Generated {len(coord_tracks)} tracks with 121 points each for WAN ATI")
 
         return (out_images, out_masks, coord_string)

@@ -52,7 +52,9 @@ app.registerExtension({
                 try {
                     const data = JSON.parse(pathsDataWidget.value);
                     const count = data.paths ? data.paths.length : 0;
-                    pathCountWidget.value = `${count} path${count !== 1 ? 's' : ''}`;
+                    const staticCount = data.paths ? data.paths.filter(p => p.isSinglePoint || p.points.length === 1).length : 0;
+                    const motionCount = count - staticCount;
+                    pathCountWidget.value = `${count} path${count !== 1 ? 's' : ''} (${staticCount} static, ${motionCount} motion)`;
                 } catch (e) {
                     pathCountWidget.value = "0 paths";
                 }
@@ -90,13 +92,14 @@ class PathEditorModal {
         this.currentPath = null;
         this.selectedPathIndex = -1;
         this.isDrawing = false;
-        this.tool = 'pencil'; // pencil, eraser, select
+        this.tool = 'pencil'; // pencil, eraser, select, point
         this.currentColor = this.getRandomColor();
         this.backgroundImage = null;
         this.canvasScale = 1.0;
         this.canvasOffsetX = 0;
         this.canvasOffsetY = 0;
         this.pathThickness = 3; // Visual thickness for displaying paths
+        this.shiftPressed = false; // Track shift key state
 
         // Load existing paths
         this.loadPaths();
@@ -106,6 +109,33 @@ class PathEditorModal {
 
         // Create modal elements
         this.createModal();
+
+        // Setup keyboard handlers
+        this.setupKeyboardHandlers();
+    }
+
+    setupKeyboardHandlers() {
+        this.keydownHandler = (e) => {
+            // Track shift key
+            if (e.key === 'Shift') {
+                this.shiftPressed = true;
+            }
+
+            // Escape to save and close
+            if (e.key === 'Escape') {
+                this.savePaths();
+                this.close();
+            }
+        };
+
+        this.keyupHandler = (e) => {
+            if (e.key === 'Shift') {
+                this.shiftPressed = false;
+            }
+        };
+
+        document.addEventListener('keydown', this.keydownHandler);
+        document.addEventListener('keyup', this.keyupHandler);
     }
 
     loadCachedBackgroundImage() {
@@ -222,6 +252,13 @@ class PathEditorModal {
             border-radius: 12px 12px 0 0;
         `;
 
+        const titleContainer = document.createElement('div');
+        titleContainer.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        `;
+
         const title = document.createElement('h2');
         title.textContent = '✏️ Path Animator Editor';
         title.style.cssText = `
@@ -232,6 +269,17 @@ class PathEditorModal {
             letter-spacing: -0.5px;
             text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         `;
+
+        const subtitle = document.createElement('div');
+        subtitle.textContent = 'Press ESC to save & close | Hold SHIFT for straight lines';
+        subtitle.style.cssText = `
+            color: #888;
+            font-size: 12px;
+            font-weight: 400;
+        `;
+
+        titleContainer.appendChild(title);
+        titleContainer.appendChild(subtitle);
 
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '✕';
@@ -262,7 +310,7 @@ class PathEditorModal {
         };
         closeBtn.onclick = () => this.close();
 
-        header.appendChild(title);
+        header.appendChild(titleContainer);
         header.appendChild(closeBtn);
         this.container.appendChild(header);
     }
@@ -353,7 +401,8 @@ class PathEditorModal {
         toolbar.appendChild(separator);
 
         const tools = [
-            { name: 'pencil', icon: '✏️', title: 'Draw Path' },
+            { name: 'pencil', icon: '✏️', title: 'Draw Path (Motion)' },
+            { name: 'point', icon: '📍', title: 'Add Static Point (Anchor)' },
             { name: 'eraser', icon: '🗑️', title: 'Erase Path' },
             { name: 'select', icon: '↖️', title: 'Select Path' },
         ];
@@ -364,6 +413,16 @@ class PathEditorModal {
             btn.dataset.tool = tool.name;
             btn.onclick = () => {
                 this.tool = tool.name;
+                // Update canvas cursor
+                if (this.tool === 'point') {
+                    this.canvas.style.cursor = 'crosshair';
+                } else if (this.tool === 'pencil') {
+                    this.canvas.style.cursor = 'crosshair';
+                } else if (this.tool === 'eraser') {
+                    this.canvas.style.cursor = 'not-allowed';
+                } else if (this.tool === 'select') {
+                    this.canvas.style.cursor = 'pointer';
+                }
                 // Update all tool button states
                 toolButtons.forEach(tb => {
                     const isActive = tb.dataset.tool === tool.name;
@@ -507,7 +566,6 @@ class PathEditorModal {
         const spacing = perimeter / count;
 
         // Create paths around the perimeter
-        let distance = 0;
         for (let i = 0; i < count; i++) {
             const d = i * spacing;
             let x, y;
@@ -532,8 +590,11 @@ class PathEditorModal {
 
             // Create a static path (single point) at this position
             const path = {
+                id: 'path_' + Date.now() + '_' + i,
+                name: 'Perimeter ' + (i + 1),
                 points: [{ x: Math.round(x), y: Math.round(y) }],
-                color: this.getRandomColor()
+                color: this.getRandomColor(),
+                isSinglePoint: true
             };
             this.paths.push(path);
         }
@@ -552,6 +613,7 @@ class PathEditorModal {
             background: radial-gradient(circle at center, #1e1e1e 0%, #0a0a0a 100%);
             position: relative;
             overflow: hidden;
+            padding: 20px;
         `;
 
         this.canvas = document.createElement('canvas');
@@ -605,8 +667,23 @@ class PathEditorModal {
                 name: 'Path ' + (this.paths.length + 1),
                 points: [pos],
                 color: this.currentColor,
-                closed: false
+                closed: false,
+                isSinglePoint: false
             };
+        } else if (this.tool === 'point') {
+            // Add single static point
+            const path = {
+                id: 'path_' + Date.now(),
+                name: 'Static ' + (this.paths.filter(p => p.isSinglePoint).length + 1),
+                points: [pos],
+                color: this.currentColor,
+                isSinglePoint: true
+            };
+            this.paths.push(path);
+            this.selectedPathIndex = this.paths.length - 1;
+            this.currentColor = this.getRandomColor();
+            this.updateSidebar();
+            this.render();
         } else if (this.tool === 'select') {
             // Find clicked path
             this.selectedPathIndex = this.findPathAtPoint(pos);
@@ -628,20 +705,69 @@ class PathEditorModal {
         if (this.isDrawing && this.tool === 'pencil') {
             const pos = this.getCanvasCoords(e);
 
-            // Only add point if it's far enough from the last point (smoothing)
-            const lastPoint = this.currentPath.points[this.currentPath.points.length - 1];
-            const dist = Math.sqrt(Math.pow(pos.x - lastPoint.x, 2) + Math.pow(pos.y - lastPoint.y, 2));
+            // If shift is pressed, draw straight line from last point
+            if (this.shiftPressed && this.currentPath.points.length > 0) {
+                // Replace the preview point if it exists, or add it
+                const lastPoint = this.currentPath.points[this.currentPath.points.length - 1];
 
-            if (dist > 3) { // Minimum distance between points
-                this.currentPath.points.push(pos);
+                // Determine if line should be horizontal, vertical, or diagonal
+                const dx = Math.abs(pos.x - lastPoint.x);
+                const dy = Math.abs(pos.y - lastPoint.y);
+
+                let constrainedPos;
+                if (dx > dy * 2) {
+                    // Horizontal
+                    constrainedPos = { x: pos.x, y: lastPoint.y };
+                } else if (dy > dx * 2) {
+                    // Vertical
+                    constrainedPos = { x: lastPoint.x, y: pos.y };
+                } else {
+                    // Diagonal 45 degrees
+                    const dist = Math.min(dx, dy);
+                    constrainedPos = {
+                        x: lastPoint.x + (pos.x > lastPoint.x ? dist : -dist),
+                        y: lastPoint.y + (pos.y > lastPoint.y ? dist : -dist)
+                    };
+                }
+
+                // Store original last point count to know if we're previewing
+                if (!this.shiftPreviewPoint) {
+                    this.shiftPreviewPoint = true;
+                    this.currentPath.points.push(constrainedPos);
+                } else {
+                    this.currentPath.points[this.currentPath.points.length - 1] = constrainedPos;
+                }
                 this.render();
+            } else {
+                // Normal drawing - clear shift preview flag
+                this.shiftPreviewPoint = false;
+
+                // Only add point if it's far enough from the last point (smoothing)
+                const lastPoint = this.currentPath.points[this.currentPath.points.length - 1];
+                const dist = Math.sqrt(Math.pow(pos.x - lastPoint.x, 2) + Math.pow(pos.y - lastPoint.y, 2));
+
+                if (dist > 3) { // Minimum distance between points
+                    this.currentPath.points.push(pos);
+                    this.render();
+                }
             }
         }
     }
 
     onMouseUp(e) {
         if (this.isDrawing && this.currentPath) {
+            // Clear shift preview flag
+            this.shiftPreviewPoint = false;
+
             if (this.currentPath.points.length > 1) {
+                this.paths.push(this.currentPath);
+                this.selectedPathIndex = this.paths.length - 1;
+                this.currentColor = this.getRandomColor();
+                this.updateSidebar();
+            } else if (this.currentPath.points.length === 1) {
+                // Single click became a static point
+                this.currentPath.isSinglePoint = true;
+                this.currentPath.name = 'Static ' + (this.paths.filter(p => p.isSinglePoint).length + 1);
                 this.paths.push(this.currentPath);
                 this.selectedPathIndex = this.paths.length - 1;
                 this.currentColor = this.getRandomColor();
@@ -653,17 +779,36 @@ class PathEditorModal {
         }
     }
 
-    findPathAtPoint(point, threshold = 10) {
+    findPathAtPoint(point, baseThreshold = 10) {
+        // Scale threshold based on canvas resolution
+        const scale = this.getRenderScale();
+        const threshold = baseThreshold * scale;
+
+        // Check single points first (easier to select)
         for (let i = this.paths.length - 1; i >= 0; i--) {
             const path = this.paths[i];
-            for (let j = 0; j < path.points.length - 1; j++) {
-                const p1 = path.points[j];
-                const p2 = path.points[j + 1];
-
-                // Check if point is near line segment
-                const dist = this.distanceToSegment(point, p1, p2);
+            if (path.isSinglePoint || path.points.length === 1) {
+                const p = path.points[0];
+                const dist = Math.sqrt(Math.pow(point.x - p.x, 2) + Math.pow(point.y - p.y, 2));
                 if (dist < threshold) {
                     return i;
+                }
+            }
+        }
+
+        // Then check multi-point paths
+        for (let i = this.paths.length - 1; i >= 0; i--) {
+            const path = this.paths[i];
+            if (!path.isSinglePoint && path.points.length > 1) {
+                for (let j = 0; j < path.points.length - 1; j++) {
+                    const p1 = path.points[j];
+                    const p2 = path.points[j + 1];
+
+                    // Check if point is near line segment
+                    const dist = this.distanceToSegment(point, p1, p2);
+                    if (dist < threshold) {
+                        return i;
+                    }
                 }
             }
         }
@@ -700,6 +845,14 @@ class PathEditorModal {
         return Math.sqrt(dx * dx + dy * dy);
     }
 
+    getRenderScale() {
+        // Calculate scale factor based on canvas dimensions
+        // Use 512 as the base resolution for consistent rendering
+        const baseResolution = 512;
+        const minDimension = Math.min(this.canvas.width, this.canvas.height);
+        return minDimension / baseResolution;
+    }
+
     render() {
         if (!this.ctx) return;
 
@@ -726,36 +879,73 @@ class PathEditorModal {
     }
 
     drawPath(path, isSelected = false) {
-        if (path.points.length < 2) return;
+        const isSinglePoint = path.isSinglePoint || path.points.length === 1;
+        const scale = this.getRenderScale();
 
-        this.ctx.beginPath();
-        this.ctx.moveTo(path.points[0].x, path.points[0].y);
+        if (isSinglePoint) {
+            // Draw single point as a square (static anchor)
+            const point = path.points[0];
+            const baseSize = isSelected ? 12 : 8;
+            const size = baseSize * scale;
 
-        for (let i = 1; i < path.points.length; i++) {
-            this.ctx.lineTo(path.points[i].x, path.points[i].y);
-        }
+            this.ctx.fillStyle = path.color;
+            this.ctx.fillRect(point.x - size / 2, point.y - size / 2, size, size);
 
-        this.ctx.strokeStyle = path.color;
-        this.ctx.lineWidth = isSelected ? this.pathThickness + 2 : this.pathThickness;
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
-        this.ctx.stroke();
+            // Draw border
+            this.ctx.strokeStyle = isSelected ? '#4ECDC4' : '#fff';
+            this.ctx.lineWidth = (isSelected ? 3 : 2) * scale;
+            this.ctx.strokeRect(point.x - size / 2, point.y - size / 2, size, size);
 
-        // Draw points
-        if (isSelected) {
-            path.points.forEach(point => {
-                this.ctx.beginPath();
-                this.ctx.arc(point.x, point.y, Math.max(4, this.pathThickness), 0, Math.PI * 2);
-                this.ctx.fillStyle = path.color;
-                this.ctx.fill();
-            });
+            // Draw label for static points
+            if (isSelected) {
+                this.ctx.fillStyle = '#fff';
+                this.ctx.font = `${12 * scale}px sans-serif`;
+                this.ctx.fillText('📍 Static', point.x + 10 * scale, point.y - 10 * scale);
+            }
+        } else if (path.points.length >= 2) {
+            // Draw multi-point path (motion path)
+            this.ctx.beginPath();
+            this.ctx.moveTo(path.points[0].x, path.points[0].y);
+
+            for (let i = 1; i < path.points.length; i++) {
+                this.ctx.lineTo(path.points[i].x, path.points[i].y);
+            }
+
+            this.ctx.strokeStyle = path.color;
+            this.ctx.lineWidth = (isSelected ? this.pathThickness + 2 : this.pathThickness) * scale;
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+            this.ctx.stroke();
+
+            // Draw points
+            if (isSelected) {
+                path.points.forEach((point, idx) => {
+                    this.ctx.beginPath();
+                    this.ctx.arc(point.x, point.y, Math.max(4, this.pathThickness) * scale, 0, Math.PI * 2);
+                    this.ctx.fillStyle = path.color;
+                    this.ctx.fill();
+
+                    // Draw point numbers
+                    if (path.points.length < 20) { // Only if not too many points
+                        this.ctx.fillStyle = '#fff';
+                        this.ctx.font = `${10 * scale}px sans-serif`;
+                        this.ctx.fillText(idx, point.x + 8 * scale, point.y - 8 * scale);
+                    }
+                });
+
+                // Draw label for motion paths
+                const midPoint = path.points[Math.floor(path.points.length / 2)];
+                this.ctx.fillStyle = '#fff';
+                this.ctx.font = `${12 * scale}px sans-serif`;
+                this.ctx.fillText(`↗️ Motion (${path.points.length} pts)`, midPoint.x + 10 * scale, midPoint.y - 10 * scale);
+            }
         }
     }
 
     createSidebar(parent) {
         this.sidebar = document.createElement('div');
         this.sidebar.style.cssText = `
-            width: 200px;
+            width: 220px;
             background: #1e1e1e;
             border-left: 1px solid #444;
             padding: 15px;
@@ -791,15 +981,25 @@ class PathEditorModal {
         this.pathList.innerHTML = '';
 
         this.paths.forEach((path, index) => {
+            const isSinglePoint = path.isSinglePoint || path.points.length === 1;
+
             const item = document.createElement('div');
             item.style.cssText = `
-                padding: 8px;
+                padding: 10px;
                 background: ${index === this.selectedPathIndex ? '#2d5a5a' : '#2b2b2b'};
                 border: 1px solid ${index === this.selectedPathIndex ? '#4ECDC4' : '#444'};
                 border-radius: 4px;
                 cursor: pointer;
                 color: #fff;
                 font-size: 12px;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                transition: all 0.2s ease;
+            `;
+
+            const topRow = document.createElement('div');
+            topRow.style.cssText = `
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
@@ -810,6 +1010,7 @@ class PathEditorModal {
                 display: flex;
                 align-items: center;
                 gap: 8px;
+                flex: 1;
             `;
 
             const colorBox = document.createElement('div');
@@ -817,27 +1018,56 @@ class PathEditorModal {
                 width: 16px;
                 height: 16px;
                 background: ${path.color};
-                border-radius: 2px;
+                border-radius: ${isSinglePoint ? '2px' : '50%'};
+                border: 2px solid ${isSinglePoint ? '#fff' : 'transparent'};
+            `;
+
+            const nameContainer = document.createElement('div');
+            nameContainer.style.cssText = `
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
             `;
 
             const name = document.createElement('span');
-            name.textContent = path.name;
+            name.textContent = path.name || `Path ${index + 1}`;
+            name.style.fontWeight = '500';
+
+            const typeLabel = document.createElement('span');
+            typeLabel.textContent = isSinglePoint
+                ? '📍 Static (1 pt)'
+                : `↗️ Motion (${path.points.length} pts)`;
+            typeLabel.style.cssText = `
+                font-size: 10px;
+                color: ${isSinglePoint ? '#F7DC6F' : '#4ECDC4'};
+            `;
+
+            nameContainer.appendChild(name);
+            nameContainer.appendChild(typeLabel);
 
             info.appendChild(colorBox);
-            info.appendChild(name);
+            info.appendChild(nameContainer);
 
             const deleteBtn = document.createElement('button');
             deleteBtn.textContent = '✕';
             deleteBtn.style.cssText = `
-                background: none;
-                border: none;
-                color: #999;
+                background: rgba(255, 77, 77, 0.2);
+                border: 1px solid rgba(255, 77, 77, 0.4);
+                border-radius: 4px;
+                color: #ff4d4d;
                 cursor: pointer;
-                font-size: 16px;
-                padding: 0;
-                width: 20px;
-                height: 20px;
+                font-size: 14px;
+                padding: 4px 8px;
+                transition: all 0.2s ease;
             `;
+            deleteBtn.onmouseover = () => {
+                deleteBtn.style.background = 'rgba(255, 77, 77, 0.4)';
+                deleteBtn.style.borderColor = 'rgba(255, 77, 77, 0.8)';
+            };
+            deleteBtn.onmouseout = () => {
+                deleteBtn.style.background = 'rgba(255, 77, 77, 0.2)';
+                deleteBtn.style.borderColor = 'rgba(255, 77, 77, 0.4)';
+            };
             deleteBtn.onclick = (e) => {
                 e.stopPropagation();
                 this.paths.splice(index, 1);
@@ -846,8 +1076,9 @@ class PathEditorModal {
                 this.render();
             };
 
-            item.appendChild(info);
-            item.appendChild(deleteBtn);
+            topRow.appendChild(info);
+            topRow.appendChild(deleteBtn);
+            item.appendChild(topRow);
 
             item.onclick = () => {
                 this.selectedPathIndex = index;
@@ -865,7 +1096,23 @@ class PathEditorModal {
             padding: 15px 20px;
             border-top: 1px solid #444;
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        `;
+
+        const statsContainer = document.createElement('div');
+        statsContainer.style.cssText = `
+            color: #888;
+            font-size: 12px;
+        `;
+        const staticCount = this.paths.filter(p => p.isSinglePoint || p.points.length === 1).length;
+        const motionCount = this.paths.length - staticCount;
+        statsContainer.textContent = `Total: ${this.paths.length} paths (${staticCount} static, ${motionCount} motion)`;
+
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = `
+            display: flex;
             gap: 10px;
         `;
 
@@ -899,8 +1146,11 @@ class PathEditorModal {
             this.close();
         };
 
-        footer.appendChild(cancelBtn);
-        footer.appendChild(saveBtn);
+        buttonContainer.appendChild(cancelBtn);
+        buttonContainer.appendChild(saveBtn);
+
+        footer.appendChild(statsContainer);
+        footer.appendChild(buttonContainer);
         this.container.appendChild(footer);
     }
 
@@ -931,6 +1181,10 @@ class PathEditorModal {
     }
 
     close() {
+        // Remove keyboard handlers
+        document.removeEventListener('keydown', this.keydownHandler);
+        document.removeEventListener('keyup', this.keyupHandler);
+
         // Fade out animation
         this.overlay.style.animation = 'fadeIn 0.15s ease-in reverse';
         this.container.style.animation = 'slideIn 0.15s ease-in reverse';
