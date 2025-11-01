@@ -14,6 +14,7 @@ class FL_DirectoryCrawl:
                 "directory_path": ("STRING", {"default": ""}),
                 "file_type": (["images", "text"],),
                 "max_files": ("INT", {"default": 100, "min": 1, "max": 10000}),
+                "start_index": ("INT", {"default": 0, "min": 0, "max": 10000}),
             }
         }
 
@@ -23,7 +24,7 @@ class FL_DirectoryCrawl:
     FUNCTION = "load_batch"
     CATEGORY = "🏵️Fill Nodes/Utility"
 
-    def load_batch(self, directory_path, file_type, max_files):
+    def load_batch(self, directory_path, file_type, max_files, start_index):
         if not directory_path:
             raise ValueError("Directory path is not provided.")
 
@@ -34,8 +35,8 @@ class FL_DirectoryCrawl:
             else: # text
                 return (torch.empty(0), "", [])
 
-
-        file_paths = file_paths[:max_files]  # Limit the number of files
+        # Apply start_index and max_files to slice the file list
+        file_paths = file_paths[start_index:start_index + max_files]
 
         if file_type == "images":
             batch_tensor, image_list_tensors = self.load_images_data(file_paths)

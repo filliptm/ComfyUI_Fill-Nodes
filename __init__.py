@@ -212,6 +212,9 @@ from .nodes.wip.FL_TimeLine import FL_TimeLine
 from .nodes.wip.FL_WF_Agent import FL_WF_Agent
 from .nodes.wip.FL_WanFirstLastFrameToVideo import FL_WanFirstLastFrameToVideo
 from .nodes.wip.FL_QwenImageEditStrength import FL_QwenImageEditStrength
+from .nodes.wip.FL_WanVaceToVideoMultiRef import FL_WanVaceToVideoMultiRef
+from .nodes.wip.FL_AnimatedShapePatterns import FL_AnimatedShapePatterns
+from .nodes.wip.FL_PathAnimator import FL_PathAnimator
 
 NODE_CLASS_MAPPINGS = {
     "FL_SaveWebM": FL_SaveWebM,
@@ -361,6 +364,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_VideoCrossfade": FL_VideoCrossfade,
     "FL_VideoCadence": FL_VideoCadence,
     "FL_VideoCadenceCompile": FL_VideoCadenceCompile,
+    "FL_WanVaceToVideoMultiRef": FL_WanVaceToVideoMultiRef,
     "FL_RIFE": FL_RIFE,
     "FL_FILM": FL_FILM,
     "FL_GeminiImageGenADV": FL_GeminiImageGenADV,
@@ -392,6 +396,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_QwenImageEditStrength": FL_QwenImageEditStrength,
     "FL_IntToFloat": FL_IntToFloat,
     "FL_FloatToInt": FL_FloatToInt,
+    "FL_AnimatedShapePatterns": FL_AnimatedShapePatterns,
+    "FL_PathAnimator": FL_PathAnimator,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -540,6 +546,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_VideoBatchSplitter": "FL Video Batch Splitter",
     "FL_VideoCrossfade": "FL Video Crossfade",
     "FL_VideoCadence": "FL Video Cadence",
+    "FL_WanVaceToVideoMultiRef": "FL Wan Vace To Video Multi Reference",
     "FL_VideoCadenceCompile": "FL Video Cadence Compile",
     "FL_FILM": "FL FILM Frame Interpolation",
     "FL_RIFE": "FL RIFE Frame Interpolation",
@@ -574,6 +581,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_QwenImageEditStrength": "FL Qwen Image Edit with Strength",
     "FL_IntToFloat": "FL Int to Float",
     "FL_FloatToInt": "FL Float to Int",
+    "FL_AnimatedShapePatterns": "FL Animated Shape Patterns",
+    "FL_PathAnimator": "FL Path Animator",
 }
 
 
