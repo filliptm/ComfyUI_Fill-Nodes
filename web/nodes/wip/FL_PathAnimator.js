@@ -100,6 +100,9 @@ class PathEditorModal {
         this.canvasOffsetY = 0;
         this.pathThickness = 3; // Visual thickness for displaying paths
         this.shiftPressed = false; // Track shift key state
+        this.backgroundOpacity = 1.0; // Background image opacity (0.5 to 1.0)
+        this.animationOffset = 0; // For animated directional indicators
+        this.animationFrame = null; // Animation frame ID
 
         // Load existing paths
         this.loadPaths();
@@ -112,6 +115,29 @@ class PathEditorModal {
 
         // Setup keyboard handlers
         this.setupKeyboardHandlers();
+
+        // Start animation loop for directional indicators
+        this.startAnimation();
+    }
+
+    startAnimation() {
+        const animate = () => {
+            // Increment animation offset for directional flow
+            this.animationOffset += 0.5;
+            if (this.animationOffset > 20) {
+                this.animationOffset = 0;
+            }
+            this.render();
+            this.animationFrame = requestAnimationFrame(animate);
+        };
+        this.animationFrame = requestAnimationFrame(animate);
+    }
+
+    stopAnimation() {
+        if (this.animationFrame) {
+            cancelAnimationFrame(this.animationFrame);
+            this.animationFrame = null;
+        }
     }
 
     setupKeyboardHandlers() {
@@ -243,13 +269,21 @@ class PathEditorModal {
     createHeader() {
         const header = document.createElement('div');
         header.style.cssText = `
-            padding: 20px 24px;
+            padding: 20px 24px 16px 24px;
             border-bottom: 1px solid #404040;
             background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
             display: flex;
+            flex-direction: column;
+            gap: 16px;
+            border-radius: 12px 12px 0 0;
+        `;
+
+        // Top row with title and close button
+        const topRow = document.createElement('div');
+        topRow.style.cssText = `
+            display: flex;
             justify-content: space-between;
             align-items: center;
-            border-radius: 12px 12px 0 0;
         `;
 
         const titleContainer = document.createElement('div');
@@ -310,9 +344,111 @@ class PathEditorModal {
         };
         closeBtn.onclick = () => this.close();
 
-        header.appendChild(titleContainer);
-        header.appendChild(closeBtn);
+        topRow.appendChild(titleContainer);
+        topRow.appendChild(closeBtn);
+
+        // Controls row with sliders
+        const controlsRow = document.createElement('div');
+        controlsRow.style.cssText = `
+            display: flex;
+            gap: 32px;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        `;
+
+        // Path Width slider
+        const widthControl = this.createSliderControl(
+            'Path Width',
+            1, 10, this.pathThickness,
+            (value) => {
+                this.pathThickness = value;
+            }
+        );
+
+        // Background Opacity slider
+        const opacityControl = this.createSliderControl(
+            'Background Opacity',
+            50, 100, this.backgroundOpacity * 100,
+            (value) => {
+                this.backgroundOpacity = value / 100;
+            },
+            '%'
+        );
+
+        controlsRow.appendChild(widthControl);
+        controlsRow.appendChild(opacityControl);
+
+        header.appendChild(topRow);
+        header.appendChild(controlsRow);
         this.container.appendChild(header);
+    }
+
+    createSliderControl(label, min, max, defaultValue, onChange, suffix = '') {
+        const container = document.createElement('div');
+        container.style.cssText = `
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        `;
+
+        const labelEl = document.createElement('label');
+        labelEl.textContent = label;
+        labelEl.style.cssText = `
+            color: #fff;
+            font-size: 13px;
+            font-weight: 500;
+            min-width: 120px;
+            opacity: 0.9;
+        `;
+
+        const sliderContainer = document.createElement('div');
+        sliderContainer.style.cssText = `
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        `;
+
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = min;
+        slider.max = max;
+        slider.value = defaultValue;
+        slider.style.cssText = `
+            flex: 1;
+            cursor: pointer;
+            accent-color: #4ECDC4;
+            height: 6px;
+        `;
+
+        const valueDisplay = document.createElement('div');
+        valueDisplay.textContent = defaultValue + suffix;
+        valueDisplay.style.cssText = `
+            color: #4ECDC4;
+            font-size: 14px;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: right;
+        `;
+
+        slider.oninput = (e) => {
+            const value = parseInt(e.target.value);
+            valueDisplay.textContent = value + suffix;
+            onChange(value);
+            this.render();
+        };
+
+        sliderContainer.appendChild(slider);
+        sliderContainer.appendChild(valueDisplay);
+
+        container.appendChild(labelEl);
+        container.appendChild(sliderContainer);
+
+        return container;
     }
 
     createMainContent() {
@@ -449,54 +585,6 @@ class PathEditorModal {
         const separator3 = document.createElement('div');
         separator3.style.cssText = separator.style.cssText;
         toolbar.appendChild(separator3);
-
-        // Add thickness control
-        const thicknessContainer = document.createElement('div');
-        thicknessContainer.style.cssText = `
-            padding: 8px 5px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        `;
-
-        const thicknessLabel = document.createElement('label');
-        thicknessLabel.textContent = 'Width';
-        thicknessLabel.style.cssText = `
-            color: #fff;
-            font-size: 11px;
-            text-align: center;
-            opacity: 0.8;
-        `;
-
-        const thicknessSlider = document.createElement('input');
-        thicknessSlider.type = 'range';
-        thicknessSlider.min = '1';
-        thicknessSlider.max = '10';
-        thicknessSlider.value = this.pathThickness;
-        thicknessSlider.style.cssText = `
-            width: 100%;
-            cursor: pointer;
-            accent-color: #4ECDC4;
-        `;
-        thicknessSlider.oninput = (e) => {
-            this.pathThickness = parseInt(e.target.value);
-            thicknessValue.textContent = this.pathThickness;
-            this.render();
-        };
-
-        const thicknessValue = document.createElement('div');
-        thicknessValue.textContent = this.pathThickness;
-        thicknessValue.style.cssText = `
-            color: #4ECDC4;
-            font-size: 14px;
-            font-weight: bold;
-            text-align: center;
-        `;
-
-        thicknessContainer.appendChild(thicknessLabel);
-        thicknessContainer.appendChild(thicknessSlider);
-        thicknessContainer.appendChild(thicknessValue);
-        toolbar.appendChild(thicknessContainer);
 
         // Add clear all button
         const clearBtn = this.createToolbarButton('🗑️', 'Clear All Paths');
@@ -859,9 +947,12 @@ class PathEditorModal {
         // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Draw background image
+        // Draw background image with opacity
         if (this.backgroundImage && this.backgroundImage.complete) {
+            this.ctx.save();
+            this.ctx.globalAlpha = this.backgroundOpacity;
             this.ctx.drawImage(this.backgroundImage, 0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.restore();
         } else {
             this.ctx.fillStyle = '#333';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -916,6 +1007,25 @@ class PathEditorModal {
             this.ctx.lineCap = 'round';
             this.ctx.lineJoin = 'round';
             this.ctx.stroke();
+
+            // Draw animated directional flow indicators (dashed overlay)
+            this.ctx.save();
+            this.ctx.beginPath();
+            this.ctx.moveTo(path.points[0].x, path.points[0].y);
+
+            for (let i = 1; i < path.points.length; i++) {
+                this.ctx.lineTo(path.points[i].x, path.points[i].y);
+            }
+
+            // Animated dashed line showing direction
+            const dashLength = 10 * scale;
+            const gapLength = 10 * scale;
+            this.ctx.setLineDash([dashLength, gapLength]);
+            this.ctx.lineDashOffset = -this.animationOffset * scale; // Negative for forward motion
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            this.ctx.lineWidth = Math.max(1, this.pathThickness * 0.5) * scale;
+            this.ctx.stroke();
+            this.ctx.restore();
 
             // Draw points
             if (isSelected) {
@@ -1181,6 +1291,9 @@ class PathEditorModal {
     }
 
     close() {
+        // Stop animation loop
+        this.stopAnimation();
+
         // Remove keyboard handlers
         document.removeEventListener('keydown', this.keydownHandler);
         document.removeEventListener('keyup', this.keyupHandler);
