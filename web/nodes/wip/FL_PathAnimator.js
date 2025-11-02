@@ -1104,14 +1104,6 @@ class PathEditorModal {
             const baseSize = isSelected ? 14 : 8;
             const size = baseSize * scale;
 
-            // Draw glow effect for selected points
-            if (isSelected) {
-                this.ctx.shadowColor = neonGreen;
-                this.ctx.shadowBlur = 15 * scale;
-                this.ctx.shadowOffsetX = 0;
-                this.ctx.shadowOffsetY = 0;
-            }
-
             this.ctx.fillStyle = isSelected ? neonGreen : path.color;
             this.ctx.fillRect(point.x - size / 2, point.y - size / 2, size, size);
 
@@ -1119,12 +1111,6 @@ class PathEditorModal {
             this.ctx.strokeStyle = isSelected ? neonGreen : '#fff';
             this.ctx.lineWidth = (isSelected ? 4 : 2) * scale;
             this.ctx.strokeRect(point.x - size / 2, point.y - size / 2, size, size);
-
-            // Reset shadow
-            if (isSelected) {
-                this.ctx.shadowColor = 'transparent';
-                this.ctx.shadowBlur = 0;
-            }
 
             // Draw label for static points
             if (isSelected) {
@@ -1141,25 +1127,11 @@ class PathEditorModal {
                 this.ctx.lineTo(path.points[i].x, path.points[i].y);
             }
 
-            // Add glow effect for selected paths
-            if (isSelected) {
-                this.ctx.shadowColor = neonGreen;
-                this.ctx.shadowBlur = 12 * scale;
-                this.ctx.shadowOffsetX = 0;
-                this.ctx.shadowOffsetY = 0;
-            }
-
             this.ctx.strokeStyle = isSelected ? neonGreen : path.color;
             this.ctx.lineWidth = (isSelected ? this.pathThickness + 3 : this.pathThickness) * scale;
             this.ctx.lineCap = 'round';
             this.ctx.lineJoin = 'round';
             this.ctx.stroke();
-
-            // Reset shadow
-            if (isSelected) {
-                this.ctx.shadowColor = 'transparent';
-                this.ctx.shadowBlur = 0;
-            }
 
             // Draw animated directional flow indicators (dashed overlay)
             this.ctx.save();
@@ -1183,14 +1155,11 @@ class PathEditorModal {
             // Draw points
             if (isSelected) {
                 path.points.forEach((point, idx) => {
-                    // Draw outer glow ring
+                    // Draw outer ring
                     this.ctx.beginPath();
                     this.ctx.arc(point.x, point.y, Math.max(6, this.pathThickness + 2) * scale, 0, Math.PI * 2);
                     this.ctx.fillStyle = neonGreen;
-                    this.ctx.shadowColor = neonGreen;
-                    this.ctx.shadowBlur = 10 * scale;
                     this.ctx.fill();
-                    this.ctx.shadowBlur = 0;
 
                     // Draw inner point
                     this.ctx.beginPath();
@@ -1271,7 +1240,6 @@ class PathEditorModal {
                 flex-direction: column;
                 gap: 6px;
                 transition: all 0.2s ease;
-                box-shadow: ${isSelected ? '0 0 15px rgba(0, 255, 65, 0.3)' : 'none'};
             `;
 
             const topRow = document.createElement('div');
@@ -1296,7 +1264,6 @@ class PathEditorModal {
                 background: ${isSelected ? neonGreen : path.color};
                 border-radius: ${isSinglePoint ? '2px' : '50%'};
                 border: 2px solid ${isSelected ? neonGreen : (isSinglePoint ? '#fff' : 'transparent')};
-                box-shadow: ${isSelected ? '0 0 8px rgba(0, 255, 65, 0.6)' : 'none'};
             `;
 
             const nameContainer = document.createElement('div');
