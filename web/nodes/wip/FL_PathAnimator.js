@@ -152,6 +152,15 @@ class PathEditorModal {
                 this.savePaths();
                 this.close();
             }
+
+            // Ctrl+V to paste image from clipboard
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                console.log('FL_PathAnimator: Ctrl+V detected');
+                e.preventDefault();
+                e.stopPropagation();
+                // Try to read from clipboard using modern API
+                this.pasteFromClipboard();
+            }
         };
 
         this.keyupHandler = (e) => {
@@ -160,8 +169,26 @@ class PathEditorModal {
             }
         };
 
+        this.pasteHandler = (e) => {
+            console.log('FL_PathAnimator: Paste handler called');
+            e.preventDefault();
+            e.stopPropagation();
+            this.handlePaste(e);
+        };
+
         document.addEventListener('keydown', this.keydownHandler);
         document.addEventListener('keyup', this.keyupHandler);
+
+        console.log('FL_PathAnimator: Keyboard handlers registered');
+    }
+
+    attachPasteListener() {
+        // Attach paste listener to container after it's created
+        if (this.container) {
+            this.container.addEventListener('paste', this.pasteHandler);
+            document.addEventListener('paste', this.pasteHandler);
+            console.log('FL_PathAnimator: Paste handlers attached to container and document');
+        }
     }
 
     loadCachedBackgroundImage() {
@@ -177,6 +204,100 @@ class PathEditorModal {
                 }
             };
             img.src = this.pathsDataWidget._cachedBackgroundImage;
+        }
+    }
+
+    async pasteFromClipboard() {
+        console.log('FL_PathAnimator: Attempting to read from clipboard using Clipboard API');
+
+        try {
+            // Check if Clipboard API is available
+            if (!navigator.clipboard || !navigator.clipboard.read) {
+                console.log('FL_PathAnimator: Clipboard API not available, falling back to paste event');
+                return;
+            }
+
+            const clipboardItems = await navigator.clipboard.read();
+            console.log('FL_PathAnimator: Read', clipboardItems.length, 'items from clipboard');
+
+            for (const clipboardItem of clipboardItems) {
+                console.log('FL_PathAnimator: Clipboard item types:', clipboardItem.types);
+
+                for (const type of clipboardItem.types) {
+                    if (type.startsWith('image/')) {
+                        console.log('FL_PathAnimator: Found image type:', type);
+                        const blob = await clipboardItem.getType(type);
+                        this.loadImageFromBlob(blob);
+                        return; // Only load first image
+                    }
+                }
+            }
+
+            console.log('FL_PathAnimator: No image found in clipboard');
+        } catch (err) {
+            console.error('FL_PathAnimator: Error reading from clipboard:', err);
+            console.log('FL_PathAnimator: You may need to grant clipboard permission');
+        }
+    }
+
+    loadImageFromBlob(blob) {
+        console.log('FL_PathAnimator: Loading image from blob, size:', blob.size);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                this.backgroundImage = img;
+                // Update canvas size to match image
+                this.canvas.width = img.width;
+                this.canvas.height = img.height;
+
+                // Cache the image data URL for later use
+                this.pathsDataWidget._cachedBackgroundImage = event.target.result;
+
+                this.render();
+                console.log('FL_PathAnimator: Image pasted successfully -', img.width, 'x', img.height);
+            };
+            img.onerror = () => {
+                console.error('FL_PathAnimator: Failed to load pasted image');
+            };
+            img.src = event.target.result;
+        };
+        reader.onerror = () => {
+            console.error('FL_PathAnimator: Failed to read image blob');
+        };
+        reader.readAsDataURL(blob);
+    }
+
+    handlePaste(e) {
+        console.log('FL_PathAnimator: Paste event triggered');
+
+        // Get clipboard items
+        const items = e.clipboardData?.items;
+        if (!items) {
+            console.log('FL_PathAnimator: No clipboard items found');
+            return;
+        }
+
+        console.log('FL_PathAnimator: Clipboard has', items.length, 'items');
+
+        // Look for image items
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            console.log('FL_PathAnimator: Item', i, 'type:', item.type);
+
+            // Check if item is an image
+            if (item.type.indexOf('image') !== -1) {
+                console.log('FL_PathAnimator: Found image in clipboard via paste event');
+                const blob = item.getAsFile();
+                if (!blob) {
+                    console.log('FL_PathAnimator: Failed to get blob from clipboard item');
+                    continue;
+                }
+
+                // Use the shared loadImageFromBlob method
+                this.loadImageFromBlob(blob);
+                break; // Only paste the first image found
+            }
         }
     }
 
@@ -233,18 +354,20 @@ class PathEditorModal {
         // Create modal container
         this.container = document.createElement('div');
         this.container.className = 'fl-path-editor-container';
+        this.container.tabIndex = 0; // Make container focusable for paste events
         this.container.style.cssText = `
             background: linear-gradient(145deg, #2d2d2d, #252525);
             border-radius: 12px;
             border: 1px solid #3a3a3a;
-            width: 92%;
-            height: 92%;
-            max-width: 1600px;
-            max-height: 1000px;
+            width: 95%;
+            height: 95%;
+            max-width: 2000px;
+            max-height: 1400px;
             display: flex;
             flex-direction: column;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
             animation: slideIn 0.3s ease-out;
+            outline: none;
         `;
 
         // Create header
@@ -305,7 +428,7 @@ class PathEditorModal {
         `;
 
         const subtitle = document.createElement('div');
-        subtitle.textContent = 'Press ESC to save & close | Hold SHIFT for straight lines';
+        subtitle.textContent = 'Press ESC to save & close | Hold SHIFT for straight lines | CTRL+V to paste image';
         subtitle.style.cssText = `
             color: #888;
             font-size: 12px;
@@ -773,8 +896,9 @@ class PathEditorModal {
             this.updateSidebar();
             this.render();
         } else if (this.tool === 'select') {
-            // Find clicked path
+            // Find clicked path (returns -1 if no path found)
             this.selectedPathIndex = this.findPathAtPoint(pos);
+            // selectedPathIndex will be -1 if clicking empty space, which deselects
             this.updateSidebar();
             this.render();
         } else if (this.tool === 'eraser') {
@@ -972,25 +1096,40 @@ class PathEditorModal {
     drawPath(path, isSelected = false) {
         const isSinglePoint = path.isSinglePoint || path.points.length === 1;
         const scale = this.getRenderScale();
+        const neonGreen = '#00FF41'; // Neon green for selection
 
         if (isSinglePoint) {
             // Draw single point as a square (static anchor)
             const point = path.points[0];
-            const baseSize = isSelected ? 12 : 8;
+            const baseSize = isSelected ? 14 : 8;
             const size = baseSize * scale;
 
-            this.ctx.fillStyle = path.color;
+            // Draw glow effect for selected points
+            if (isSelected) {
+                this.ctx.shadowColor = neonGreen;
+                this.ctx.shadowBlur = 15 * scale;
+                this.ctx.shadowOffsetX = 0;
+                this.ctx.shadowOffsetY = 0;
+            }
+
+            this.ctx.fillStyle = isSelected ? neonGreen : path.color;
             this.ctx.fillRect(point.x - size / 2, point.y - size / 2, size, size);
 
             // Draw border
-            this.ctx.strokeStyle = isSelected ? '#4ECDC4' : '#fff';
-            this.ctx.lineWidth = (isSelected ? 3 : 2) * scale;
+            this.ctx.strokeStyle = isSelected ? neonGreen : '#fff';
+            this.ctx.lineWidth = (isSelected ? 4 : 2) * scale;
             this.ctx.strokeRect(point.x - size / 2, point.y - size / 2, size, size);
+
+            // Reset shadow
+            if (isSelected) {
+                this.ctx.shadowColor = 'transparent';
+                this.ctx.shadowBlur = 0;
+            }
 
             // Draw label for static points
             if (isSelected) {
-                this.ctx.fillStyle = '#fff';
-                this.ctx.font = `${12 * scale}px sans-serif`;
+                this.ctx.fillStyle = neonGreen;
+                this.ctx.font = `bold ${12 * scale}px sans-serif`;
                 this.ctx.fillText('📍 Static', point.x + 10 * scale, point.y - 10 * scale);
             }
         } else if (path.points.length >= 2) {
@@ -1002,11 +1141,25 @@ class PathEditorModal {
                 this.ctx.lineTo(path.points[i].x, path.points[i].y);
             }
 
-            this.ctx.strokeStyle = path.color;
-            this.ctx.lineWidth = (isSelected ? this.pathThickness + 2 : this.pathThickness) * scale;
+            // Add glow effect for selected paths
+            if (isSelected) {
+                this.ctx.shadowColor = neonGreen;
+                this.ctx.shadowBlur = 12 * scale;
+                this.ctx.shadowOffsetX = 0;
+                this.ctx.shadowOffsetY = 0;
+            }
+
+            this.ctx.strokeStyle = isSelected ? neonGreen : path.color;
+            this.ctx.lineWidth = (isSelected ? this.pathThickness + 3 : this.pathThickness) * scale;
             this.ctx.lineCap = 'round';
             this.ctx.lineJoin = 'round';
             this.ctx.stroke();
+
+            // Reset shadow
+            if (isSelected) {
+                this.ctx.shadowColor = 'transparent';
+                this.ctx.shadowBlur = 0;
+            }
 
             // Draw animated directional flow indicators (dashed overlay)
             this.ctx.save();
@@ -1022,7 +1175,7 @@ class PathEditorModal {
             const gapLength = 10 * scale;
             this.ctx.setLineDash([dashLength, gapLength]);
             this.ctx.lineDashOffset = -this.animationOffset * scale; // Negative for forward motion
-            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            this.ctx.strokeStyle = isSelected ? 'rgba(0, 255, 65, 0.8)' : 'rgba(255, 255, 255, 0.6)';
             this.ctx.lineWidth = Math.max(1, this.pathThickness * 0.5) * scale;
             this.ctx.stroke();
             this.ctx.restore();
@@ -1030,23 +1183,33 @@ class PathEditorModal {
             // Draw points
             if (isSelected) {
                 path.points.forEach((point, idx) => {
+                    // Draw outer glow ring
                     this.ctx.beginPath();
-                    this.ctx.arc(point.x, point.y, Math.max(4, this.pathThickness) * scale, 0, Math.PI * 2);
-                    this.ctx.fillStyle = path.color;
+                    this.ctx.arc(point.x, point.y, Math.max(6, this.pathThickness + 2) * scale, 0, Math.PI * 2);
+                    this.ctx.fillStyle = neonGreen;
+                    this.ctx.shadowColor = neonGreen;
+                    this.ctx.shadowBlur = 10 * scale;
+                    this.ctx.fill();
+                    this.ctx.shadowBlur = 0;
+
+                    // Draw inner point
+                    this.ctx.beginPath();
+                    this.ctx.arc(point.x, point.y, Math.max(3, this.pathThickness * 0.6) * scale, 0, Math.PI * 2);
+                    this.ctx.fillStyle = '#000';
                     this.ctx.fill();
 
                     // Draw point numbers
                     if (path.points.length < 20) { // Only if not too many points
-                        this.ctx.fillStyle = '#fff';
-                        this.ctx.font = `${10 * scale}px sans-serif`;
+                        this.ctx.fillStyle = neonGreen;
+                        this.ctx.font = `bold ${10 * scale}px sans-serif`;
                         this.ctx.fillText(idx, point.x + 8 * scale, point.y - 8 * scale);
                     }
                 });
 
                 // Draw label for motion paths
                 const midPoint = path.points[Math.floor(path.points.length / 2)];
-                this.ctx.fillStyle = '#fff';
-                this.ctx.font = `${12 * scale}px sans-serif`;
+                this.ctx.fillStyle = neonGreen;
+                this.ctx.font = `bold ${12 * scale}px sans-serif`;
                 this.ctx.fillText(`↗️ Motion (${path.points.length} pts)`, midPoint.x + 10 * scale, midPoint.y - 10 * scale);
             }
         }
@@ -1055,7 +1218,7 @@ class PathEditorModal {
     createSidebar(parent) {
         this.sidebar = document.createElement('div');
         this.sidebar.style.cssText = `
-            width: 220px;
+            width: 280px;
             background: #1e1e1e;
             border-left: 1px solid #444;
             padding: 15px;
@@ -1092,12 +1255,14 @@ class PathEditorModal {
 
         this.paths.forEach((path, index) => {
             const isSinglePoint = path.isSinglePoint || path.points.length === 1;
+            const neonGreen = '#00FF41';
+            const isSelected = index === this.selectedPathIndex;
 
             const item = document.createElement('div');
             item.style.cssText = `
                 padding: 10px;
-                background: ${index === this.selectedPathIndex ? '#2d5a5a' : '#2b2b2b'};
-                border: 1px solid ${index === this.selectedPathIndex ? '#4ECDC4' : '#444'};
+                background: ${isSelected ? 'rgba(0, 255, 65, 0.15)' : '#2b2b2b'};
+                border: 2px solid ${isSelected ? neonGreen : '#444'};
                 border-radius: 4px;
                 cursor: pointer;
                 color: #fff;
@@ -1106,6 +1271,7 @@ class PathEditorModal {
                 flex-direction: column;
                 gap: 6px;
                 transition: all 0.2s ease;
+                box-shadow: ${isSelected ? '0 0 15px rgba(0, 255, 65, 0.3)' : 'none'};
             `;
 
             const topRow = document.createElement('div');
@@ -1127,9 +1293,10 @@ class PathEditorModal {
             colorBox.style.cssText = `
                 width: 16px;
                 height: 16px;
-                background: ${path.color};
+                background: ${isSelected ? neonGreen : path.color};
                 border-radius: ${isSinglePoint ? '2px' : '50%'};
-                border: 2px solid ${isSinglePoint ? '#fff' : 'transparent'};
+                border: 2px solid ${isSelected ? neonGreen : (isSinglePoint ? '#fff' : 'transparent')};
+                box-shadow: ${isSelected ? '0 0 8px rgba(0, 255, 65, 0.6)' : 'none'};
             `;
 
             const nameContainer = document.createElement('div');
@@ -1141,7 +1308,10 @@ class PathEditorModal {
 
             const name = document.createElement('span');
             name.textContent = path.name || `Path ${index + 1}`;
-            name.style.fontWeight = '500';
+            name.style.cssText = `
+                font-weight: 500;
+                color: ${isSelected ? neonGreen : '#fff'};
+            `;
 
             const typeLabel = document.createElement('span');
             typeLabel.textContent = isSinglePoint
@@ -1149,7 +1319,7 @@ class PathEditorModal {
                 : `↗️ Motion (${path.points.length} pts)`;
             typeLabel.style.cssText = `
                 font-size: 10px;
-                color: ${isSinglePoint ? '#F7DC6F' : '#4ECDC4'};
+                color: ${isSelected ? neonGreen : (isSinglePoint ? '#F7DC6F' : '#4ECDC4')};
             `;
 
             nameContainer.appendChild(name);
@@ -1288,6 +1458,15 @@ class PathEditorModal {
             document.head.appendChild(style);
         }
         document.body.appendChild(this.overlay);
+
+        // Attach paste listener after modal is shown
+        this.attachPasteListener();
+
+        // Focus the container so it can receive paste events
+        setTimeout(() => {
+            this.container.focus();
+            console.log('FL_PathAnimator: Container focused');
+        }, 100);
     }
 
     close() {
@@ -1297,6 +1476,14 @@ class PathEditorModal {
         // Remove keyboard handlers
         document.removeEventListener('keydown', this.keydownHandler);
         document.removeEventListener('keyup', this.keyupHandler);
+
+        // Remove paste handlers from both container and document
+        if (this.container) {
+            this.container.removeEventListener('paste', this.pasteHandler);
+        }
+        document.removeEventListener('paste', this.pasteHandler);
+
+        console.log('FL_PathAnimator: All event listeners removed');
 
         // Fade out animation
         this.overlay.style.animation = 'fadeIn 0.15s ease-in reverse';
