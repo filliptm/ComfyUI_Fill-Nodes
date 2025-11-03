@@ -1,12 +1,37 @@
 /**
  * File: FL_PathAnimator.js
- * Project: ComfyUI_Fill-Nodes
+ * Project: ComfyUI_FL-Path-Animator
  *
  * Interactive path animator with modal drawing editor
  */
 
 import { app } from "../../../../../scripts/app.js";
 import { api } from "../../../../../scripts/api.js";
+
+// SVG Icon Helper Functions
+const Icons = {
+    pencil: () => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`,
+
+    pin: () => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg>`,
+
+    trash: () => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+
+    cursor: () => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>`,
+
+    image: () => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+
+    xCircle: () => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+
+    lock: () => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+
+    edit: () => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+
+    close: () => `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+
+    arrowRight: () => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`,
+
+    target: () => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
+};
 
 function moveWidgetToTop(node, widget) {
     if (!widget) return;
@@ -417,7 +442,7 @@ class PathEditorModal {
         `;
 
         const title = document.createElement('h2');
-        title.textContent = '✏️ Path Animator Editor';
+        title.innerHTML = `${Icons.edit()} <span style="margin-left: 8px;">Path Animator Editor</span>`;
         title.style.cssText = `
             margin: 0;
             color: #fff;
@@ -425,6 +450,8 @@ class PathEditorModal {
             font-weight: 600;
             letter-spacing: -0.5px;
             text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
         `;
 
         const subtitle = document.createElement('div');
@@ -439,13 +466,12 @@ class PathEditorModal {
         titleContainer.appendChild(subtitle);
 
         const closeBtn = document.createElement('button');
-        closeBtn.textContent = '✕';
+        closeBtn.innerHTML = Icons.close();
         closeBtn.style.cssText = `
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 6px;
             color: #fff;
-            font-size: 24px;
             cursor: pointer;
             padding: 0;
             width: 36px;
@@ -594,9 +620,9 @@ class PathEditorModal {
         this.container.appendChild(content);
     }
 
-    createToolbarButton(icon, title, isActive = false) {
+    createToolbarButton(iconSvg, title, isActive = false) {
         const btn = document.createElement('button');
-        btn.textContent = icon;
+        btn.innerHTML = iconSvg;
         btn.title = title;
         btn.style.cssText = `
             width: 50px;
@@ -606,9 +632,12 @@ class PathEditorModal {
             color: #fff;
             cursor: pointer;
             border-radius: 8px;
-            font-size: 20px;
             transition: all 0.2s ease;
             box-shadow: ${isActive ? '0 0 12px rgba(78, 205, 196, 0.3)' : 'none'};
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
         `;
         btn.onmouseover = () => {
             if (!isActive) {
@@ -641,12 +670,12 @@ class PathEditorModal {
         `;
 
         // Add image upload button
-        const uploadBtn = this.createToolbarButton('🖼️', 'Load Background Image');
+        const uploadBtn = this.createToolbarButton(Icons.image(), 'Load Background Image');
         uploadBtn.onclick = () => this.loadImage();
         toolbar.appendChild(uploadBtn);
 
         // Add clear image button
-        const clearImgBtn = this.createToolbarButton('🚫', 'Clear Background Image');
+        const clearImgBtn = this.createToolbarButton(Icons.xCircle(), 'Clear Background Image');
         clearImgBtn.onclick = () => this.clearImage();
         toolbar.appendChild(clearImgBtn);
 
@@ -660,10 +689,10 @@ class PathEditorModal {
         toolbar.appendChild(separator);
 
         const tools = [
-            { name: 'pencil', icon: '✏️', title: 'Draw Path (Motion)' },
-            { name: 'point', icon: '📍', title: 'Add Static Point (Anchor)' },
-            { name: 'eraser', icon: '🗑️', title: 'Erase Path' },
-            { name: 'select', icon: '↖️', title: 'Select Path' },
+            { name: 'pencil', icon: Icons.pencil(), title: 'Draw Path (Motion)' },
+            { name: 'point', icon: Icons.pin(), title: 'Add Static Point (Anchor)' },
+            { name: 'eraser', icon: Icons.trash(), title: 'Erase Path' },
+            { name: 'select', icon: Icons.cursor(), title: 'Select Path' },
         ];
 
         const toolButtons = [];
@@ -700,7 +729,7 @@ class PathEditorModal {
         toolbar.appendChild(separator2);
 
         // Add Lock Perimeter button
-        const lockPerimeterBtn = this.createToolbarButton('🔒', 'Lock Perimeter - Add static shapes around border');
+        const lockPerimeterBtn = this.createToolbarButton(Icons.lock(), 'Lock Perimeter - Add static shapes around border');
         lockPerimeterBtn.onclick = () => this.lockPerimeter();
         toolbar.appendChild(lockPerimeterBtn);
 
@@ -710,7 +739,7 @@ class PathEditorModal {
         toolbar.appendChild(separator3);
 
         // Add clear all button
-        const clearBtn = this.createToolbarButton('🗑️', 'Clear All Paths');
+        const clearBtn = this.createToolbarButton(Icons.trash(), 'Clear All Paths');
         clearBtn.style.marginTop = 'auto';
         clearBtn.onclick = () => {
             if (confirm('Clear all paths?')) {
@@ -1116,7 +1145,7 @@ class PathEditorModal {
             if (isSelected) {
                 this.ctx.fillStyle = neonGreen;
                 this.ctx.font = `bold ${12 * scale}px sans-serif`;
-                this.ctx.fillText('📍 Static', point.x + 10 * scale, point.y - 10 * scale);
+                this.ctx.fillText('Static', point.x + 10 * scale, point.y - 10 * scale);
             }
         } else if (path.points.length >= 2) {
             // Draw multi-point path (motion path)
@@ -1128,7 +1157,7 @@ class PathEditorModal {
             }
 
             this.ctx.strokeStyle = isSelected ? neonGreen : path.color;
-            this.ctx.lineWidth = (isSelected ? this.pathThickness + 3 : this.pathThickness) * scale;
+            this.ctx.lineWidth = (isSelected ? this.pathThickness + 1 : this.pathThickness) * scale;
             this.ctx.lineCap = 'round';
             this.ctx.lineJoin = 'round';
             this.ctx.stroke();
@@ -1179,7 +1208,7 @@ class PathEditorModal {
                 const midPoint = path.points[Math.floor(path.points.length / 2)];
                 this.ctx.fillStyle = neonGreen;
                 this.ctx.font = `bold ${12 * scale}px sans-serif`;
-                this.ctx.fillText(`↗️ Motion (${path.points.length} pts)`, midPoint.x + 10 * scale, midPoint.y - 10 * scale);
+                this.ctx.fillText(`Motion (${path.points.length} pts)`, midPoint.x + 10 * scale, midPoint.y - 10 * scale);
             }
         }
     }
@@ -1281,12 +1310,14 @@ class PathEditorModal {
             `;
 
             const typeLabel = document.createElement('span');
-            typeLabel.textContent = isSinglePoint
-                ? '📍 Static (1 pt)'
-                : `↗️ Motion (${path.points.length} pts)`;
+            typeLabel.innerHTML = isSinglePoint
+                ? `${Icons.target()} <span style="margin-left: 4px;">Static (1 pt)</span>`
+                : `${Icons.arrowRight()} <span style="margin-left: 4px;">Motion (${path.points.length} pts)</span>`;
             typeLabel.style.cssText = `
                 font-size: 10px;
                 color: ${isSelected ? neonGreen : (isSinglePoint ? '#F7DC6F' : '#4ECDC4')};
+                display: flex;
+                align-items: center;
             `;
 
             nameContainer.appendChild(name);
