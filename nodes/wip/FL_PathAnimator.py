@@ -25,12 +25,30 @@ def parse_color(color):
                 return (255, 255, 255)
     return color
 
+def apply_interpolation(t, interpolation_type='linear'):
+    """Apply interpolation easing function to parameter t (0.0 to 1.0)"""
+    if interpolation_type == 'ease-in':
+        # Quadratic ease in
+        return t * t
+    elif interpolation_type == 'ease-out':
+        # Quadratic ease out
+        return t * (2 - t)
+    elif interpolation_type == 'ease-in-out':
+        # Quadratic ease in-out
+        if t < 0.5:
+            return 2 * t * t
+        else:
+            return -1 + (4 - 2 * t) * t
+    else:
+        # Linear (default)
+        return t
+
 class FL_PathAnimator:
 
     RETURN_TYPES = ("IMAGE", "MASK", "STRING",)
     RETURN_NAMES = ("image", "mask", "coordinates",)
     FUNCTION = "animate_paths"
-    CATEGORY = "🏵️Fill Nodes/WIP"
+    CATEGORY = "🎨 FL Path Animator"
     DESCRIPTION = """
 Creates animated shapes that follow user-drawn paths.
 Open the path editor to draw trajectories on a reference image, then shapes will follow these paths over time.
@@ -298,8 +316,8 @@ Outputs WAN ATI-compatible coordinate strings with proper 121-point resampling f
             image = Image.new("RGB", (frame_width, frame_height), bg_color)
             draw = ImageDraw.Draw(image)
 
-            # Calculate time along path (0.0 to 1.0)
-            t = frame / max(frame_count - 1, 1)
+            # Calculate global time (0.0 to 1.0)
+            global_t = frame / max(frame_count - 1, 1)
 
             # Draw each path's shape
             for path_idx, path in enumerate(scaled_paths):
@@ -307,11 +325,42 @@ Outputs WAN ATI-compatible coordinate strings with proper 121-point resampling f
                 if len(points) == 0:
                     continue
 
-                # Get position along this path
-                x, y = self.interpolate_path(points, t)
+                # Get timeline parameters
+                start_time = path.get('startTime', 0.0)
+                end_time = path.get('endTime', 1.0)
+                interpolation = path.get('interpolation', 'linear')
+                visibility_mode = path.get('visibilityMode', 'pop')
 
-                # Calculate rotation
-                current_rotation = rotation_speed * t * 360.0
+                # Determine if shape should be visible and animated
+                is_in_timeline = start_time <= global_t <= end_time
+
+                # Skip rendering based on visibility mode
+                if visibility_mode == 'pop' and not is_in_timeline:
+                    # Pop mode: don't render outside timeline
+                    continue
+
+                # Calculate local time and position
+                if is_in_timeline and end_time > start_time:
+                    # Animate within timeline
+                    local_t = (global_t - start_time) / (end_time - start_time)
+                    eased_t = apply_interpolation(local_t, interpolation)
+                    x, y = self.interpolate_path(points, eased_t)
+                    # Calculate rotation based on local time
+                    current_rotation = rotation_speed * eased_t * 360.0
+                elif visibility_mode == 'static':
+                    # Static mode: show at start or end position when outside timeline
+                    if global_t < start_time:
+                        # Before timeline: show at start position
+                        x, y = self.interpolate_path(points, 0.0)
+                        current_rotation = 0.0
+                    else:
+                        # After timeline: show at end position
+                        x, y = self.interpolate_path(points, 1.0)
+                        current_rotation = rotation_speed * 360.0
+                else:
+                    # Fallback: show at start position
+                    x, y = self.interpolate_path(points, 0.0)
+                    current_rotation = 0.0
 
                 # Draw the shape
                 self.draw_shape(draw, shape, x, y, shape_size, current_rotation,

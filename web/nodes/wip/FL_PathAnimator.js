@@ -834,7 +834,11 @@ class PathEditorModal {
                 name: 'Perimeter ' + (i + 1),
                 points: [{ x: Math.round(x), y: Math.round(y) }],
                 color: this.getRandomColor(),
-                isSinglePoint: true
+                isSinglePoint: true,
+                startTime: 0.0,
+                endTime: 1.0,
+                interpolation: 'linear',
+                visibilityMode: 'pop'
             };
             this.paths.push(path);
         }
@@ -908,7 +912,11 @@ class PathEditorModal {
                 points: [pos],
                 color: this.currentColor,
                 closed: false,
-                isSinglePoint: false
+                isSinglePoint: false,
+                startTime: 0.0,
+                endTime: 1.0,
+                interpolation: 'linear',
+                visibilityMode: 'pop'
             };
         } else if (this.tool === 'point') {
             // Add single static point
@@ -917,7 +925,11 @@ class PathEditorModal {
                 name: 'Static ' + (this.paths.filter(p => p.isSinglePoint).length + 1),
                 points: [pos],
                 color: this.currentColor,
-                isSinglePoint: true
+                isSinglePoint: true,
+                startTime: 0.0,
+                endTime: 1.0,
+                interpolation: 'linear',
+                visibilityMode: 'pop'
             };
             this.paths.push(path);
             this.selectedPathIndex = this.paths.length - 1;
@@ -1138,7 +1150,7 @@ class PathEditorModal {
 
             // Draw border
             this.ctx.strokeStyle = isSelected ? neonGreen : '#fff';
-            this.ctx.lineWidth = (isSelected ? 4 : 2) * scale;
+            this.ctx.lineWidth = (isSelected ? 2 : 2) * scale;
             this.ctx.strokeRect(point.x - size / 2, point.y - size / 2, size, size);
 
             // Draw label for static points
@@ -1157,7 +1169,7 @@ class PathEditorModal {
             }
 
             this.ctx.strokeStyle = isSelected ? neonGreen : path.color;
-            this.ctx.lineWidth = (isSelected ? this.pathThickness + 1 : this.pathThickness) * scale;
+            this.ctx.lineWidth = (isSelected ? this.pathThickness + 0.1 : this.pathThickness) * scale;
             this.ctx.lineCap = 'round';
             this.ctx.lineJoin = 'round';
             this.ctx.stroke();
@@ -1358,7 +1370,16 @@ class PathEditorModal {
             topRow.appendChild(deleteBtn);
             item.appendChild(topRow);
 
-            item.onclick = () => {
+            // Add timeline controls if selected
+            if (isSelected) {
+                const timelineControls = this.createTimelineControls(path, index);
+                item.appendChild(timelineControls);
+            }
+
+            item.onclick = (e) => {
+                // Don't trigger selection if clicking on controls
+                if (e.target.closest('.timeline-controls')) return;
+
                 this.selectedPathIndex = index;
                 this.updateSidebar();
                 this.render();
@@ -1366,6 +1387,310 @@ class PathEditorModal {
 
             this.pathList.appendChild(item);
         });
+    }
+
+    createTimelineControls(path, pathIndex) {
+        const container = document.createElement('div');
+        container.className = 'timeline-controls';
+        container.style.cssText = `
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        `;
+
+        // Timeline Range Slider
+        const timelineSection = document.createElement('div');
+        timelineSection.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        `;
+
+        const timelineLabel = document.createElement('label');
+        timelineLabel.textContent = 'Timeline Range';
+        timelineLabel.style.cssText = `
+            color: #fff;
+            font-size: 11px;
+            font-weight: 500;
+            opacity: 0.9;
+        `;
+
+        const timelineSliderContainer = document.createElement('div');
+        timelineSliderContainer.style.cssText = `
+            position: relative;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            padding: 8px;
+        `;
+
+        // Create range track
+        const rangeTrack = document.createElement('div');
+        rangeTrack.style.cssText = `
+            position: absolute;
+            left: 8px;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        `;
+
+        // Create active range indicator
+        const activeRange = document.createElement('div');
+        const startPercent = (path.startTime || 0) * 100;
+        const endPercent = (path.endTime || 1) * 100;
+        activeRange.style.cssText = `
+            position: absolute;
+            left: ${startPercent}%;
+            width: ${endPercent - startPercent}%;
+            height: 100%;
+            background: #4ECDC4;
+            border-radius: 3px;
+        `;
+
+        rangeTrack.appendChild(activeRange);
+
+        // Create start handle
+        const startHandle = this.createRangeHandle('Start', startPercent, true);
+
+        // Create end handle
+        const endHandle = this.createRangeHandle('End', endPercent, false);
+
+        // Add drag functionality
+        this.setupRangeHandleDrag(startHandle, endHandle, activeRange, path, pathIndex, true);
+        this.setupRangeHandleDrag(endHandle, startHandle, activeRange, path, pathIndex, false);
+
+        timelineSliderContainer.appendChild(rangeTrack);
+        timelineSliderContainer.appendChild(startHandle);
+        timelineSliderContainer.appendChild(endHandle);
+
+        // Timeline values display
+        const valuesDisplay = document.createElement('div');
+        valuesDisplay.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #888;
+            margin-top: 4px;
+        `;
+        valuesDisplay.innerHTML = `
+            <span>Start: ${Math.round(startPercent)}%</span>
+            <span>End: ${Math.round(endPercent)}%</span>
+        `;
+
+        timelineSection.appendChild(timelineLabel);
+        timelineSection.appendChild(timelineSliderContainer);
+        timelineSection.appendChild(valuesDisplay);
+
+        // Interpolation Dropdown
+        const interpolationSection = document.createElement('div');
+        interpolationSection.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        `;
+
+        const interpLabel = document.createElement('label');
+        interpLabel.textContent = 'Interpolation';
+        interpLabel.style.cssText = `
+            color: #fff;
+            font-size: 11px;
+            font-weight: 500;
+            opacity: 0.9;
+        `;
+
+        const interpSelect = document.createElement('select');
+        interpSelect.style.cssText = `
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: #fff;
+            padding: 6px;
+            font-size: 11px;
+            cursor: pointer;
+        `;
+
+        const interpolationTypes = [
+            { value: 'linear', label: 'Linear' },
+            { value: 'ease-in', label: 'Ease In' },
+            { value: 'ease-out', label: 'Ease Out' },
+            { value: 'ease-in-out', label: 'Ease In-Out' }
+        ];
+
+        interpolationTypes.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type.value;
+            option.textContent = type.label;
+            option.selected = (path.interpolation || 'linear') === type.value;
+            interpSelect.appendChild(option);
+        });
+
+        interpSelect.onchange = (e) => {
+            e.stopPropagation();
+            path.interpolation = e.target.value;
+            this.savePaths();
+        };
+
+        interpolationSection.appendChild(interpLabel);
+        interpolationSection.appendChild(interpSelect);
+
+        // Visibility Mode Dropdown
+        const visibilitySection = document.createElement('div');
+        visibilitySection.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        `;
+
+        const visLabel = document.createElement('label');
+        visLabel.textContent = 'Visibility Mode';
+        visLabel.style.cssText = `
+            color: #fff;
+            font-size: 11px;
+            font-weight: 500;
+            opacity: 0.9;
+        `;
+
+        const visSelect = document.createElement('select');
+        visSelect.style.cssText = `
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: #fff;
+            padding: 6px;
+            font-size: 11px;
+            cursor: pointer;
+        `;
+
+        const visibilityModes = [
+            { value: 'pop', label: 'Pop (Appear/Disappear)' },
+            { value: 'static', label: 'Static (Always Visible)' }
+        ];
+
+        visibilityModes.forEach(mode => {
+            const option = document.createElement('option');
+            option.value = mode.value;
+            option.textContent = mode.label;
+            option.selected = (path.visibilityMode || 'pop') === mode.value;
+            visSelect.appendChild(option);
+        });
+
+        visSelect.onchange = (e) => {
+            e.stopPropagation();
+            path.visibilityMode = e.target.value;
+            this.savePaths();
+        };
+
+        visibilitySection.appendChild(visLabel);
+        visibilitySection.appendChild(visSelect);
+
+        container.appendChild(timelineSection);
+        container.appendChild(interpolationSection);
+        container.appendChild(visibilitySection);
+
+        return container;
+    }
+
+    createRangeHandle(label, position, isStart) {
+        const handle = document.createElement('div');
+        handle.style.cssText = `
+            position: absolute;
+            left: ${position}%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            background: #4ECDC4;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: ${isStart ? 'e-resize' : 'w-resize'};
+            z-index: 10;
+            transition: transform 0.1s ease;
+        `;
+
+        handle.onmouseover = () => {
+            handle.style.transform = 'translate(-50%, -50%) scale(1.2)';
+        };
+
+        handle.onmouseout = () => {
+            handle.style.transform = 'translate(-50%, -50%) scale(1)';
+        };
+
+        handle.dataset.label = label;
+        return handle;
+    }
+
+    setupRangeHandleDrag(handle, otherHandle, activeRange, path, pathIndex, isStart) {
+        let isDragging = false;
+        let container = null;
+
+        const onMouseDown = (e) => {
+            e.stopPropagation();
+            isDragging = true;
+            container = handle.parentElement;
+            document.body.style.cursor = isStart ? 'e-resize' : 'w-resize';
+        };
+
+        const onMouseMove = (e) => {
+            if (!isDragging || !container) return;
+
+            const rect = container.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
+
+            // Get other handle position
+            const otherPercent = parseFloat(otherHandle.style.left);
+
+            // Constrain to not cross other handle
+            let constrainedPercent;
+            if (isStart) {
+                constrainedPercent = Math.min(percent, otherPercent - 1);
+            } else {
+                constrainedPercent = Math.max(percent, otherPercent + 1);
+            }
+
+            // Update handle position
+            handle.style.left = `${constrainedPercent}%`;
+
+            // Update active range
+            const startPercent = isStart ? constrainedPercent : parseFloat(otherHandle.style.left);
+            const endPercent = isStart ? parseFloat(otherHandle.style.left) : constrainedPercent;
+            activeRange.style.left = `${startPercent}%`;
+            activeRange.style.width = `${endPercent - startPercent}%`;
+
+            // Update path data
+            if (isStart) {
+                path.startTime = constrainedPercent / 100;
+            } else {
+                path.endTime = constrainedPercent / 100;
+            }
+
+            // Update display
+            const valuesDisplay = container.parentElement.querySelector('div:last-child');
+            if (valuesDisplay) {
+                valuesDisplay.innerHTML = `
+                    <span>Start: ${Math.round(startPercent)}%</span>
+                    <span>End: ${Math.round(endPercent)}%</span>
+                `;
+            }
+        };
+
+        const onMouseUp = () => {
+            if (isDragging) {
+                isDragging = false;
+                document.body.style.cursor = '';
+                this.savePaths();
+            }
+        };
+
+        handle.addEventListener('mousedown', onMouseDown);
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
     }
 
     createFooter() {
