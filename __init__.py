@@ -215,6 +215,10 @@ from .nodes.wip.FL_QwenImageEditStrength import FL_QwenImageEditStrength
 from .nodes.wip.FL_WanVaceToVideoMultiRef import FL_WanVaceToVideoMultiRef
 from .nodes.wip.FL_AnimatedShapePatterns import FL_AnimatedShapePatterns
 from .nodes.wip.FL_PathAnimator import FL_PathAnimator
+from .nodes.wip.FL_WanVideoContinue import FL_WanVideoContinue
+from .nodes.wip.FL_WanVideoBlender import FL_WanVideoBlender
+from .nodes.wip.FL_WanVideoBlender3Way import FL_WanVideoBlender3Way
+from .nodes.wip.FL_WanVideoContinuationBlender import FL_WanVideoContinuationBlender
 
 NODE_CLASS_MAPPINGS = {
     "FL_SaveWebM": FL_SaveWebM,
@@ -375,6 +379,10 @@ NODE_CLASS_MAPPINGS = {
     "FL_RunwayAct2": FL_RunwayAct2,
     "FL_ImageCrop": FL_ImageCrop,
     "FL_WanFirstLastFrameToVideo": FL_WanFirstLastFrameToVideo,
+    "FL_WanVideoContinue": FL_WanVideoContinue,
+    "FL_WanVideoBlender": FL_WanVideoBlender,
+    "FL_WanVideoBlender3Way": FL_WanVideoBlender3Way,
+    "FL_WanVideoContinuationBlender": FL_WanVideoContinuationBlender,
     "FL_Veo3VideoGen": FL_Veo3VideoGen,
     "FL_VertexGemini25FlashImage": FL_VertexGemini25FlashImage,
     "FL_SaveRGBAAnimatedWebP": FL_SaveRGBAAnimatedWebP,
@@ -560,6 +568,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_SaveWebM": "FL Save WebM",
     "FL_ImageCrop": "FL Image Crop",
     "FL_WanFirstLastFrameToVideo": "FL Wan First Frame Last Frame",
+    "FL_WanVideoContinue": "FL Wan Video Continue",
+    "FL_WanVideoBlender": "FL Wan Video Blender",
+    "FL_WanVideoBlender3Way": "FL Wan Video Blender 3-Way",
+    "FL_WanVideoContinuationBlender": "FL Wan Video Continuation Blender",
     "FL_Veo3VideoGen": "FL Vertex Veo3",
     "FL_VertexGemini25FlashImage": "FL Vertex Gemini 2.5 Flash Image",
     "FL_SaveRGBAAnimatedWebP": "FL Save RGBA Animated WebP",

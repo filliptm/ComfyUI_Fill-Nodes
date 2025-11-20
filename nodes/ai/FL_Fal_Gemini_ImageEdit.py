@@ -1,4 +1,4 @@
-# FL_Fal_Gemini_ImageEdit: Fal AI Gemini 2.5 Flash Image Edit API Node
+# FL_Fal_Gemini_ImageEdit: Fal AI Gemini 3 Pro Image Edit API Node
 import os
 import uuid
 import json
@@ -11,7 +11,6 @@ import base64
 import fal_client
 import asyncio
 import concurrent.futures
-import random
 from typing import Tuple, List, Dict, Union, Optional
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
@@ -21,8 +20,8 @@ from comfy.utils import ProgressBar
 
 class FL_Fal_Gemini_ImageEdit:
     """
-    A ComfyUI node for the Fal AI Gemini 2.5 Flash Image Edit API.
-    Takes multiple images and a prompt to edit them using Gemini's multimodal capabilities.
+    A ComfyUI node for the Fal AI Gemini 3 Pro Image Edit API.
+    Takes up to 10 images and a prompt to edit them using Gemini's state-of-the-art multimodal capabilities.
     """
 
     RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
@@ -38,13 +37,16 @@ class FL_Fal_Gemini_ImageEdit:
                                      "description": "Fal AI API key"}),
                 "prompt": ("STRING", {"default": "make a photo of the man driving the car down the california coastline",
                                     "multiline": True, "forceInput": True,
-                                    "description": "The prompt for image editing"}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 666666,
-                               "description": "Random seed for image generation (0 = random)"}),
+                                    "description": "The prompt for image editing (3-5000 characters)"}),
                 "num_images": ("INT", {"default": 1, "min": 1, "max": 4, "step": 1,
                                      "description": "Number of images to generate"}),
-                "output_format": (["jpeg", "png"], {"default": "jpeg",
-                                                   "description": "Output image format"}),
+                "aspect_ratio": (["auto", "21:9", "16:9", "3:2", "4:3", "5:4", "1:1", "4:5", "3:4", "2:3", "9:16"],
+                               {"default": "auto",
+                                "description": "Aspect ratio for output images"}),
+                "resolution": (["1K", "2K", "4K"], {"default": "1K",
+                                                    "description": "Output resolution (4K costs 2x)"}),
+                "output_format": (["jpeg", "png", "webp"], {"default": "png",
+                                                           "description": "Output image format"}),
                 "sync_mode": ("BOOLEAN", {"default": False,
                                         "description": "When true, images returned as data URIs instead of URLs"}),
                 "max_retries": ("INT", {"default": 3, "min": 1, "max": 5, "step": 1}),
@@ -55,6 +57,11 @@ class FL_Fal_Gemini_ImageEdit:
                 "image_3": ("IMAGE", {"description": "Third input image to edit"}),
                 "image_4": ("IMAGE", {"description": "Fourth input image to edit"}),
                 "image_5": ("IMAGE", {"description": "Fifth input image to edit"}),
+                "image_6": ("IMAGE", {"description": "Sixth input image to edit"}),
+                "image_7": ("IMAGE", {"description": "Seventh input image to edit"}),
+                "image_8": ("IMAGE", {"description": "Eighth input image to edit"}),
+                "image_9": ("IMAGE", {"description": "Ninth input image to edit"}),
+                "image_10": ("IMAGE", {"description": "Tenth input image to edit"}),
                 "retry_indefinitely": ("BOOLEAN", {"default": False}),
             }
         }
@@ -146,13 +153,10 @@ class FL_Fal_Gemini_ImageEdit:
             self._log(f"Error converting image to base64: {str(e)}")
             raise
 
-    async def _edit_images_async(self, api_key, prompt, input_images, seed, num_images, output_format, sync_mode, max_retries, retry_indefinitely):
+    async def _edit_images_async(self, api_key, prompt, input_images, num_images, aspect_ratio, resolution, output_format, sync_mode, max_retries, retry_indefinitely):
         try:
-            # Calculate seed
-            actual_seed = seed if seed != 0 else random.randint(1, 666666)
-            
-            self._log(f"Starting image editing with seed {actual_seed} and prompt: '{prompt[:50]}...'")
-            
+            self._log(f"Starting image editing with Gemini 3 Pro - prompt: '{prompt[:50]}...'")
+
             # Prepare image URLs from input images
             image_urls = []
             if input_images:
@@ -168,38 +172,39 @@ class FL_Fal_Gemini_ImageEdit:
             else:
                 error_msg = "Error: No images provided for editing"
                 return self._create_error_image(error_msg), "", "", error_msg
-            
+
             # Clear any existing FAL_KEY environment variable to prevent caching issues
             if "FAL_KEY" in os.environ:
                 del os.environ["FAL_KEY"]
-            
+
             # Prepare the API request
             clean_api_key = api_key.strip()
-            
+
             # Prepare the arguments for fal_client
             arguments = {
                 "prompt": prompt,
                 "image_urls": image_urls,
-                "seed": actual_seed,
                 "num_images": num_images,
+                "aspect_ratio": aspect_ratio,
+                "resolution": resolution,
                 "output_format": output_format,
                 "sync_mode": sync_mode
             }
-            
+
             # Set the API key as an environment variable for fal_client
             os.environ["FAL_KEY"] = clean_api_key
-            
-            self._log(f"Calling Fal AI Gemini Image Edit API with {len(image_urls)} images...")
-            
+
+            self._log(f"Calling Fal AI Gemini 3 Pro API with {len(image_urls)} images, {aspect_ratio} aspect ratio, {resolution} resolution...")
+
             # Define a callback for queue updates
             def on_queue_update(update):
                 if isinstance(update, fal_client.InProgress):
                     for log in update.logs:
                         self._log(f"API Log: {log['message']}")
-            
+
             # Make the API call in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            
+
             def make_fal_call():
                 try:
                     # Force reload the fal_client module to avoid caching issues
@@ -207,10 +212,10 @@ class FL_Fal_Gemini_ImageEdit:
                     if 'fal_client' in sys.modules:
                         del sys.modules['fal_client']
                     import fal_client
-                    
+
                     # Make the API call using fal_client.subscribe
                     result = fal_client.subscribe(
-                        "fal-ai/gemini-25-flash-image/edit",
+                        "fal-ai/gemini-3-pro-image-preview/edit",
                         arguments=arguments,
                         with_logs=True,
                         on_queue_update=on_queue_update,
@@ -219,7 +224,7 @@ class FL_Fal_Gemini_ImageEdit:
                 except Exception as e:
                     self._log(f"API call error: {str(e)}")
                     return None
-            
+
             result = await loop.run_in_executor(None, make_fal_call)
             
             if result is None:
@@ -328,8 +333,10 @@ class FL_Fal_Gemini_ImageEdit:
             error_msg = f"Error: {str(e)}"
             return self._create_error_image(error_msg), "", "", error_msg
 
-    def edit_images(self, api_key, prompt, seed=0, num_images=1, output_format="jpeg", sync_mode=False, max_retries=3,
-                   image_1=None, image_2=None, image_3=None, image_4=None, image_5=None, retry_indefinitely=False, **kwargs):
+    def edit_images(self, api_key, prompt, num_images=1, aspect_ratio="auto", resolution="1K", output_format="png",
+                   sync_mode=False, max_retries=3, image_1=None, image_2=None, image_3=None, image_4=None,
+                   image_5=None, image_6=None, image_7=None, image_8=None, image_9=None, image_10=None,
+                   retry_indefinitely=False, **kwargs):
         self.log_messages = []
         if not api_key:
             error_msg = "API key not provided."
@@ -339,14 +346,14 @@ class FL_Fal_Gemini_ImageEdit:
 
         # Collect all input images
         input_images = []
-        input_tensors = [image_1, image_2, image_3, image_4, image_5]
-        
+        input_tensors = [image_1, image_2, image_3, image_4, image_5, image_6, image_7, image_8, image_9, image_10]
+
         for i, tensor in enumerate(input_tensors):
             if tensor is not None:
                 pil_images = self._process_tensor_to_pil_list(tensor, f"Image{i+1}")
                 if pil_images:
                     input_images.extend(pil_images)
-        
+
         if not input_images:
             error_msg = "No valid input images provided."
             self._log(error_msg)
@@ -362,8 +369,8 @@ class FL_Fal_Gemini_ImageEdit:
             asyncio.set_event_loop(loop)
             try:
                 return loop.run_until_complete(self._edit_images_async(
-                    api_key, prompt, input_images, seed, num_images, output_format,
-                    sync_mode, max_retries, retry_indefinitely
+                    api_key, prompt, input_images, num_images, aspect_ratio, resolution,
+                    output_format, sync_mode, max_retries, retry_indefinitely
                 ))
             finally:
                 loop.close()
