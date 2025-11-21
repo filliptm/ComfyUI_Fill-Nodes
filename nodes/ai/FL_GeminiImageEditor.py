@@ -25,7 +25,9 @@ class FL_GeminiImageEditor:
             "required": {
                 "prompt": ("STRING", {"multiline": True}),
                 "api_key": ("STRING", {"default": "", "multiline": False}),
-                "model": (["models/gemini-2.0-flash-exp", "models/gemini-2.0-flash-preview-image-generation", "models/gemini-2.5-flash-image-preview"], {"default": "models/gemini-2.5-flash-image-preview"}),
+                "model": (["models/gemini-2.0-flash-exp", "models/gemini-2.0-flash-preview-image-generation", "models/gemini-2.5-flash-image-preview", "models/gemini-2.5-flash-image", "models/gemini-3-pro-image-preview"], {"default": "models/gemini-2.5-flash-image"}),
+                "aspect_ratio": (["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"], {"default": "1:1"}),
+                "image_size": (["1K", "2K", "4K"], {"default": "1K", "tooltip": "Resolution size (2K/4K only supported by gemini-3-pro-image-preview)"}),
                 "always_square": ("BOOLEAN", {"default": False, "description": "When enabled, pads images to square dimensions. When disabled, outputs original resolution as image list."}),
                 "temperature": ("FLOAT", {"default": 1, "min": 0.0, "max": 2.0, "step": 0.05}),
                 "max_retries": ("INT", {"default": 3, "min": 1, "max": 5, "step": 1}),
@@ -340,22 +342,44 @@ class FL_GeminiImageEditor:
         return self._create_error_image(error_msg), response_text if response_text else error_msg
 
     async def _generate_single_image_async(self, prompt, api_key, model, temperature, max_retries,
-                                           batch_id, seed, reference_images, always_square=False):
+                                           batch_id, seed, reference_images, always_square=False,
+                                           aspect_ratio="1:1", image_size="1K"):
         """Generate a single image asynchronously for batch processing"""
         try:
             # Create client instance - each batch gets its own client
             client = genai.Client(api_key=api_key)
 
             # Use provided seed or generate random one
-            actual_seed = seed if seed != 0 else random.randint(1, 2 ** 31 - 1)
+            actual_seed = seed if seed != 0 else random.randint(1, 0xffffff)
             self._log(f"[Batch {batch_id}] Using seed: {actual_seed}")
 
             # Configure generation parameters
-            gen_config = types.GenerateContentConfig(
-                temperature=temperature,
-                seed=actual_seed,
-                response_modalities=['Text', 'Image']
-            )
+            gen_config_params = {
+                "temperature": temperature,
+                "seed": actual_seed,
+                "response_modalities": ['Text', 'Image']
+            }
+
+            # Add image config if supported
+            try:
+                # Check if ImageConfig supports imageSize parameter (SDK >= 1.50)
+                import inspect
+                image_config_sig = inspect.signature(types.ImageConfig)
+                supports_image_size = 'imageSize' in image_config_sig.parameters or 'image_size' in image_config_sig.parameters
+
+                image_config_params = {"aspectRatio": aspect_ratio}
+                # Only add imageSize for gemini-3-pro model if SDK supports it
+                if "gemini-3-pro" in model and supports_image_size:
+                    image_config_params["imageSize"] = image_size
+                    self._log(f"[Batch {batch_id}] Using imageSize: {image_size}")
+                elif "gemini-3-pro" in model:
+                    self._log(f"[Batch {batch_id}] Warning: imageSize not supported in this SDK version. Upgrade google-genai to 1.50+ for 4K support")
+
+                gen_config_params["image_config"] = types.ImageConfig(**image_config_params)
+            except Exception as e:
+                self._log(f"[Batch {batch_id}] ImageConfig not available: {e}, using basic config")
+
+            gen_config = types.GenerateContentConfig(**gen_config_params)
 
             # Create content parts
             content_parts = []
@@ -400,7 +424,7 @@ class FL_GeminiImageEditor:
             error_msg = f"Batch {batch_id}: Error: {str(e)}"
             return self._create_error_image(error_msg), error_msg, batch_id
 
-    def generate_image(self, prompt, api_key, model, temperature, max_retries=3, batch_size=1,
+    def generate_image(self, prompt, api_key, model, aspect_ratio, image_size, temperature, max_retries=3, batch_size=1,
                        seed=66666666, always_square=False, image1=None, image2=None, image3=None, image4=None):
         """Generate batch of images with parallel API calls"""
         # Reset log messages
@@ -451,7 +475,9 @@ class FL_GeminiImageEditor:
                         batch_id=i + 1,
                         seed=batch_seed,
                         reference_images=reference_pil_images,
-                        always_square=always_square
+                        always_square=always_square,
+                        aspect_ratio=aspect_ratio,
+                        image_size=image_size
                     )
                     tasks.append(task)
 

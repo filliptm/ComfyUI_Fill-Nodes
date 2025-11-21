@@ -29,7 +29,9 @@ class FL_GeminiImageGenADV:
             "required": {
                 "inputcount": ("INT", {"default": 1, "min": 1, "max": 100, "step": 1}),
                 "api_key": ("STRING", {"default": os.getenv("GEMINI_API_KEY", ""), "multiline": False}),
-                "model": (["models/gemini-2.0-flash-exp", "models/gemini-2.0-flash-preview-image-generation", "models/gemini-2.5-flash-image-preview"], {"default": "models/gemini-2.5-flash-image-preview"}),
+                "model": (["models/gemini-2.0-flash-exp", "models/gemini-2.0-flash-preview-image-generation", "models/gemini-2.5-flash-image-preview", "models/gemini-2.5-flash-image", "models/gemini-3-pro-image-preview"], {"default": "models/gemini-2.5-flash-image"}),
+                "aspect_ratio": (["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"], {"default": "1:1"}),
+                "image_size": (["1K", "2K", "4K"], {"default": "1K", "tooltip": "Resolution size (2K/4K only supported by gemini-3-pro-image-preview)"}),
                 "always_square": ("BOOLEAN", {"default": False, "description": "When enabled, pads images to square dimensions. When disabled, outputs original resolution as image list."}),
                 "temperature": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05}),
                 "max_retries": ("INT", {"default": 3, "min": 1, "max": 5, "step": 1}),
@@ -308,7 +310,7 @@ Each pair triggers an asynchronous API call. Results are batched.
         
         return image_tensor, final_response_text
 
-    async def _generate_single_image_async(self, api_key, model_name_full, prompt_text, input_pil_images: Optional[List[Image.Image]], temperature, max_retries, retry_indefinitely, seed_val, call_id, always_square=False):
+    async def _generate_single_image_async(self, api_key, model_name_full, prompt_text, input_pil_images: Optional[List[Image.Image]], temperature, max_retries, retry_indefinitely, seed_val, call_id, always_square=False, aspect_ratio="1:1", image_size="1K"):
         try:
             try:
                 client_instance = genai.Client(api_key=api_key)
@@ -320,7 +322,7 @@ Each pair triggers an asynchronous API call. Results are batched.
                  error_msg = f"Call {call_id} Error: genai.Client not found."
                  return self._create_error_image(error_msg), error_msg, call_id
 
-            actual_seed = seed_val if seed_val != 0 else random.randint(1, 0xffffffffffffffff)
+            actual_seed = seed_val if seed_val != 0 else random.randint(1, 0xffffff)
             self._log(f"[Call {call_id}] Using seed: {actual_seed} for prompt: '{prompt_text[:50]}...'")
 
             gen_config_params = {
@@ -329,7 +331,26 @@ Each pair triggers an asynchronous API call. Results are batched.
             }
             if actual_seed != 0:
                  gen_config_params["seed"] = actual_seed
-            
+
+            # Add image config if supported
+            try:
+                # Check if ImageConfig supports imageSize parameter (SDK >= 1.50)
+                import inspect
+                image_config_sig = inspect.signature(types.ImageConfig)
+                supports_image_size = 'imageSize' in image_config_sig.parameters or 'image_size' in image_config_sig.parameters
+
+                image_config_params = {"aspectRatio": aspect_ratio}
+                # Only add imageSize for gemini-3-pro model if SDK supports it
+                if "gemini-3-pro" in model_name_full and supports_image_size:
+                    image_config_params["imageSize"] = image_size
+                    self._log(f"[Call {call_id}] Using imageSize: {image_size}")
+                elif "gemini-3-pro" in model_name_full:
+                    self._log(f"[Call {call_id}] Warning: imageSize not supported in this SDK version. Upgrade google-genai to 1.50+ for 4K support")
+
+                gen_config_params["image_config"] = types.ImageConfig(**image_config_params)
+            except Exception as e:
+                self._log(f"[Call {call_id}] ImageConfig not available: {e}, using basic config")
+
             gen_config_obj = types.GenerateContentConfig(**gen_config_params)
             
             if actual_seed != 0:
@@ -357,7 +378,7 @@ Each pair triggers an asynchronous API call. Results are batched.
             error_msg = f"Call {call_id} Error: {str(e)}"
             return self._create_error_image(error_msg), error_msg, call_id
 
-    def generate_images_advanced(self, inputcount, api_key, model, always_square, temperature, max_retries, prompt_1, image_1=None, seed=0, retry_indefinitely=False, **kwargs):
+    def generate_images_advanced(self, inputcount, api_key, model, aspect_ratio, image_size, always_square, temperature, max_retries, prompt_1, image_1=None, seed=0, retry_indefinitely=False, **kwargs):
         self.log_messages = []
         if not api_key:
             error_msg = "API key not provided."
@@ -390,7 +411,8 @@ Each pair triggers an asynchronous API call. Results are batched.
 
                 tasks.append(self._generate_single_image_async(
                     api_key, model, current_prompt, pil_images_for_this_slot,
-                    temperature, max_retries, retry_indefinitely, current_task_seed, task_call_id, always_square
+                    temperature, max_retries, retry_indefinitely, current_task_seed, task_call_id, always_square,
+                    aspect_ratio, image_size
                 ))
                 pbar.update_absolute(slot_idx) # Update progress bar after task is added
 
