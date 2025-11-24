@@ -32,6 +32,9 @@ class FL_SaveImages:
         # Ensure base directory exists
         os.makedirs(base_directory, exist_ok=True)
 
+        batch_size = len(images)
+        has_index_placeholder = "{index}" in file_name_template
+
         for i, image in enumerate(images):
             # Convert the image tensor to a PIL Image
             img = Image.fromarray((image.cpu().numpy() * 255).astype(np.uint8))
@@ -40,16 +43,30 @@ class FL_SaveImages:
             full_folder_path = self.create_folder_path(base_directory, folder_structure)
             os.makedirs(full_folder_path, exist_ok=True)
 
-            # Create the file name and ensure it doesn't overwrite existing files
-            index = start_index + i
-            while True:
-                # Format index with zero padding (4 digits: 0001, 0002, etc.)
-                padded_index = f"{index:04d}"
-                full_file_name = file_name_template.format(index=padded_index)
-                full_file_path = os.path.join(full_folder_path, full_file_name)
-                if not os.path.exists(full_file_path):
-                    break
-                index += 1
+            # Determine the filename based on batch size and placeholder
+            if batch_size > 1:
+                # For batches, always use an index
+                current_index = start_index + i
+                padded_index = f"{current_index:04d}"
+
+                if has_index_placeholder:
+                    # Replace {index} with the current counter
+                    full_file_name = file_name_template.format(index=padded_index)
+                else:
+                    # Append index before extension
+                    base_name, ext = os.path.splitext(file_name_template)
+                    full_file_name = f"{base_name}_{padded_index}{ext}"
+            else:
+                # Single image
+                if has_index_placeholder:
+                    # Replace {index} with start_index
+                    padded_index = f"{start_index:04d}"
+                    full_file_name = file_name_template.format(index=padded_index)
+                else:
+                    # Use exact filename
+                    full_file_name = file_name_template
+
+            full_file_path = os.path.join(full_folder_path, full_file_name)
 
             # Save the image
             img.save(full_file_path)
