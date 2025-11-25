@@ -42,7 +42,3 @@ class FL_ImageBatchToGrid:
 
         # Add batch dimension
         return (grid.unsqueeze(0),)
-
-    @classmethod
-    def IS_CHANGED(cls, images, images_per_row):
-        return float("NaN")

@@ -49,6 +49,8 @@ class FL_Fal_Gemini_ImageEdit:
                                                            "description": "Output image format"}),
                 "sync_mode": ("BOOLEAN", {"default": False,
                                         "description": "When true, images returned as data URIs instead of URLs"}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 666666,
+                               "description": "Random seed for reproducibility (0 = random)"}),
                 "max_retries": ("INT", {"default": 3, "min": 1, "max": 5, "step": 1}),
             },
             "optional": {
@@ -153,7 +155,7 @@ class FL_Fal_Gemini_ImageEdit:
             self._log(f"Error converting image to base64: {str(e)}")
             raise
 
-    async def _edit_images_async(self, api_key, prompt, input_images, num_images, aspect_ratio, resolution, output_format, sync_mode, max_retries, retry_indefinitely):
+    async def _edit_images_async(self, api_key, prompt, input_images, num_images, aspect_ratio, resolution, output_format, sync_mode, max_retries, retry_indefinitely, seed=0):
         try:
             self._log(f"Starting image editing with Gemini 3 Pro - prompt: '{prompt[:50]}...'")
 
@@ -190,6 +192,11 @@ class FL_Fal_Gemini_ImageEdit:
                 "output_format": output_format,
                 "sync_mode": sync_mode
             }
+
+            # Add seed if provided (non-zero)
+            if seed != 0:
+                arguments["seed"] = seed
+                self._log(f"Using seed: {seed}")
 
             # Set the API key as an environment variable for fal_client
             os.environ["FAL_KEY"] = clean_api_key
@@ -334,7 +341,7 @@ class FL_Fal_Gemini_ImageEdit:
             return self._create_error_image(error_msg), "", "", error_msg
 
     def edit_images(self, api_key, prompt, num_images=1, aspect_ratio="auto", resolution="1K", output_format="png",
-                   sync_mode=False, max_retries=3, image_1=None, image_2=None, image_3=None, image_4=None,
+                   sync_mode=False, max_retries=3, seed=0, image_1=None, image_2=None, image_3=None, image_4=None,
                    image_5=None, image_6=None, image_7=None, image_8=None, image_9=None, image_10=None,
                    retry_indefinitely=False, **kwargs):
         self.log_messages = []
@@ -370,7 +377,7 @@ class FL_Fal_Gemini_ImageEdit:
             try:
                 return loop.run_until_complete(self._edit_images_async(
                     api_key, prompt, input_images, num_images, aspect_ratio, resolution,
-                    output_format, sync_mode, max_retries, retry_indefinitely
+                    output_format, sync_mode, max_retries, retry_indefinitely, seed
                 ))
             finally:
                 loop.close()
