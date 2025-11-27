@@ -1,9 +1,6 @@
-import base64
 import io
-import json
 import numpy as np
 import os
-import tempfile
 import requests
 from PIL import Image
 import torch
@@ -46,77 +43,27 @@ class FL_Fal_SeedVR_Upscale:
     FUNCTION = "upscale_image"
     CATEGORY = "🏵️Fill Nodes/AI"
 
-    def tensor_to_base64(self, tensor_image):
-        """Convert tensor to base64 data URI"""
-        print(f"\n[DEBUG] ========== TENSOR TO BASE64 CONVERSION ==========")
-        print(f"[DEBUG] Input tensor shape: {tensor_image.shape}")
-        print(f"[DEBUG] Input tensor dtype: {tensor_image.dtype}")
-        print(f"[DEBUG] Input tensor device: {tensor_image.device}")
-        print(f"[DEBUG] Input tensor min: {tensor_image.min().item():.6f}")
-        print(f"[DEBUG] Input tensor max: {tensor_image.max().item():.6f}")
-        print(f"[DEBUG] Input tensor mean: {tensor_image.mean().item():.6f}")
-
+    def upload_tensor_to_fal(self, tensor_image):
+        """Upload tensor image to fal.media CDN and return the URL."""
         # ComfyUI tensors are in [B, H, W, C] or [H, W, C] format
         # Remove batch dimension if present
         if tensor_image.dim() == 4:
-            print(f"[DEBUG] Removing batch dimension (was 4D)")
             tensor_image = tensor_image.squeeze(0)
-            print(f"[DEBUG] New shape after squeeze: {tensor_image.shape}")
-
-        # tensor_image is now [H, W, C] which is what PIL expects
-        print(f"[DEBUG] Final tensor shape before scaling: {tensor_image.shape}")
 
         # Ensure values are in [0, 1] range and convert to [0, 255]
-        # ComfyUI tensors are ALWAYS in [0, 1] range
-        print(f"[DEBUG] Tensor is in [0, 1] range, scaling to [0, 255]")
         tensor_image = (tensor_image * 255.0).clamp(0, 255)
-
-        print(f"[DEBUG] After scaling - min: {tensor_image.min().item():.2f}, max: {tensor_image.max().item():.2f}, mean: {tensor_image.mean().item():.2f}")
 
         # Convert to uint8 and then to PIL Image
         np_image = tensor_image.cpu().numpy().astype(np.uint8)
-        print(f"[DEBUG] NumPy array shape: {np_image.shape}, dtype: {np_image.dtype}")
-        print(f"[DEBUG] NumPy array min: {np_image.min()}, max: {np_image.max()}, mean: {np_image.mean():.2f}")
-
-        # Check if array is all zeros
-        if np_image.max() == 0:
-            print(f"[DEBUG] ⚠️ WARNING: NumPy array is all zeros (black image)!")
-
-        # Sample some pixel values from different locations
-        h, w = np_image.shape[:2]
-        print(f"[DEBUG] Pixel samples:")
-        print(f"[DEBUG]   Top-left corner (0,0): {np_image[0, 0]}")
-        print(f"[DEBUG]   Center ({h//2},{w//2}): {np_image[h//2, w//2]}")
-        print(f"[DEBUG]   Bottom-right ({h-1},{w-1}): {np_image[h-1, w-1]}")
-
         pil_image = Image.fromarray(np_image)
 
-        print(f"[DEBUG] PIL Image: {pil_image.width}x{pil_image.height}, mode: {pil_image.mode}")
-
-        # Get pixel data sample
-        pixels = list(pil_image.getdata())[:5]
-        print(f"[DEBUG] First 5 pixels: {pixels}")
-
-        # Save a test image to disk for verification
-        try:
-            test_path = "d:/temp_debug_input.png"
-            pil_image.save(test_path)
-            print(f"[DEBUG] ✅ Saved debug image to: {test_path}")
-        except Exception as e:
-            print(f"[DEBUG] Could not save debug image: {e}")
-
-        # Convert to base64
+        # Upload to fal.media CDN
         buffered = io.BytesIO()
         pil_image.save(buffered, format="PNG")
-        png_size = len(buffered.getvalue())
-        img_base64 = base64.b64encode(buffered.getvalue()).decode()
-
-        print(f"[DEBUG] PNG size: {png_size} bytes")
-        print(f"[DEBUG] Base64 length: {len(img_base64)} chars")
-        print(f"[DEBUG] Base64 prefix: {img_base64[:50]}...")
-        print(f"[DEBUG] ================================================\n")
-
-        return f"data:image/png;base64,{img_base64}"
+        image_bytes = buffered.getvalue()
+        url = fal_client.upload(image_bytes, content_type="image/png")
+        print(f"[Fal SeedVR Upscale] Uploaded image to CDN: {url[:80]}...")
+        return url
 
     def download_image(self, image_url):
         """Download image from URL and convert to tensor"""
@@ -162,7 +109,17 @@ class FL_Fal_SeedVR_Upscale:
             return (dummy_image, "", 512, 512)
 
         try:
-            # Convert the first image from the batch to base64
+            # Clean and set API key FIRST - needed for CDN upload
+            clean_api_key = api_key.strip()
+            key_preview = clean_api_key[:8] + "..." if len(clean_api_key) > 8 else clean_api_key
+            print(f"[Fal SeedVR Upscale] Using API key starting with: {key_preview}")
+
+            # Clear and set the environment variable
+            if "FAL_KEY" in os.environ:
+                del os.environ["FAL_KEY"]
+            os.environ["FAL_KEY"] = clean_api_key
+
+            # Convert the first image from the batch
             if image.dim() == 4 and image.shape[0] > 0:
                 first_image = image[0]
             else:
@@ -178,21 +135,13 @@ class FL_Fal_SeedVR_Upscale:
             print(f"[Fal SeedVR Upscale] Upscale factor: {upscale_factor}x")
             print(f"[Fal SeedVR Upscale] Expected output size: {int(original_width * upscale_factor)}x{int(original_height * upscale_factor)}")
 
-            image_b64 = self.tensor_to_base64(first_image)
-
-            # Clean and set API key
-            clean_api_key = api_key.strip()
-            key_preview = clean_api_key[:8] + "..." if len(clean_api_key) > 8 else clean_api_key
-            print(f"[Fal SeedVR Upscale] Using API key starting with: {key_preview}")
-
-            # Clear and set the environment variable
-            if "FAL_KEY" in os.environ:
-                del os.environ["FAL_KEY"]
-            os.environ["FAL_KEY"] = clean_api_key
+            # Upload image to fal.media CDN
+            print(f"[Fal SeedVR Upscale] Uploading image to fal.media CDN...")
+            image_url = self.upload_tensor_to_fal(first_image)
 
             # Prepare arguments
             arguments = {
-                "image_url": image_b64,
+                "image_url": image_url,
                 "upscale_factor": upscale_factor
             }
 

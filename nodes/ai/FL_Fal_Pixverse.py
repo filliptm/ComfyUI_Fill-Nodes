@@ -9,7 +9,6 @@ import torch
 import numpy as np
 import tempfile
 import cv2
-import base64
 import concurrent.futures
 import fal_client
 from typing import Tuple, List, Dict, Union, Optional
@@ -137,16 +136,22 @@ class FL_Fal_Pixverse:
                 try:
                     pil_image = Image.fromarray(np_img)
                     print(f"[Fal Pixverse] Successfully converted image tensor to PIL image")
-                    
-                    # Convert PIL image to base64
+
+                    # Set API key first - needed for CDN upload
+                    clean_api_key = api_key.strip()
+                    os.environ["FAL_KEY"] = clean_api_key
+
+                    # Upload image to fal.media CDN to avoid 10MB request body limit
+                    print(f"[Fal Pixverse] Uploading image to fal.media CDN...")
                     buffered = io.BytesIO()
                     pil_image.save(buffered, format="PNG")
-                    img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-                    img_data_uri = f"data:image/png;base64,{img_base64}"
-                    
+                    image_bytes = buffered.getvalue()
+                    img_url = fal_client.upload(image_bytes, content_type="image/png")
+                    print(f"[Fal Pixverse] Uploaded image to CDN: {img_url[:80]}...")
+
                 except Exception as e:
-                    print(f"[Fal Pixverse] Error: Failed to convert image tensor to base64: {str(e)}")
-                    return error_return(f"Error: Failed to convert image: {str(e)}")
+                    print(f"[Fal Pixverse] Error: Failed to upload image to CDN: {str(e)}")
+                    return error_return(f"Error: Failed to upload image: {str(e)}")
             else:
                 return error_return("Error: No image provided")
             
@@ -165,7 +170,7 @@ class FL_Fal_Pixverse:
                     # Prepare the arguments for fal_client
                     arguments = {
                         "prompt": prompt,
-                        "image_url": img_data_uri,
+                        "image_url": img_url,
                         "aspect_ratio": aspect_ratio,
                         "resolution": resolution,
                         "duration": duration,

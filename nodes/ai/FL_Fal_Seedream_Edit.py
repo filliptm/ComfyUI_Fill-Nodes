@@ -7,7 +7,6 @@ import io
 import requests
 import torch
 import numpy as np
-import base64
 import fal_client
 import asyncio
 import concurrent.futures
@@ -147,93 +146,57 @@ class FL_Fal_Seedream_Edit:
         
         return pil_images if pil_images else None
 
-    def _convert_image_to_url(self, pil_image: Image.Image) -> str:
-        """Convert PIL image to base64 data URI with size optimization"""
+    def _upload_image_to_fal(self, pil_image: Image.Image) -> str:
+        """Upload PIL image to fal.media CDN and return the URL."""
         try:
-            # First, try to compress the image to reduce payload size
-            max_dimension = 2048  # Reduce from potentially 4096 to 2048 max
-            original_size = pil_image.size
-            
-            # Convert RGBA to RGB if necessary (JPEG doesn't support transparency)
+            # Convert RGBA to RGB if necessary (PNG handles it but let's be safe)
             if pil_image.mode == 'RGBA':
-                # Create a white background and composite the RGBA image onto it
                 background = Image.new('RGB', pil_image.size, (255, 255, 255))
-                background.paste(pil_image, mask=pil_image.split()[-1])  # Use alpha channel as mask
+                background.paste(pil_image, mask=pil_image.split()[-1])
                 pil_image = background
                 self._log(f"Converted RGBA image to RGB with white background")
             elif pil_image.mode != 'RGB':
-                # Convert any other mode to RGB
                 pil_image = pil_image.convert('RGB')
                 self._log(f"Converted image mode to RGB")
-            
-            # Resize if image is too large
-            if max(pil_image.size) > max_dimension:
-                ratio = max_dimension / max(pil_image.size)
-                new_size = (int(pil_image.size[0] * ratio), int(pil_image.size[1] * ratio))
-                pil_image = pil_image.resize(new_size, Image.Resampling.LANCZOS)
-                self._log(f"Resized image from {original_size} to {new_size} to reduce payload size")
-            
-            # Try JPEG first for smaller file size
+
+            # Upload to fal.media CDN
             buffered = io.BytesIO()
-            pil_image.save(buffered, format="JPEG", quality=85, optimize=True)
-            jpeg_size = len(buffered.getvalue())
-            
-            # If JPEG is still too large (>800KB per image to stay well under 4MB total), reduce quality
-            if jpeg_size > 800 * 1024:
-                buffered = io.BytesIO()
-                pil_image.save(buffered, format="JPEG", quality=70, optimize=True)
-                self._log(f"Reduced JPEG quality to 70% to manage payload size")
-            
-            img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-            img_data_uri = f"data:image/jpeg;base64,{img_base64}"
-            
-            # Log the approximate size
-            payload_size = len(img_data_uri)
-            self._log(f"Image payload size: ~{payload_size // 1024}KB")
-            
-            return img_data_uri
+            pil_image.save(buffered, format="PNG")
+            image_bytes = buffered.getvalue()
+            url = fal_client.upload(image_bytes, content_type="image/png")
+            self._log(f"Uploaded image to fal CDN: {url[:80]}...")
+            return url
         except Exception as e:
-            self._log(f"Error converting image to base64: {str(e)}")
+            self._log(f"Error uploading image to fal CDN: {str(e)}")
             raise
 
     async def _edit_images_async(self, api_key, prompt, input_images, image_size, num_images, seed, sync_mode, max_retries, retry_indefinitely, use_custom_resolution, auto_scale_to_minimum, custom_width, custom_height):
         try:
             # Calculate seed
             actual_seed = seed if seed != 0 else random.randint(1, 2147483647)
-            
+
             self._log(f"Starting image editing with seed {actual_seed} and prompt: '{prompt[:50]}...'")
-            
-            # Prepare image URLs from input images
+
+            # Set API key FIRST - needed for CDN upload
+            clean_api_key = api_key.strip()
+            os.environ["FAL_KEY"] = clean_api_key
+
+            # Upload images to fal.media CDN
             image_urls = []
             if input_images:
-                total_payload_size = 0
+                self._log(f"Uploading {len(input_images)} images to fal.media CDN...")
                 for i, pil_image in enumerate(input_images):
                     try:
-                        img_url = self._convert_image_to_url(pil_image)
+                        img_url = self._upload_image_to_fal(pil_image)
                         image_urls.append(img_url)
-                        total_payload_size += len(img_url)
-                        self._log(f"Successfully converted image {i+1} to data URI")
+                        self._log(f"Successfully uploaded image {i+1}/{len(input_images)} to CDN")
                     except Exception as e:
-                        self._log(f"Error converting image {i+1} to data URI: {str(e)}")
-                        error_msg = f"Error: Failed to convert image {i+1}: {str(e)}"
+                        self._log(f"Error uploading image {i+1} to CDN: {str(e)}")
+                        error_msg = f"Error: Failed to upload image {i+1}: {str(e)}"
                         return self._create_error_image(error_msg), "", str(actual_seed), error_msg
-                
-                # Check if total payload size is approaching the 4MB limit
-                max_payload_size = 3.5 * 1024 * 1024  # 3.5MB to leave room for other data
-                if total_payload_size > max_payload_size:
-                    self._log(f"Warning: Total payload size ({total_payload_size // 1024}KB) is approaching API limits")
-                else:
-                    self._log(f"Total payload size: ~{total_payload_size // 1024}KB (within limits)")
             else:
                 error_msg = "Error: No images provided for editing"
                 return self._create_error_image(error_msg), "", str(actual_seed), error_msg
-            
-            # Clear any existing FAL_KEY environment variable to prevent caching issues
-            if "FAL_KEY" in os.environ:
-                del os.environ["FAL_KEY"]
-            
-            # Prepare the API request
-            clean_api_key = api_key.strip()
             
             # Prepare image size parameter
             image_size_param = image_size
@@ -316,10 +279,7 @@ class FL_Fal_Seedream_Edit:
                 "seed": actual_seed,
                 "sync_mode": sync_mode
             }
-            
-            # Set the API key as an environment variable for fal_client
-            os.environ["FAL_KEY"] = clean_api_key
-            
+
             self._log(f"Calling Fal AI Seedream Edit API with {len(image_urls)} images...")
             
             # Define a callback for queue updates

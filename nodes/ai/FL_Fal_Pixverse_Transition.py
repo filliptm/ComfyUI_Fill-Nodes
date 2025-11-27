@@ -9,7 +9,6 @@ import torch
 import numpy as np
 import tempfile
 import cv2
-import base64
 import concurrent.futures
 import fal_client
 import asyncio
@@ -118,40 +117,43 @@ class FL_Fal_Pixverse_Transition:
                 print(f"[Fal Pixverse Transition] Warning: 1080p videos are limited to 5 seconds, changing duration from 8s to 5s")
                 duration = "5"
             
-            # Convert images to base64
-            def convert_image_to_base64(image_tensor, image_name):
+            # Set API key FIRST - needed for CDN upload
+            clean_api_key = api_key.strip()
+            os.environ["FAL_KEY"] = clean_api_key
+
+            # Upload images to fal.media CDN
+            def upload_image_to_fal(image_tensor, image_name):
                 # Take first image if batch
                 if len(image_tensor.shape) == 4:
                     image_tensor = image_tensor[0]
-                else:
-                    image_tensor = image_tensor
-                
+
                 # Convert to uint8
                 if image_tensor.dtype != torch.uint8:
                     image_tensor = (image_tensor * 255).to(torch.uint8)
-                
+
                 # Convert to numpy for PIL
                 np_img = image_tensor.cpu().numpy()
-                
+
                 try:
                     pil_image = Image.fromarray(np_img)
                     print(f"[Fal Pixverse Transition] Successfully converted {image_name} to PIL image")
-                    
-                    # Convert PIL image to base64
+
+                    # Upload to fal.media CDN
+                    print(f"[Fal Pixverse Transition] Uploading {image_name} to fal.media CDN...")
                     buffered = io.BytesIO()
                     pil_image.save(buffered, format="PNG")
-                    img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-                    img_data_uri = f"data:image/png;base64,{img_base64}"
-                    
-                    return img_data_uri
-                    
+                    image_bytes = buffered.getvalue()
+                    url = fal_client.upload(image_bytes, content_type="image/png")
+                    print(f"[Fal Pixverse Transition] Uploaded {image_name} to CDN: {url[:80]}...")
+                    return url
+
                 except Exception as e:
-                    print(f"[Fal Pixverse Transition] Error: Failed to convert {image_name} to base64: {str(e)}")
-                    raise Exception(f"Failed to convert {image_name}: {str(e)}")
-            
-            # Convert both images to base64
-            first_image_uri = convert_image_to_base64(first_image, "first_image")
-            last_image_uri = convert_image_to_base64(last_image, "last_image")
+                    print(f"[Fal Pixverse Transition] Error: Failed to upload {image_name} to CDN: {str(e)}")
+                    raise Exception(f"Failed to upload {image_name}: {str(e)}")
+
+            # Upload both images to CDN
+            first_image_url = upload_image_to_fal(first_image, "first_image")
+            last_image_url = upload_image_to_fal(last_image, "last_image")
             
             # Process batches in parallel
             def process_batch(batch_idx):
@@ -168,8 +170,8 @@ class FL_Fal_Pixverse_Transition:
                     # Prepare the arguments for fal_client
                     arguments = {
                         "prompt": prompt,
-                        "first_image_url": first_image_uri,
-                        "last_image_url": last_image_uri,
+                        "first_image_url": first_image_url,
+                        "last_image_url": last_image_url,
                         "aspect_ratio": aspect_ratio,
                         "resolution": resolution,
                         "duration": duration,

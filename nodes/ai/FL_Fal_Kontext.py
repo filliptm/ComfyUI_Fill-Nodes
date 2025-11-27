@@ -7,7 +7,6 @@ import io
 import requests
 import torch
 import numpy as np
-import base64
 import fal_client
 import asyncio
 import concurrent.futures
@@ -142,39 +141,37 @@ class FL_Fal_Kontext:
         try:
             # Calculate seed
             actual_seed = seed_val if seed_val != 0 else random.randint(1, 2147483647)
-            
+
             self._log(f"[Call {call_id}] Generating image with seed {actual_seed} for prompt: '{prompt_text[:50]}...'")
-            
-            # Convert image to base64
-            img_data_uri = None
+
+            # Set API key FIRST - needed for CDN upload
+            clean_api_key = api_key.strip()
+            os.environ["FAL_KEY"] = clean_api_key
+
+            # Upload image to fal.media CDN
+            img_url = None
             if input_pil_images and len(input_pil_images) > 0:
                 pil_image = input_pil_images[0]  # Take first image
                 try:
-                    # Convert PIL image to base64
+                    # Upload PIL image to fal.media CDN
+                    self._log(f"[Call {call_id}] Uploading image to fal.media CDN...")
                     buffered = io.BytesIO()
                     pil_image.save(buffered, format="PNG")
-                    img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-                    img_data_uri = f"data:image/png;base64,{img_base64}"
-                    self._log(f"[Call {call_id}] Successfully converted image to base64")
+                    image_bytes = buffered.getvalue()
+                    img_url = fal_client.upload(image_bytes, content_type="image/png")
+                    self._log(f"[Call {call_id}] Uploaded image to CDN: {img_url[:80]}...")
                 except Exception as e:
-                    self._log(f"[Call {call_id}] Error converting image to base64: {str(e)}")
-                    error_msg = f"Call {call_id} Error: Failed to convert image: {str(e)}"
+                    self._log(f"[Call {call_id}] Error uploading image to CDN: {str(e)}")
+                    error_msg = f"Call {call_id} Error: Failed to upload image: {str(e)}"
                     return self._create_error_image(error_msg), "", error_msg, call_id
             else:
                 error_msg = f"Call {call_id} Error: No image provided"
                 return self._create_error_image(error_msg), "", error_msg, call_id
-            
-            # Clear any existing FAL_KEY environment variable to prevent caching issues
-            if "FAL_KEY" in os.environ:
-                del os.environ["FAL_KEY"]
-            
-            # Prepare the API request
-            clean_api_key = api_key.strip()
-            
+
             # Prepare the arguments for fal_client
             arguments = {
                 "prompt": prompt_text,
-                "image_url": img_data_uri,
+                "image_url": img_url,
                 "seed": actual_seed,
                 "guidance_scale": guidance_scale,
                 "num_images": num_images,
@@ -183,9 +180,6 @@ class FL_Fal_Kontext:
                 "safety_tolerance": safety_tolerance,
                 "sync_mode": sync_mode
             }
-            
-            # Set the API key as an environment variable for fal_client
-            os.environ["FAL_KEY"] = clean_api_key
             
             self._log(f"[Call {call_id}] Calling Fal AI API with fal_client...")
             

@@ -1,6 +1,4 @@
-import base64
 import io
-import json
 import numpy as np
 import os
 import tempfile
@@ -59,26 +57,28 @@ class FL_Fal_Seedance_i2v:
     FUNCTION = "generate_video"
     CATEGORY = "🏵️Fill Nodes/AI"
     
-    def tensor_to_base64(self, tensor_image):
+    def upload_tensor_to_fal(self, tensor_image):
+        """Upload tensor image to fal.media CDN and return the URL."""
         # Convert tensor to PIL Image
         if tensor_image.dim() == 4:
             tensor_image = tensor_image.squeeze(0)
         if tensor_image.shape[0] == 3:  # CHW to HWC
             tensor_image = tensor_image.permute(1, 2, 0)
-        
+
         # Ensure values are in [0, 1] range and convert to [0, 255]
         if tensor_image.max() <= 1.0:
             tensor_image = (tensor_image * 255).clamp(0, 255)
-        
+
         # Convert to uint8 and then to PIL Image
         np_image = tensor_image.cpu().numpy().astype(np.uint8)
         pil_image = Image.fromarray(np_image)
-        
-        # Convert to base64
+
+        # Upload to fal.media CDN
         buffered = io.BytesIO()
         pil_image.save(buffered, format="PNG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode()
-        return f"data:image/png;base64,{img_base64}"
+        image_bytes = buffered.getvalue()
+        url = fal_client.upload(image_bytes, content_type="image/png")
+        return url
 
     def download_video_frames(self, video_url):
         """Download video and extract all frames"""
@@ -154,23 +154,25 @@ class FL_Fal_Seedance_i2v:
             return (dummy_frames, "", "Error: API key is required")
         
         try:
-            # Convert the first image from the batch to base64
-            if image.dim() == 4 and image.shape[0] > 0:
-                first_image = image[0]
-            else:
-                first_image = image
-            
-            image_b64 = self.tensor_to_base64(first_image)
-            
-            # Clean and set API key
+            # Clean and set API key FIRST - needed for CDN upload
             clean_api_key = api_key.strip()
             key_preview = clean_api_key[:8] + "..." if len(clean_api_key) > 8 else clean_api_key
             print(f"[Fal Seedance] Using API key starting with: {key_preview}")
-            
+
             # Clear and set the environment variable
             if "FAL_KEY" in os.environ:
                 del os.environ["FAL_KEY"]
             os.environ["FAL_KEY"] = clean_api_key
+
+            # Convert the first image from the batch and upload to CDN
+            if image.dim() == 4 and image.shape[0] > 0:
+                first_image = image[0]
+            else:
+                first_image = image
+
+            print(f"[Fal Seedance] Uploading image to fal.media CDN...")
+            image_url = self.upload_tensor_to_fal(first_image)
+            print(f"[Fal Seedance] Uploaded image to CDN: {image_url[:80]}...")
             
             # Build the complete prompt with cut prompts
             complete_prompt = prompt.strip()
@@ -185,7 +187,7 @@ class FL_Fal_Seedance_i2v:
             
             # Prepare arguments
             arguments = {
-                "image_url": image_b64,
+                "image_url": image_url,
                 "prompt": complete_prompt,
                 "resolution": resolution,
                 "duration": duration,

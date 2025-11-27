@@ -16,19 +16,10 @@ class FL_ImageCrop:
     CATEGORY = "🏵️Fill Nodes/Image"
 
     def crop_image(self, image, crop_direction, crop_amount):
-        if isinstance(image, torch.Tensor):
-            # Handle batch of images (4D tensor) or single image (3D tensor)
-            if image.dim() == 4:  # Batch dimension is present [batch, height, width, channels]
-                batch_size, height, width, channels = image.shape
-            elif image.dim() == 3:  # No batch dimension, single image [height, width, channels]
-                height, width, channels = image.shape
-                # Add batch dimension for consistent processing
-                image = image.unsqueeze(0)
-                batch_size = 1
-            else:
-                raise ValueError("Unsupported tensor format")
-        else:
-            raise ValueError("Input must be a torch tensor")
+        # ComfyUI images are always [B, H, W, C] format
+        batch_size = image.shape[0]
+        height = image.shape[1]
+        width = image.shape[2]
 
         # Validate crop amount doesn't exceed image dimensions
         if crop_direction in ["Top", "Bottom", "Top and Bottom"]:
@@ -53,10 +44,6 @@ class FL_ImageCrop:
             cropped_image = image[:, crop_amount:-crop_amount, :, :]
         elif crop_direction == "Left and Right":
             cropped_image = image[:, :, crop_amount:-crop_amount, :]
-
-        # If original input was 3D (single image), remove batch dimension
-        if batch_size == 1 and len(cropped_image.shape) == 4:
-            cropped_image = cropped_image.squeeze(0)
 
         return (cropped_image,)
 

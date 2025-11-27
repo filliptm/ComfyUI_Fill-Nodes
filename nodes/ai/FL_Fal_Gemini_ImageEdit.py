@@ -7,7 +7,6 @@ import io
 import requests
 import torch
 import numpy as np
-import base64
 import fal_client
 import asyncio
 import concurrent.futures
@@ -143,44 +142,50 @@ class FL_Fal_Gemini_ImageEdit:
         
         return pil_images if pil_images else None
 
-    def _convert_image_to_url(self, pil_image: Image.Image) -> str:
-        """Convert PIL image to base64 data URI"""
+    def _upload_image_to_fal(self, pil_image: Image.Image) -> str:
+        """Upload PIL image to fal.media CDN and return the URL.
+
+        This avoids the 10MB request body size limit by uploading images
+        separately to fal's CDN instead of embedding base64 in the request.
+        """
         try:
+            # Save PIL image to bytes buffer
             buffered = io.BytesIO()
             pil_image.save(buffered, format="PNG")
-            img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-            img_data_uri = f"data:image/png;base64,{img_base64}"
-            return img_data_uri
+            image_bytes = buffered.getvalue()
+
+            # Upload to fal.media CDN using fal_client
+            url = fal_client.upload(image_bytes, content_type="image/png")
+            self._log(f"Uploaded image to fal CDN: {url[:80]}...")
+            return url
         except Exception as e:
-            self._log(f"Error converting image to base64: {str(e)}")
+            self._log(f"Error uploading image to fal CDN: {str(e)}")
             raise
 
     async def _edit_images_async(self, api_key, prompt, input_images, num_images, aspect_ratio, resolution, output_format, sync_mode, max_retries, retry_indefinitely, seed=0):
         try:
             self._log(f"Starting image editing with Gemini 3 Pro - prompt: '{prompt[:50]}...'")
 
-            # Prepare image URLs from input images
+            # Set the API key FIRST - needed for both upload and API calls
+            clean_api_key = api_key.strip()
+            os.environ["FAL_KEY"] = clean_api_key
+
+            # Upload images to fal.media CDN to avoid 10MB request body limit
             image_urls = []
             if input_images:
+                self._log(f"Uploading {len(input_images)} images to fal.media CDN...")
                 for i, pil_image in enumerate(input_images):
                     try:
-                        img_url = self._convert_image_to_url(pil_image)
+                        img_url = self._upload_image_to_fal(pil_image)
                         image_urls.append(img_url)
-                        self._log(f"Successfully converted image {i+1} to data URI")
+                        self._log(f"Successfully uploaded image {i+1}/{len(input_images)} to CDN")
                     except Exception as e:
-                        self._log(f"Error converting image {i+1} to data URI: {str(e)}")
-                        error_msg = f"Error: Failed to convert image {i+1}: {str(e)}"
+                        self._log(f"Error uploading image {i+1} to CDN: {str(e)}")
+                        error_msg = f"Error: Failed to upload image {i+1}: {str(e)}"
                         return self._create_error_image(error_msg), "", "", error_msg
             else:
                 error_msg = "Error: No images provided for editing"
                 return self._create_error_image(error_msg), "", "", error_msg
-
-            # Clear any existing FAL_KEY environment variable to prevent caching issues
-            if "FAL_KEY" in os.environ:
-                del os.environ["FAL_KEY"]
-
-            # Prepare the API request
-            clean_api_key = api_key.strip()
 
             # Prepare the arguments for fal_client
             arguments = {
@@ -197,9 +202,6 @@ class FL_Fal_Gemini_ImageEdit:
             if seed != 0:
                 arguments["seed"] = seed
                 self._log(f"Using seed: {seed}")
-
-            # Set the API key as an environment variable for fal_client
-            os.environ["FAL_KEY"] = clean_api_key
 
             self._log(f"Calling Fal AI Gemini 3 Pro API with {len(image_urls)} images, {aspect_ratio} aspect ratio, {resolution} resolution...")
 
