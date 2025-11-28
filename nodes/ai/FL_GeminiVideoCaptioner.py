@@ -29,9 +29,10 @@ class FL_GeminiVideoCaptioner:
             "required": {
                 "api_key": ("STRING", {"default": "", "multiline": False}),
                 "model": ([
+                    "gemini-3-pro-preview",
                     "gemini-2.5-pro",
                     "gemini-2.5-flash",
-                    "gemini-2.5-flash-lite", 
+                    "gemini-2.5-flash-lite",
                     "gemini-2.0-flash",
                     "gemini-2.0-flash-lite",
                     "gemini-1.5-pro",
@@ -46,10 +47,11 @@ class FL_GeminiVideoCaptioner:
                 }),
                 "process_audio": (["false", "true"], {"default": "false"}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 1.0, "step": 0.1}),
-                "max_output_tokens": ("INT", {"default": 1024, "min": 50, "max": 8192, "step": 10}),
+                "max_output_tokens": ("INT", {"default": 65536, "min": 50, "max": 65536, "step": 64}),
                 "top_p": ("FLOAT", {"default": 0.95, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "top_k": ("INT", {"default": 64, "min": 1, "max": 100, "step": 1}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffff}),
+                "thinking_level": (["default", "low", "high"], {"default": "default"}),
             },
             "optional": {
                 "video_path": ("STRING", {"default": ""}),
@@ -64,13 +66,32 @@ class FL_GeminiVideoCaptioner:
 
     def generate_video_caption(self, api_key, model, frames_per_second, max_duration_minutes,
                                prompt, process_audio, temperature, max_output_tokens, top_p, top_k, seed,
-                               video_path=None, image=None):
+                               thinking_level, video_path=None, image=None):
         if not api_key:
             raise ValueError("Gemini API key is required")
 
         # Check if we have either a video path or image input
         if (not video_path or not os.path.exists(video_path)) and image is None:
             raise ValueError("Either a valid video path or image input is required")
+
+        # Validate and adjust max_output_tokens based on model limits
+        # Gemini 3.x and 2.5.x support 65536, older models support 8192
+        if model.startswith("gemini-3") or model.startswith("gemini-2.5"):
+            model_max_tokens = 65536
+        else:
+            model_max_tokens = 8192
+
+        if max_output_tokens > model_max_tokens:
+            print(f"[FL_GeminiVideoCaptioner] Warning: {model} max output is {model_max_tokens} tokens. Reducing from {max_output_tokens} to {model_max_tokens}.")
+            max_output_tokens = model_max_tokens
+
+        # Gemini 3 models with thinking enabled need higher token budget
+        # since thinking tokens count toward max_output_tokens
+        if model.startswith("gemini-3") and thinking_level != "low":
+            min_tokens_for_thinking = 4096
+            if max_output_tokens < min_tokens_for_thinking:
+                print(f"[FL_GeminiVideoCaptioner] Warning: Gemini 3 with thinking needs more tokens. Increasing from {max_output_tokens} to {min_tokens_for_thinking}.")
+                max_output_tokens = min_tokens_for_thinking
 
         # Validate model-specific limitations
         process_audio = process_audio == "true"
@@ -145,7 +166,8 @@ class FL_GeminiVideoCaptioner:
                     max_output_tokens,
                     top_p,
                     top_k,
-                    seed
+                    seed,
+                    thinking_level
                 )
             else:
                 # Use the WebM file for captioning
@@ -164,7 +186,8 @@ class FL_GeminiVideoCaptioner:
                     max_output_tokens,
                     top_p,
                     top_k,
-                    seed
+                    seed,
+                    thinking_level
                 )
 
                 # Clean up temporary WebM file
@@ -204,7 +227,8 @@ class FL_GeminiVideoCaptioner:
                     max_output_tokens,
                     top_p,
                     top_k,
-                    seed
+                    seed,
+                    thinking_level
                 )
             else:
                 # Original logic: try to create WebM, then send video file or fallback to frames
@@ -222,7 +246,8 @@ class FL_GeminiVideoCaptioner:
                         max_output_tokens,
                         top_p,
                         top_k,
-                        seed
+                        seed,
+                        thinking_level
                     )
                 else:
                     mime_type = "video/webm"
@@ -238,7 +263,8 @@ class FL_GeminiVideoCaptioner:
                         max_output_tokens,
                         top_p,
                         top_k,
-                        seed
+                        seed,
+                        thinking_level
                     )
                     os.unlink(webm_path) # Clean up temporary WebM file
 
@@ -331,15 +357,20 @@ class FL_GeminiVideoCaptioner:
         )
 
     def get_caption_with_frames(self, api_key, frames, prompt, model, temperature, max_output_tokens, top_p, top_k,
-                                seed):
+                                seed, thinking_level="default"):
         """Send individual frames to Gemini API"""
-        # Use API version v1beta for all models
-        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        # Use API version v1alpha for Gemini 3, v1beta for others
+        if model.startswith("gemini-3"):
+            api_url = f"https://generativelanguage.googleapis.com/v1alpha/models/{model}:generateContent?key={api_key}"
+        else:
+            api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
 
         content_parts = []
 
         # Set frame limit based on model capabilities
-        if model.startswith("gemini-2.5"):
+        if model.startswith("gemini-3"):
+            max_frames = min(len(frames), 150)  # Gemini 3 can handle even more frames
+        elif model.startswith("gemini-2.5"):
             max_frames = min(len(frames), 120)  # Gemini 2.5 can handle more frames
         elif model.startswith("gemini-2.0") or model.startswith("gemini-1.5"):
             max_frames = min(len(frames), 60)  # Gemini 2.0 and 1.5 models
@@ -396,15 +427,34 @@ class FL_GeminiVideoCaptioner:
             }
         }
 
+        # Add thinking configuration based on model
+        if thinking_level != "default":
+            if model.startswith("gemini-3"):
+                # Gemini 3 uses thinkingConfig with thinkingLevel
+                payload["generation_config"]["thinkingConfig"] = {
+                    "thinkingLevel": thinking_level.upper()
+                }
+                print(f"[FL_GeminiVideoCaptioner] Using thinking_level: {thinking_level.upper()}")
+            elif model.startswith("gemini-2.5"):
+                # Gemini 2.5 uses thinkingConfig with thinkingBudget
+                if thinking_level == "low":
+                    payload["generation_config"]["thinkingConfig"] = {"thinkingBudget": 0}
+                    print(f"[FL_GeminiVideoCaptioner] Disabled thinking (budget: 0)")
+                # "high" is default for 2.5, no need to specify
+
         # Send request
         print(f"[FL_GeminiVideoCaptioner] Sending request to Gemini API ({model})...")
         return self._send_api_request(api_url, payload)
 
     def get_caption_with_video_file(self, api_key, video_path, mime_type, prompt, model,
-                                    process_audio, temperature, max_output_tokens, top_p, top_k, seed):
+                                    process_audio, temperature, max_output_tokens, top_p, top_k, seed,
+                                    thinking_level="default"):
         """Send entire video file to Gemini API (for Gemini 1.5+ models)"""
-        # Use API version v1beta for all models
-        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        # Use API version v1alpha for Gemini 3, v1beta for others
+        if model.startswith("gemini-3"):
+            api_url = f"https://generativelanguage.googleapis.com/v1alpha/models/{model}:generateContent?key={api_key}"
+        else:
+            api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
 
         # Check if this is a Gemini 2.5 model (known to have video processing issues)
         is_gemini_25 = model.startswith("gemini-2.5")
@@ -447,7 +497,7 @@ class FL_GeminiVideoCaptioner:
                     return "Error: Failed to extract frames from large video file"
 
                 return self.get_caption_with_frames(
-                    api_key, frames, prompt, model, temperature, max_output_tokens, top_p, top_k, seed
+                    api_key, frames, prompt, model, temperature, max_output_tokens, top_p, top_k, seed, thinking_level
                 )
 
         # Read video file and encode to base64
@@ -479,6 +529,21 @@ class FL_GeminiVideoCaptioner:
             }
         }
 
+        # Add thinking configuration based on model
+        if thinking_level != "default":
+            if model.startswith("gemini-3"):
+                # Gemini 3 uses thinkingConfig with thinkingLevel
+                payload["generation_config"]["thinkingConfig"] = {
+                    "thinkingLevel": thinking_level.upper()
+                }
+                print(f"[FL_GeminiVideoCaptioner] Using thinking_level: {thinking_level.upper()}")
+            elif model.startswith("gemini-2.5"):
+                # Gemini 2.5 uses thinkingConfig with thinkingBudget
+                if thinking_level == "low":
+                    payload["generation_config"]["thinkingConfig"] = {"thinkingBudget": 0}
+                    print(f"[FL_GeminiVideoCaptioner] Disabled thinking (budget: 0)")
+                # "high" is default for 2.5, no need to specify
+
         # Send request
         print(f"[FL_GeminiVideoCaptioner] Sending video to Gemini API ({model})...")
         response = self._send_api_request(api_url, payload)
@@ -486,19 +551,19 @@ class FL_GeminiVideoCaptioner:
         # Check if Gemini 2.5 failed and fallback to frame extraction
         if is_gemini_25 and (response.startswith("Error:") or response.startswith("Failed to get caption")):
             print(f"[FL_GeminiVideoCaptioner] {model} video processing failed, falling back to frame extraction...")
-            
+
             # Extract frames and try again
             frames, timestamps = self.extract_frames(video_path, 1.0, 300)  # 1 fps, max 5 minutes
-            
+
             # Clean up temporary WebM file if we created one
             if 'webm_path' in locals() and webm_path:
                 os.unlink(webm_path)
-            
+
             if not frames:
                 return f"Error: Both video processing and frame extraction failed for {model}"
-            
+
             return self.get_caption_with_frames(
-                api_key, frames, prompt, model, temperature, max_output_tokens, top_p, top_k, seed
+                api_key, frames, prompt, model, temperature, max_output_tokens, top_p, top_k, seed, thinking_level
             )
         
         return response
@@ -773,17 +838,68 @@ class FL_GeminiVideoCaptioner:
                 return f"Error: {error_msg}"
 
             result = response.json()
+
+            # Debug: Log the response structure for troubleshooting
+            print(f"[FL_GeminiVideoCaptioner] Response keys: {list(result.keys())}")
+
             if "candidates" in result and len(result["candidates"]) > 0:
-                content = result["candidates"][0]["content"]
+                candidate = result["candidates"][0]
+                content = candidate.get("content", {})
+
+                # Debug: Log candidate and content structure
+                print(f"[FL_GeminiVideoCaptioner] Candidate keys: {list(candidate.keys())}")
+                if content:
+                    print(f"[FL_GeminiVideoCaptioner] Content keys: {list(content.keys())}")
+
                 if "parts" in content and len(content["parts"]) > 0:
-                    caption = content["parts"][0]["text"]
-                    return caption
+                    # Debug: Log parts structure
+                    print(f"[FL_GeminiVideoCaptioner] Number of parts: {len(content['parts'])}")
+                    for i, part in enumerate(content["parts"]):
+                        print(f"[FL_GeminiVideoCaptioner] Part {i} keys: {list(part.keys())}")
+
+                    # Check each part for text content
+                    # For Gemini 3 with thinking, there may be "thought" parts and "text" parts
+                    # We want to extract the actual response text, not the thinking process
+                    text_parts = []
+                    for part in content["parts"]:
+                        # Skip thought/thinking parts - we want the actual output
+                        if "thought" in part:
+                            print(f"[FL_GeminiVideoCaptioner] Skipping thought part")
+                            continue
+                        if "text" in part:
+                            text_parts.append(part["text"])
+
+                    if text_parts:
+                        caption = "\n".join(text_parts)
+                        print(f"[FL_GeminiVideoCaptioner] Successfully extracted caption ({len(caption)} chars)")
+                        return caption
+
+                # Gemini 3 may return text directly in candidate
+                if "text" in candidate:
+                    return candidate["text"]
+
+                # Check for finishReason that might indicate an issue
+                finish_reason = candidate.get("finishReason", "")
+                if finish_reason == "MAX_TOKENS":
+                    # Gemini 3 with thinking enabled may exhaust tokens on thinking
+                    # Check if we got any content at all
+                    usage = result.get("usageMetadata", {})
+                    thoughts_tokens = usage.get("thoughtsTokenCount", 0)
+                    if thoughts_tokens > 0 and not content.get("parts"):
+                        return f"Error: Model exhausted output tokens on thinking ({thoughts_tokens} thinking tokens used). Try increasing max_output_tokens or setting thinking_level to 'low'."
+                    else:
+                        print(f"[FL_GeminiVideoCaptioner] Response was truncated (MAX_TOKENS)")
+                elif finish_reason and finish_reason != "STOP":
+                    print(f"[FL_GeminiVideoCaptioner] Unexpected finishReason: {finish_reason}")
+
             elif "promptFeedback" in result and result["promptFeedback"].get("blockReason"):
                 block_reason = result["promptFeedback"]["blockReason"]
                 block_msg = f"Content blocked by Gemini API. Reason: {block_reason}"
                 print(f"[FL_GeminiVideoCaptioner] {block_msg}")
                 return f"Error: {block_msg}"
 
+            # Log full response for debugging unexpected formats
+            print(f"[FL_GeminiVideoCaptioner] Full response: {json.dumps(result, indent=2)[:2000]}")
             return "Failed to get caption from Gemini API: unexpected response format"
 
         except requests.RequestException as e:

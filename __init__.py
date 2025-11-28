@@ -169,6 +169,7 @@ from .nodes.utility.FL_PasteByMask import FL_PasteByMask
 from .nodes.utility.FL_PasteOnCanvas import FL_PasteOnCanvas
 from .nodes.utility.FL_PathTypeChecker import FL_PathTypeChecker
 from .nodes.utility.FL_RandomRange import FL_RandomNumber
+from .nodes.utility.FL_RandomShapeGenerator import FL_RandomShapeGenerator
 from .nodes.utility.FL_SD_Slices import FL_SDUltimate_Slices
 from .nodes.utility.FL_SeparateMasks import FL_SeparateMaskComponents
 from .nodes.utility.FL_Switch import FL_Switch
@@ -406,6 +407,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_FloatToInt": FL_FloatToInt,
     "FL_AnimatedShapePatterns": FL_AnimatedShapePatterns,
     "FL_PathAnimator": FL_PathAnimator,
+    "FL_RandomShapeGenerator": FL_RandomShapeGenerator,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -595,6 +597,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_FloatToInt": "FL Float to Int",
     "FL_AnimatedShapePatterns": "FL Animated Shape Patterns",
     "FL_PathAnimator": "FL Path Animator",
+    "FL_RandomShapeGenerator": "FL Random Shape Generator",
 }
 
 

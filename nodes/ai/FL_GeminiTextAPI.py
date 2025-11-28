@@ -16,8 +16,9 @@ class FL_GeminiTextAPI:
                 "prompt": ("STRING", {"multiline": True}),
                 "api_key": ("STRING", {"default": "", "multiline": False}),
                 "model": ([
+                    "gemini-3-pro-preview",
                     "gemini-2.5-pro",
-                    "gemini-2.5-flash", 
+                    "gemini-2.5-flash",
                     "gemini-2.5-flash-lite",
                     "gemini-2.0-flash",
                     "gemini-2.0-flash-lite",
@@ -27,13 +28,14 @@ class FL_GeminiTextAPI:
                     "gemini-1.5-flash"
                 ], {"default": "gemini-2.5-flash"}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 1.0, "step": 0.05}),
-                "max_output_tokens": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 64}),
+                "max_output_tokens": ("INT", {"default": 65536, "min": 64, "max": 65536, "step": 64}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffff}),
             },
             "optional": {
                 "system_instructions": ("STRING", {"multiline": True, "default": ""}),
                 "top_p": ("FLOAT", {"default": 0.95, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "top_k": ("INT", {"default": 64, "min": 1, "max": 100, "step": 1}),
+                "thinking_level": (["default", "low", "high"], {"default": "default"}),
             }
         }
 
@@ -91,7 +93,7 @@ class FL_GeminiTextAPI:
                 return None
 
     def generate_text(self, prompt, api_key, model, temperature, max_output_tokens, seed,
-                      system_instructions="", top_p=0.95, top_k=64):
+                      system_instructions="", top_p=0.95, top_k=64, thinking_level="default"):
         """Generate text response from Gemini API using the new client structure"""
         # Reset log messages
         self.log_messages = []
@@ -103,8 +105,35 @@ class FL_GeminiTextAPI:
                 self._log(error_message)
                 return (f"## ERROR: {error_message}\n\nPlease provide a valid Google API key.",)
 
+            # Validate and adjust max_output_tokens based on model limits
+            # Gemini 3.x and 2.5.x support 65536, older models support 8192
+            if model.startswith("gemini-3") or model.startswith("gemini-2.5"):
+                model_max_tokens = 65536
+            else:
+                model_max_tokens = 8192
+
+            if max_output_tokens > model_max_tokens:
+                self._log(f"Warning: {model} max output is {model_max_tokens} tokens. Reducing from {max_output_tokens} to {model_max_tokens}.")
+                max_output_tokens = model_max_tokens
+
+            # Gemini 3 models with thinking enabled need higher token budget
+            # since thinking tokens count toward max_output_tokens
+            if model.startswith("gemini-3") and thinking_level != "low":
+                min_tokens_for_thinking = 4096
+                if max_output_tokens < min_tokens_for_thinking:
+                    self._log(f"Warning: Gemini 3 with thinking needs more tokens. Increasing from {max_output_tokens} to {min_tokens_for_thinking}.")
+                    max_output_tokens = min_tokens_for_thinking
+
             # Create client instance with API key
-            client = genai.Client(api_key=api_key)
+            # Use v1alpha for Gemini 3 models
+            if model.startswith("gemini-3"):
+                client = genai.Client(
+                    api_key=api_key,
+                    http_options=types.HttpOptions(api_version="v1alpha")
+                )
+                self._log(f"Using v1alpha API for {model}")
+            else:
+                client = genai.Client(api_key=api_key)
 
             # Set random seeds for reproducibility
             random.seed(seed)
@@ -117,6 +146,21 @@ class FL_GeminiTextAPI:
                 top_k=top_k,
                 candidate_count=1
             )
+
+            # Add thinking configuration based on model and thinking_level
+            if thinking_level != "default":
+                if model.startswith("gemini-3"):
+                    # Gemini 3 uses ThinkingConfig with thinking_level
+                    gen_config.thinking_config = types.ThinkingConfig(
+                        thinking_level=thinking_level.upper()
+                    )
+                    self._log(f"Using thinking_level: {thinking_level.upper()}")
+                elif model.startswith("gemini-2.5"):
+                    # Gemini 2.5 uses ThinkingConfig with thinking_budget
+                    if thinking_level == "low":
+                        gen_config.thinking_config = types.ThinkingConfig(thinking_budget=0)
+                        self._log(f"Disabled thinking (budget: 0)")
+                    # "high" is default for 2.5, no need to specify
 
             # Add system instructions if provided
             if system_instructions and system_instructions.strip():
