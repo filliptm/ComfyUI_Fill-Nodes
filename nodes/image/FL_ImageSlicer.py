@@ -8,8 +8,8 @@ class FL_ImageSlicer:
         return {
             "required": {
                 "image": ("IMAGE",),
-                "x_subdivisions": ("INT", {"default": 2, "min": 1, "max": 100, "step": 1}),
-                "y_subdivisions": ("INT", {"default": 2, "min": 1, "max": 100, "step": 1}),
+                "width_subdivisions": ("INT", {"default": 2, "min": 1, "max": 100, "step": 1}),
+                "height_subdivisions": ("INT", {"default": 2, "min": 1, "max": 100, "step": 1}),
             },
         }
 
@@ -17,7 +17,7 @@ class FL_ImageSlicer:
     FUNCTION = "slice_image"
     CATEGORY = "🏵️Fill Nodes/Image"
 
-    def slice_image(self, image, x_subdivisions, y_subdivisions):
+    def slice_image(self, image, width_subdivisions, height_subdivisions):
         # Convert from torch tensor to PIL Image
         pil_image = tensor_to_pil(image)
 
@@ -25,13 +25,13 @@ class FL_ImageSlicer:
         width, height = pil_image.size
 
         # Calculate slice dimensions
-        slice_width = width // x_subdivisions
-        slice_height = height // y_subdivisions
+        slice_width = width // width_subdivisions
+        slice_height = height // height_subdivisions
 
         # Slice the image
         slices = []
-        for y in range(y_subdivisions):
-            for x in range(x_subdivisions):
+        for y in range(height_subdivisions):
+            for x in range(width_subdivisions):
                 left = x * slice_width
                 upper = y * slice_height
                 right = left + slice_width

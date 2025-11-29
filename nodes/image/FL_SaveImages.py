@@ -1,4 +1,5 @@
 import os
+import re
 import torch
 from PIL import Image
 import numpy as np
@@ -14,6 +15,7 @@ class FL_SaveImages:
                 "folder_structure": ("STRING", {"default": "[]"}),
                 "file_name_template": ("STRING", {"default": "image_{index}.png"}),
                 "start_index": ("INT", {"default": 1, "min": 0, "max": 1000000}),
+                "auto_increment": ("BOOLEAN", {"default": True}),
             },
             "optional": {
                 "metadata": ("STRING", {"default": ""}),
@@ -25,23 +27,27 @@ class FL_SaveImages:
     OUTPUT_NODE = True
     CATEGORY = "🏵️Fill Nodes/Image"
 
-    def save_images(self, images, base_directory, folder_structure, file_name_template, start_index, metadata=""):
+    def save_images(self, images, base_directory, folder_structure, file_name_template, start_index, auto_increment=True, metadata=""):
         saved_paths = []
         folder_structure = json.loads(folder_structure)
 
         # Ensure base directory exists
         os.makedirs(base_directory, exist_ok=True)
 
+        # Create the full folder path based on the folder structure
+        full_folder_path = self.create_folder_path(base_directory, folder_structure)
+        os.makedirs(full_folder_path, exist_ok=True)
+
         batch_size = len(images)
         has_index_placeholder = "{index}" in file_name_template
+
+        # If auto_increment is enabled, find the next available index
+        if auto_increment and has_index_placeholder:
+            start_index = self.find_next_index(full_folder_path, file_name_template, start_index)
 
         for i, image in enumerate(images):
             # Convert the image tensor to a PIL Image
             img = Image.fromarray((image.cpu().numpy() * 255).astype(np.uint8))
-
-            # Create the full folder path based on the folder structure
-            full_folder_path = self.create_folder_path(base_directory, folder_structure)
-            os.makedirs(full_folder_path, exist_ok=True)
 
             # Determine the filename based on batch size and placeholder
             if batch_size > 1:
@@ -81,6 +87,26 @@ class FL_SaveImages:
             saved_paths.append(full_file_path)
 
         return (", ".join(saved_paths),)
+
+    def find_next_index(self, folder_path, file_name_template, min_index):
+        """Find the next available index by checking existing files in the folder."""
+        if not os.path.exists(folder_path):
+            return min_index
+
+        # Build a regex pattern from the template to extract existing indices
+        # Escape special regex chars, then replace {index} with a capture group
+        pattern_str = re.escape(file_name_template).replace(r"\{index\}", r"(\d+)")
+        pattern = re.compile(f"^{pattern_str}$")
+
+        max_found = min_index - 1
+        for filename in os.listdir(folder_path):
+            match = pattern.match(filename)
+            if match:
+                index = int(match.group(1))
+                if index > max_found:
+                    max_found = index
+
+        return max_found + 1
 
     def create_folder_path(self, base_directory, folder_structure):
         path = base_directory
