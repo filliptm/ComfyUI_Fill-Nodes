@@ -73,7 +73,7 @@ representations of images with ASCII characters.
                     "step": 1,
                 }),
                 "characters": ("STRING", {
-                    "default": "\._♥♦♣MachineDelusions♣♦♥_./",
+                    "default": "MachineDelusions",
                     "description": "characters to use"
                 }),
                 "font": (s.FONT_NAMES, {"default": "arial"}),

@@ -1,7 +1,7 @@
 [project]
 name = "comfyui_fill-nodes"
 description = "Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends functionality across multiple domains. Features include advanced image processing (pixelation, slicing, masking), visual effects generation (glitch, halftone, pixel art), comprehensive file handling (PDF creation/extraction, Google Drive integration), AI model interfaces (GPT, DALL-E, Hugging Face), utility nodes for workflow enhancement, and specialized tools for video processing, captioning, and batch operations. The pack provides both practical workflow solutions and creative tools within a unified node collection."
-version = "2.1.7"
+version = "2.1.8"
 license = "LICENSE"
 dependencies = ["diffusers", "librosa", "sounddevice", "glitch_this", "PyOpenGL", "glfw", "scipy>=1.13.1", "requests", "aiohttp", "moviepy", "matplotlib", "reportlab", "openai", "PyPDF2", "pdf2image", "PyMuPDF", "reportlab", "PyPDF2", "ollama", "kornia", "opencv-python", "gdown", "open_clip_torch", "google-genai"]
 
