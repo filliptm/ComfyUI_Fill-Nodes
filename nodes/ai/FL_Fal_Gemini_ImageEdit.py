@@ -142,20 +142,29 @@ class FL_Fal_Gemini_ImageEdit:
         
         return pil_images if pil_images else None
 
-    def _upload_image_to_fal(self, pil_image: Image.Image) -> str:
+    def _upload_image_to_fal(self, pil_image: Image.Image, api_key: str) -> str:
         """Upload PIL image to fal.media CDN and return the URL.
 
         This avoids the 10MB request body size limit by uploading images
         separately to fal's CDN instead of embedding base64 in the request.
         """
         try:
+            # Set the API key before upload
+            os.environ["FAL_KEY"] = api_key.strip()
+
+            # Force reimport fal_client to pick up the new API key
+            import sys
+            if 'fal_client' in sys.modules:
+                del sys.modules['fal_client']
+            import fal_client as fresh_fal_client
+
             # Save PIL image to bytes buffer
             buffered = io.BytesIO()
             pil_image.save(buffered, format="PNG")
             image_bytes = buffered.getvalue()
 
             # Upload to fal.media CDN using fal_client
-            url = fal_client.upload(image_bytes, content_type="image/png")
+            url = fresh_fal_client.upload(image_bytes, content_type="image/png")
             self._log(f"Uploaded image to fal CDN: {url[:80]}...")
             return url
         except Exception as e:
@@ -176,7 +185,7 @@ class FL_Fal_Gemini_ImageEdit:
                 self._log(f"Uploading {len(input_images)} images to fal.media CDN...")
                 for i, pil_image in enumerate(input_images):
                     try:
-                        img_url = self._upload_image_to_fal(pil_image)
+                        img_url = self._upload_image_to_fal(pil_image, api_key)
                         image_urls.append(img_url)
                         self._log(f"Successfully uploaded image {i+1}/{len(input_images)} to CDN")
                     except Exception as e:
