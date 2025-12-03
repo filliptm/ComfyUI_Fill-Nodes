@@ -1,4 +1,4 @@
-# FL_ImageSelectPicker: Interactive image selector with modal UI
+# FL_ImagePicker: Interactive image selector with modal UI
 import os
 import io
 import base64
@@ -21,7 +21,7 @@ class InterruptProcessing(Exception):
     pass
 
 
-class FL_ImageSelectPicker:
+class FL_ImagePicker:
     """
     An interactive image selector node that pauses execution and displays
     a modal UI for the user to select which images to keep from a batch.
@@ -77,7 +77,7 @@ class FL_ImageSelectPicker:
         # Convert images to thumbnails for sending to frontend (faster loading)
         # Original full-res images are kept in pending_selections for output
         image_data = []
-        print(f"[FL_ImageSelectPicker] Generating thumbnails for {batch_size} images...")
+        print(f"[FL_ImagePicker] Generating thumbnails for {batch_size} images...")
         for i in range(batch_size):
             img_tensor = images[i]
             # Convert tensor to PIL
@@ -112,14 +112,14 @@ class FL_ImageSelectPicker:
         }
 
         # Send message to frontend to show selector
-        PromptServer.instance.send_sync("fl_image_selector_show", {
+        PromptServer.instance.send_sync("fl_image_picker_show", {
             "session_id": session_id,
             "images": image_data,
             "batch_size": batch_size,
             "timeout_seconds": timeout_seconds
         })
 
-        print(f"[FL_ImageSelectPicker] Waiting for user selection... (timeout: {timeout_seconds}s)")
+        print(f"[FL_ImagePicker] Waiting for user selection... (timeout: {timeout_seconds}s)")
 
         # Block until user responds or timeout
         event_set = event.wait(timeout=timeout_seconds)
@@ -135,7 +135,7 @@ class FL_ImageSelectPicker:
 
         if not event_set:
             # Timeout - cancel the execution
-            print(f"[FL_ImageSelectPicker] Timeout reached. Cancelling execution...")
+            print(f"[FL_ImagePicker] Timeout reached. Cancelling execution...")
             nodes = execution.nodes
             if hasattr(nodes, 'interrupt_processing'):
                 nodes.interrupt_processing()
@@ -143,7 +143,7 @@ class FL_ImageSelectPicker:
 
         if cancelled:
             # User cancelled - interrupt the execution
-            print(f"[FL_ImageSelectPicker] Selection cancelled by user. Interrupting execution...")
+            print(f"[FL_ImagePicker] Selection cancelled by user. Interrupting execution...")
             # Set the interrupt flag in ComfyUI's execution module
             nodes = execution.nodes
             if hasattr(nodes, 'interrupt_processing'):
@@ -153,7 +153,7 @@ class FL_ImageSelectPicker:
 
         if selection is None or len(selection) == 0:
             # No selection - return all
-            print(f"[FL_ImageSelectPicker] No images selected. Returning all {batch_size} images.")
+            print(f"[FL_ImagePicker] No images selected. Returning all {batch_size} images.")
             return (images, f"No selection: returned all {batch_size} images")
 
         # Filter to selected indices
@@ -161,13 +161,13 @@ class FL_ImageSelectPicker:
         selected_images = images[selected_indices]
 
         info = f"Selected {len(selected_indices)} of {batch_size} images: indices {selected_indices}"
-        print(f"[FL_ImageSelectPicker] {info}")
+        print(f"[FL_ImagePicker] {info}")
 
         return (selected_images, info)
 
 
 # API endpoint to receive selection from frontend
-@PromptServer.instance.routes.post("/fl_image_select_picker/select")
+@PromptServer.instance.routes.post("/fl_image_picker/select")
 async def receive_selection(request):
     try:
         data = await request.json()
@@ -187,7 +187,7 @@ async def receive_selection(request):
 
 
 # API endpoint to check if a session is still active (for frontend to detect if node was interrupted)
-@PromptServer.instance.routes.get("/fl_image_select_picker/status/{session_id}")
+@PromptServer.instance.routes.get("/fl_image_picker/status/{session_id}")
 async def check_status(request):
     session_id = request.match_info.get("session_id")
     if session_id in pending_selections:
@@ -197,7 +197,7 @@ async def check_status(request):
 
 
 # API endpoint to fetch full-res image on demand for preview
-@PromptServer.instance.routes.get("/fl_image_select_picker/full_image/{session_id}/{index}")
+@PromptServer.instance.routes.get("/fl_image_picker/full_image/{session_id}/{index}")
 async def get_full_image(request):
     try:
         session_id = request.match_info.get("session_id")

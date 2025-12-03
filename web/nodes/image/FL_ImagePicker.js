@@ -1,5 +1,5 @@
 /**
- * FL_ImageSelectPicker.js
+ * FL_ImagePicker.js
  * Interactive modal for selecting images from a batch
  */
 
@@ -15,10 +15,10 @@ let currentSessionId = null;
 let currentBatchSize = 0;
 
 // Listen for the show selector event from the backend
-api.addEventListener("fl_image_selector_show", (event) => {
+api.addEventListener("fl_image_picker_show", (event) => {
     const { session_id, images, batch_size, timeout_seconds } = event.detail;
-    console.log(`[FL_ImageSelectPicker] Received ${batch_size} images for selection (timeout: ${timeout_seconds}s)`);
-    showImageSelectorModal(session_id, images, batch_size, timeout_seconds || 300);
+    console.log(`[FL_ImagePicker] Received ${batch_size} images for selection (timeout: ${timeout_seconds}s)`);
+    showImagePickerModal(session_id, images, batch_size, timeout_seconds || 300);
 });
 
 function formatTime(seconds) {
@@ -27,7 +27,7 @@ function formatTime(seconds) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-function showImageSelectorModal(sessionId, images, batchSize, timeoutSeconds) {
+function showImagePickerModal(sessionId, images, batchSize, timeoutSeconds) {
     // Close any existing modal
     if (activeModal) {
         activeModal.remove();
@@ -530,7 +530,7 @@ function createButton(text, color, onClick, isPrimary = false) {
 
 async function sendSelection(sessionId, selection, cancelled) {
     try {
-        const response = await fetch('/fl_image_select_picker/select', {
+        const response = await fetch('/fl_image_picker/select', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -542,9 +542,9 @@ async function sendSelection(sessionId, selection, cancelled) {
             })
         });
         const result = await response.json();
-        console.log('[FL_ImageSelectPicker] Selection sent:', result);
+        console.log('[FL_ImagePicker] Selection sent:', result);
     } catch (error) {
-        console.error('[FL_ImageSelectPicker] Error sending selection:', error);
+        console.error('[FL_ImagePicker] Error sending selection:', error);
     }
 }
 
@@ -797,7 +797,7 @@ async function loadFullResImage(index) {
     img.style.opacity = '0';
 
     try {
-        const response = await fetch(`/fl_image_select_picker/full_image/${currentSessionId}/${index}`);
+        const response = await fetch(`/fl_image_picker/full_image/${currentSessionId}/${index}`);
         const data = await response.json();
 
         if (data.status === 'ok') {
@@ -814,7 +814,7 @@ async function loadFullResImage(index) {
             spinner.innerHTML = `<span style="color: #d9534f;">Error loading image</span>`;
         }
     } catch (error) {
-        console.error('[FL_ImageSelectPicker] Error loading full-res image:', error);
+        console.error('[FL_ImagePicker] Error loading full-res image:', error);
         spinner.innerHTML = `<span style="color: #d9534f;">Error loading image</span>`;
     }
 }
@@ -916,9 +916,9 @@ function addStyles() {
 
 // Register extension (for node-specific enhancements if needed)
 app.registerExtension({
-    name: "FillNodes.ImageSelectPicker",
+    name: "FillNodes.ImagePicker",
     async nodeCreated(node) {
-        if (node.comfyClass === "FL_ImageSelectPicker") {
+        if (node.comfyClass === "FL_ImagePicker") {
             // Add any node-specific UI enhancements here
             // For example, we could add a status indicator widget
         }
