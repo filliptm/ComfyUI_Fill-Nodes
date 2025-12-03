@@ -182,7 +182,7 @@ function showImagePickerModal(sessionId, images, batchSize, timeoutSeconds) {
     header.appendChild(headerRight);
 
     // Start countdown timer
-    countdownInterval = setInterval(() => {
+    countdownInterval = setInterval(async () => {
         remainingSeconds--;
         updateTimer();
 
@@ -190,7 +190,7 @@ function showImagePickerModal(sessionId, images, batchSize, timeoutSeconds) {
             clearInterval(countdownInterval);
             countdownInterval = null;
             // Timeout - cancel the job instead of sending images through
-            sendSelection(sessionId, [], true);
+            await sendSelection(sessionId, [], true);
             closeModal();
         }
     }, 1000);
@@ -464,16 +464,18 @@ function showImagePickerModal(sessionId, images, batchSize, timeoutSeconds) {
     activeModal = overlay;
 
     // Keyboard shortcuts (only when preview modal is NOT open)
-    const keyHandler = (e) => {
+    const keyHandler = async (e) => {
         // Don't handle if preview modal is open - let the preview handler deal with it
         if (previewModal) return;
 
         if (e.key === 'Escape') {
-            sendSelection(sessionId, [], true);
+            e.preventDefault();
+            await sendSelection(sessionId, [], true);
             closeModal();
         } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
             const selection = Array.from(selectedIndices).sort((a, b) => a - b);
-            sendSelection(sessionId, selection, false);
+            await sendSelection(sessionId, selection, false);
             closeModal();
         }
     };
@@ -529,6 +531,7 @@ function createButton(text, color, onClick, isPrimary = false) {
 }
 
 async function sendSelection(sessionId, selection, cancelled) {
+    console.log(`[FL_ImagePicker] Sending selection: session=${sessionId}, selection=${JSON.stringify(selection)}, cancelled=${cancelled}`);
     try {
         const response = await fetch('/fl_image_picker/select', {
             method: 'POST',
@@ -542,9 +545,11 @@ async function sendSelection(sessionId, selection, cancelled) {
             })
         });
         const result = await response.json();
-        console.log('[FL_ImagePicker] Selection sent:', result);
+        console.log('[FL_ImagePicker] Selection sent successfully:', result);
+        return result;
     } catch (error) {
         console.error('[FL_ImagePicker] Error sending selection:', error);
+        throw error;
     }
 }
 
@@ -790,15 +795,39 @@ async function loadFullResImage(index) {
     const img = document.getElementById('preview-image');
     const infoText = document.getElementById('preview-info');
 
-    if (!spinner || !img) return;
+    if (!spinner || !img) {
+        console.error('[FL_ImagePicker] Preview elements not found');
+        return;
+    }
+
+    if (!currentSessionId) {
+        console.error('[FL_ImagePicker] No active session for preview');
+        spinner.innerHTML = `<span style="color: #d9534f;">No active session</span>`;
+        return;
+    }
 
     // Show loading state
     spinner.style.display = 'flex';
+    spinner.innerHTML = `
+        <div style="
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: #4ECDC4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        "></div>
+        <span>Loading full resolution...</span>
+    `;
     img.style.opacity = '0';
+
+    console.log(`[FL_ImagePicker] Loading full-res image: session=${currentSessionId}, index=${index}`);
 
     try {
         const response = await fetch(`/fl_image_picker/full_image/${currentSessionId}/${index}`);
         const data = await response.json();
+
+        console.log(`[FL_ImagePicker] Full-res response:`, data.status, data.status === 'ok' ? `${data.width}x${data.height}` : data.message);
 
         if (data.status === 'ok') {
             img.src = data.data;
@@ -806,16 +835,22 @@ async function loadFullResImage(index) {
                 spinner.style.display = 'none';
                 img.style.opacity = '1';
             };
+            img.onerror = () => {
+                console.error('[FL_ImagePicker] Failed to load image data');
+                spinner.innerHTML = `<span style="color: #d9534f;">Failed to decode image</span>`;
+                spinner.style.display = 'flex';
+            };
             if (infoText) {
                 infoText.textContent = `Image #${index + 1} of ${currentBatchSize} - ${data.width}x${data.height}`;
             }
             currentPreviewIndex = index;
         } else {
-            spinner.innerHTML = `<span style="color: #d9534f;">Error loading image</span>`;
+            console.error('[FL_ImagePicker] Server error:', data.message);
+            spinner.innerHTML = `<span style="color: #d9534f;">Error: ${data.message || 'Unknown error'}</span>`;
         }
     } catch (error) {
         console.error('[FL_ImagePicker] Error loading full-res image:', error);
-        spinner.innerHTML = `<span style="color: #d9534f;">Error loading image</span>`;
+        spinner.innerHTML = `<span style="color: #d9534f;">Network error loading image</span>`;
     }
 }
 

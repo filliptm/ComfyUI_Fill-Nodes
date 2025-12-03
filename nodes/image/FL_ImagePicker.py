@@ -111,6 +111,9 @@ class FL_ImagePicker:
             "images": images
         }
 
+        print(f"[FL_ImagePicker] Session created: {session_id}")
+        print(f"[FL_ImagePicker] Active sessions after create: {list(pending_selections.keys())}")
+
         # Send message to frontend to show selector
         PromptServer.instance.send_sync("fl_image_picker_show", {
             "session_id": session_id,
@@ -203,8 +206,11 @@ async def get_full_image(request):
         session_id = request.match_info.get("session_id")
         index = int(request.match_info.get("index"))
 
+        print(f"[FL_ImagePicker] Full image request: session={session_id}, index={index}")
+        print(f"[FL_ImagePicker] Active sessions: {list(pending_selections.keys())}")
+
         if session_id not in pending_selections:
-            return web.json_response({"status": "error", "message": "Session not found"}, status=404)
+            return web.json_response({"status": "error", "message": f"Session not found. Active: {list(pending_selections.keys())}"}, status=404)
 
         images = pending_selections[session_id].get("images")
         if images is None:
