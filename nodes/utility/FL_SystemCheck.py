@@ -53,7 +53,6 @@ def gather_system_info():
         "Pillow": check_library_version('pillow'),
         "OpenCV": check_library_version('cv2'),
         "transformers": check_library_version('transformers'),
-        "diffusers": check_library_version('diffusers'),
     }
 
     try:

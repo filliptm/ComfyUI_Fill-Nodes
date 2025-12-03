@@ -1,4 +1,3 @@
-diffusers
 librosa
 sounddevice
 glitch_this

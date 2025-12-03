@@ -207,8 +207,7 @@ function getIconForKey(key) {
         "numpy": "🔢",
         "Pillow": "🖼️",
         "OpenCV": "📷",
-        "transformers": "🤖",
-        "diffusers": "🌈"
+        "transformers": "🤖"
     };
     return iconMap[key] || "ℹ️";
 }
@@ -227,8 +226,7 @@ function getColorForKey(key) {
         "numpy": "#2ecc71",
         "Pillow": "#e84393",
         "OpenCV": "#c5a01c",
-        "transformers": "#6c5ce7",
-        "diffusers": "#00cec9"
+        "transformers": "#6c5ce7"
     };
     return colorMap[key] || "#95a5a6";
 }

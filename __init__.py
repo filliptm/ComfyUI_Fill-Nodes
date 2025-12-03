@@ -14,7 +14,6 @@ from .nodes.ai.FL_GeminiImageGenADV import FL_GeminiImageGenADV
 from .nodes.ai.FL_GeminiTextAPI import FL_GeminiTextAPI
 from .nodes.ai.FL_GeminiVideoCaptioner import FL_GeminiVideoCaptioner
 from .nodes.ai.FL_Hedra_API import FL_Hedra_API
-from .nodes.ai.FL_HunyuanDelight import FL_HunyuanDelight
 from .nodes.ai.FL_PixVerseAPI import FL_PixVerseAPI
 from .nodes.ai.FL_RunwayAct2 import FL_RunwayAct2
 from .nodes.ai.FL_RunwayImageAPI import FL_RunwayImageAPI
@@ -334,7 +333,6 @@ NODE_CLASS_MAPPINGS = {
     "FL_API_ImageSaver": FL_API_ImageSaver,
     "FL_GoogleDriveImageDownloader": FL_GoogleDriveImageDownloader,
     "FL_AnimeLineExtractor": FL_AnimeLineExtractor,
-    "FL_HunyuanDelight": FL_HunyuanDelight,
     "FL_ClipScanner": FL_ClipScanner,
     "FL_VideoCut": FL_VideoCut,
     "FL_GeminiTextAPI": FL_GeminiTextAPI,
@@ -523,7 +521,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_API_ImageSaver": "FL API Image Saver",
     "FL_GoogleDriveImageDownloader": "FL Google Drive Image Downloader",
     "FL_AnimeLineExtractor": "FL Anime Line Extractor",
-    "FL_HunyuanDelight": "FL Hunyuan Delight",
     "FL_ClipScanner": "FL Clip Scanner (Kytra)",
     "FL_VideoCut": "FL Video Cut Detector",
     "FL_GeminiTextAPI": "FL Gemini Text API",
