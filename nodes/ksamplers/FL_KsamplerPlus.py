@@ -73,8 +73,16 @@ class FL_KsamplerPlus:
         while c is not None:
             hint = controlnet.cond_hint_original
             resized_crop = cls.resize_region(region, canvas_size, hint.shape[2:])
+            # Ensure crop region has at least 1 pixel in each dimension
+            x1, y1, x2, y2 = resized_crop
+            x2 = max(x2, x1 + 1)
+            y2 = max(y2, y1 + 1)
+            resized_crop = (x1, y1, x2, y2)
             hint = cls.crop_tensor(hint, resized_crop)
-            hint = cls.resize_tensor(hint, tile_size)
+            # Ensure tile_size has at least 1 pixel in each dimension
+            tile_w, tile_h = tile_size
+            safe_tile_size = (max(1, tile_w), max(1, tile_h))
+            hint = cls.resize_tensor(hint, safe_tile_size)
             controlnet.cond_hint_original = hint
             c = c.previous_controlnet
             controlnet.set_previous_controlnet(c.copy() if c is not None else None)

@@ -35,5 +35,7 @@ class FL_SDUltimate_Slices:
 
     @classmethod
     def IS_CHANGED(cls, image, slicing, multiplier):
-        return float("NaN")
+        # Return a hash based on inputs so caching works properly
+        # Only re-run when inputs actually change
+        return hash((slicing, multiplier))
     
