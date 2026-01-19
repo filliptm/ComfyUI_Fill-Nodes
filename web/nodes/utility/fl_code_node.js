@@ -5,7 +5,7 @@
  */
 
 import { app } from "../../../../scripts/app.js"
-import { node_add_dynamic } from "../widget.js"
+import { node_add_dynamic } from "../../widget.js"
 
 const _id = "FL_CodeNode"
 const _prefix = 'input'
