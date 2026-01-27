@@ -36,7 +36,7 @@ class FL_Fal_Gemini_ImageEdit:
                                      "description": "Fal AI API key"}),
                 "prompt": ("STRING", {"default": "make a photo of the man driving the car down the california coastline",
                                     "multiline": True, "forceInput": True,
-                                    "description": "The prompt for image editing (3-5000 characters)"}),
+                                    "description": "The prompt for image editing (3-50,000 characters)"}),
                 "num_images": ("INT", {"default": 1, "min": 1, "max": 4, "step": 1,
                                      "description": "Number of images to generate"}),
                 "aspect_ratio": (["auto", "21:9", "16:9", "3:2", "4:3", "5:4", "1:1", "4:5", "3:4", "2:3", "9:16"],
@@ -63,7 +63,8 @@ class FL_Fal_Gemini_ImageEdit:
                 "image_8": ("IMAGE", {"description": "Eighth input image to edit"}),
                 "image_9": ("IMAGE", {"description": "Ninth input image to edit"}),
                 "image_10": ("IMAGE", {"description": "Tenth input image to edit"}),
-                "retry_indefinitely": ("BOOLEAN", {"default": False}),
+                "enable_web_search": ("BOOLEAN", {"default": False,
+                                                  "description": "Allow the model to use web search for latest information during generation"}),
             }
         }
 
@@ -171,7 +172,7 @@ class FL_Fal_Gemini_ImageEdit:
             self._log(f"Error uploading image to fal CDN: {str(e)}")
             raise
 
-    async def _edit_images_async(self, api_key, prompt, input_images, num_images, aspect_ratio, resolution, output_format, sync_mode, max_retries, retry_indefinitely, seed=0):
+    async def _edit_images_async(self, api_key, prompt, input_images, num_images, aspect_ratio, resolution, output_format, sync_mode, max_retries, enable_web_search=False, seed=0):
         try:
             self._log(f"Starting image editing with Gemini 3 Pro - prompt: '{prompt[:50]}...'")
 
@@ -204,7 +205,9 @@ class FL_Fal_Gemini_ImageEdit:
                 "aspect_ratio": aspect_ratio,
                 "resolution": resolution,
                 "output_format": output_format,
-                "sync_mode": sync_mode
+                "sync_mode": sync_mode,
+                "limit_generations": False,
+                "enable_web_search": enable_web_search
             }
 
             # Add seed if provided (non-zero)
@@ -354,7 +357,7 @@ class FL_Fal_Gemini_ImageEdit:
     def edit_images(self, api_key, prompt, num_images=1, aspect_ratio="auto", resolution="1K", output_format="png",
                    sync_mode=False, max_retries=3, seed=0, image_1=None, image_2=None, image_3=None, image_4=None,
                    image_5=None, image_6=None, image_7=None, image_8=None, image_9=None, image_10=None,
-                   retry_indefinitely=False, **kwargs):
+                   enable_web_search=False, **kwargs):
         self.log_messages = []
         if not api_key:
             error_msg = "API key not provided."
@@ -388,7 +391,7 @@ class FL_Fal_Gemini_ImageEdit:
             try:
                 return loop.run_until_complete(self._edit_images_async(
                     api_key, prompt, input_images, num_images, aspect_ratio, resolution,
-                    output_format, sync_mode, max_retries, retry_indefinitely, seed
+                    output_format, sync_mode, max_retries, enable_web_search, seed
                 ))
             finally:
                 loop.close()
