@@ -91,6 +91,10 @@ from .nodes.hugging_face.FL_HFHubModelUploader import FL_HFHubModelUploader
 from .nodes.hugging_face.FL_HF_Character import FL_HF_Character
 from .nodes.hugging_face.FL_HF_UploaderAbsolute import FL_HF_UploaderAbsolute
 
+# KARTEL NODES
+from .nodes.kartel.FL_KartelJobInput import FL_KartelJobInput
+from .nodes.kartel.FL_KartelJobOutput import FL_KartelJobOutput
+
 # IMAGE NODES
 from .nodes.image.FL_AnimeLineExtractor import FL_AnimeLineExtractor
 from .nodes.image.FL_ApplyMask import FL_ApplyMask
@@ -408,6 +412,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_AnimatedShapePatterns": FL_AnimatedShapePatterns,
     "FL_PathAnimator": FL_PathAnimator,
     "FL_RandomShapeGenerator": FL_RandomShapeGenerator,
+    "FL_KartelJobInput": FL_KartelJobInput,
+    "FL_KartelJobOutput": FL_KartelJobOutput,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -598,6 +604,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_AnimatedShapePatterns": "FL Animated Shape Patterns",
     "FL_PathAnimator": "FL Path Animator",
     "FL_RandomShapeGenerator": "FL Random Shape Generator",
+    "FL_KartelJobInput": "FL Kartel Job Input",
+    "FL_KartelJobOutput": "FL Kartel Job Output",
 }
 
 
