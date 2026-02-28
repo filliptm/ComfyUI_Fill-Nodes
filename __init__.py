@@ -176,6 +176,7 @@ from .nodes.utility.FL_RandomRange import FL_RandomNumber
 from .nodes.utility.FL_RandomShapeGenerator import FL_RandomShapeGenerator
 from .nodes.utility.FL_SD_Slices import FL_SDUltimate_Slices
 from .nodes.utility.FL_SeparateMasks import FL_SeparateMaskComponents
+from .nodes.utility.FL_StringToLoraName import FL_StringToLoraName
 from .nodes.utility.FL_Switch import FL_Switch
 from .nodes.utility.FL_Switch_Big import FL_Switch_Big
 from .nodes.utility.FL_SystemCheck import FL_SystemCheck
@@ -361,6 +362,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_PaddingRemover": FL_PaddingRemover,
     "FL_GPT_Text": FL_GPT_Text,
     "FL_GoogleCloudStorage": FL_GoogleCloudStorage,
+    "FL_StringToLoraName": FL_StringToLoraName,
     "FL_Switch": FL_Switch,
     "FL_Switch_Big": FL_Switch_Big,
     "FL_PasteByMask": FL_PasteByMask,
@@ -551,6 +553,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_PaddingRemover": "FL Padding Remover",
     "FL_GPT_Text": "FL GPT Text",
     "FL_GoogleCloudStorage": "FL Google Cloud Storage Uploader",
+    "FL_StringToLoraName": "FL String To Lora Name",
     "FL_Switch": "FL Switch",
     "FL_Switch_Big": "FL Switch Big",
     "FL_PasteByMask": "FL Paste By Mask",
