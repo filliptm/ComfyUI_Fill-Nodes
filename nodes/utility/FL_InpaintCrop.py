@@ -446,6 +446,11 @@ class FL_Inpaint_Stitch:
         original_image = stitch['original_image']
         x = stitch['x']  # These are in ORIGINAL image coordinates - do NOT rescale!
         y = stitch['y']
+
+        # Expand original to match inpainted batch size
+        # e.g., 1 original + 4 inpainted variations → 4 copies of original
+        original_image = comfy.utils.repeat_to_batch_size(original_image, inpainted_image.shape[0])
+
         stitched_image = original_image.clone().movedim(-1, 1)
 
         inpaint_width = inpainted_image.shape[2]
