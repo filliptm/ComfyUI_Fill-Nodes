@@ -9,16 +9,24 @@ from .nodes.ai.FL_Fal_Seedance_i2v import FL_Fal_Seedance_i2v
 from .nodes.ai.FL_Fal_Seedream_Edit import FL_Fal_Seedream_Edit
 from .nodes.ai.FL_Fal_SeedVR_Upscale import FL_Fal_SeedVR_Upscale
 from .nodes.ai.FL_Fal_Sora import FL_Fal_Sora
-from .nodes.ai.FL_GeminiImageEditor import FL_GeminiImageEditor
-from .nodes.ai.FL_GeminiImageGenADV import FL_GeminiImageGenADV
-from .nodes.ai.FL_GeminiTextAPI import FL_GeminiTextAPI
 from .nodes.ai.FL_GeminiVideoCaptioner import FL_GeminiVideoCaptioner
 from .nodes.ai.FL_Hedra_API import FL_Hedra_API
 from .nodes.ai.FL_PixVerseAPI import FL_PixVerseAPI
 from .nodes.ai.FL_RunwayAct2 import FL_RunwayAct2
 from .nodes.ai.FL_RunwayImageAPI import FL_RunwayImageAPI
-from .nodes.ai.FL_VertexGemini25FlashImage import FL_VertexGemini25FlashImage
-from .nodes.ai.FL_VertexVeo3 import FL_Veo3VideoGen
+
+# google-genai nodes — wrapped so a websockets version conflict doesn't kill the entire pack
+_GENAI_NODES_AVAILABLE = True
+try:
+    from .nodes.ai.FL_GeminiImageEditor import FL_GeminiImageEditor
+    from .nodes.ai.FL_GeminiImageGenADV import FL_GeminiImageGenADV
+    from .nodes.ai.FL_GeminiTextAPI import FL_GeminiTextAPI
+    from .nodes.ai.FL_VertexGemini25FlashImage import FL_VertexGemini25FlashImage
+    from .nodes.ai.FL_VertexVeo3 import FL_Veo3VideoGen
+except ImportError as e:
+    _GENAI_NODES_AVAILABLE = False
+    print(f"[FL Fill-Nodes] Warning: Could not load Google Gemini/Vertex nodes: {e}")
+    print("[FL Fill-Nodes] Install google-genai with a compatible websockets version to enable these nodes.")
 
 # API_TOOLS NODES
 from .nodes.api_tools.FL_API_Base64_ImageLoader import FL_API_Base64_ImageLoader
@@ -235,7 +243,6 @@ NODE_CLASS_MAPPINGS = {
     "FL_VideoCaptionSaver": FL_VideoCaptionSaver,
     "FL_ImageDimensionDisplay": FL_ImageDimensionDisplay,
     "FL_GeminiVideoCaptioner": FL_GeminiVideoCaptioner,
-    "FL_GeminiImageEditor": FL_GeminiImageEditor,
     "FL_GPT_Image1": FL_GPT_Image1,
     "FL_CodeNode": FL_CodeNode,
     "FL_ImagePixelator": FL_ImagePixelator,
@@ -340,7 +347,6 @@ NODE_CLASS_MAPPINGS = {
     "FL_AnimeLineExtractor": FL_AnimeLineExtractor,
     "FL_ClipScanner": FL_ClipScanner,
     "FL_VideoCut": FL_VideoCut,
-    "FL_GeminiTextAPI": FL_GeminiTextAPI,
     "FL_JS": FL_JS,
     "FL_HFDatasetDownloader": FL_HFDatasetDownloader,
     "FL_WF_Agent": FL_WF_Agent,
@@ -378,7 +384,6 @@ NODE_CLASS_MAPPINGS = {
     "FL_WanVaceToVideoMultiRef": FL_WanVaceToVideoMultiRef,
     "FL_RIFE": FL_RIFE,
     "FL_FILM": FL_FILM,
-    "FL_GeminiImageGenADV": FL_GeminiImageGenADV,
     "FL_GPT_Image1_ADV": FL_GPT_Image1_ADV,
     "FL_ImageBatch": FL_ImageBatch,
     "FL_Hedra_API": FL_Hedra_API,
@@ -390,8 +395,6 @@ NODE_CLASS_MAPPINGS = {
     "FL_WanVideoBlender": FL_WanVideoBlender,
     "FL_WanVideoBlender3Way": FL_WanVideoBlender3Way,
     "FL_WanVideoContinuationBlender": FL_WanVideoContinuationBlender,
-    "FL_Veo3VideoGen": FL_Veo3VideoGen,
-    "FL_VertexGemini25FlashImage": FL_VertexGemini25FlashImage,
     "FL_SaveRGBAAnimatedWebP": FL_SaveRGBAAnimatedWebP,
     "FL_Audio_BPM_Analyzer": FL_Audio_BPM_Analyzer,
     "FL_Audio_Beat_Visualizer": FL_Audio_Beat_Visualizer,
@@ -425,7 +428,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_VideoCaptionSaver": "FL Video Caption Saver",
     "FL_ImageDimensionDisplay": "FL Image Size",
     "FL_GeminiVideoCaptioner": "FL Gemini Video Captioner",
-    "FL_GeminiImageEditor": "FL Gemini Image Editor",
     "FL_GPT_Image1": "FL GPT Image-1",
     "FL_CodeNode": "FL Code Node",
     "FL_ImagePixelator": "FL Image Pixelator",
@@ -531,7 +533,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_AnimeLineExtractor": "FL Anime Line Extractor",
     "FL_ClipScanner": "FL Clip Scanner (Kytra)",
     "FL_VideoCut": "FL Video Cut Detector",
-    "FL_GeminiTextAPI": "FL Gemini Text API",
     "FL_JS": "FL JavaScript",
     "FL_HFDatasetDownloader": "FL HF Dataset Downloader",
     "FL_WF_Agent": "FL Workflow Agent",
@@ -569,7 +570,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_VideoCadenceCompile": "FL Video Cadence Compile",
     "FL_FILM": "FL FILM Frame Interpolation",
     "FL_RIFE": "FL RIFE Frame Interpolation",
-    "FL_GeminiImageGenADV": "FL Gemini Image Gen ADV",
     "FL_GPT_Image1_ADV": "FL GPT Image1 ADV",
     "FL_ImageBatch": "FL Image Batch",
     "FL_Hedra_API": "FL Hedra API",
@@ -583,8 +583,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_WanVideoBlender": "FL Wan Video Blender",
     "FL_WanVideoBlender3Way": "FL Wan Video Blender 3-Way",
     "FL_WanVideoContinuationBlender": "FL Wan Video Continuation Blender",
-    "FL_Veo3VideoGen": "FL Vertex Veo3",
-    "FL_VertexGemini25FlashImage": "FL Vertex Gemini 2.5 Flash Image",
     "FL_SaveRGBAAnimatedWebP": "FL Save RGBA Animated WebP",
     "FL_Audio_BPM_Analyzer": "FL Audio BPM Analyzer",
     "FL_Audio_Beat_Visualizer": "FL Audio Beat Visualizer",
@@ -610,6 +608,23 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_KartelJobInput": "FL Kartel Job Input",
     "FL_KartelJobOutput": "FL Kartel Job Output",
 }
+
+# Conditionally register google-genai nodes if the SDK loaded successfully
+if _GENAI_NODES_AVAILABLE:
+    NODE_CLASS_MAPPINGS.update({
+        "FL_GeminiImageEditor": FL_GeminiImageEditor,
+        "FL_GeminiImageGenADV": FL_GeminiImageGenADV,
+        "FL_GeminiTextAPI": FL_GeminiTextAPI,
+        "FL_Veo3VideoGen": FL_Veo3VideoGen,
+        "FL_VertexGemini25FlashImage": FL_VertexGemini25FlashImage,
+    })
+    NODE_DISPLAY_NAME_MAPPINGS.update({
+        "FL_GeminiImageEditor": "FL Gemini Image Editor",
+        "FL_GeminiImageGenADV": "FL Gemini Image Gen ADV",
+        "FL_GeminiTextAPI": "FL Gemini Text API",
+        "FL_Veo3VideoGen": "FL Vertex Veo3",
+        "FL_VertexGemini25FlashImage": "FL Vertex Gemini 2.5 Flash Image",
+    })
 
 
 ascii_art = """
