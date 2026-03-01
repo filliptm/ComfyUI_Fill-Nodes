@@ -1,6 +1,7 @@
 // custom_nodes/FL_SystemCheck.js
 
 import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js";
 
 app.registerExtension({
     name: "FL.SystemCheck",
@@ -39,7 +40,7 @@ function animateNode(node) {
 
 async function runSystemCheck(node) {
     try {
-        const response = await fetch('/fl_system_info');
+        const response = await api.fetchApi('/fl_system_info');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
