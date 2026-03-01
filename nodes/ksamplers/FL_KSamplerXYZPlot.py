@@ -119,7 +119,12 @@ class FL_KSamplerXYZPlot:
             if input_type == "latent":
                 if latent_image is None:
                     raise ValueError("Latent input is selected, but no latent image is provided.")
-                input_list = [{"samples": latent_image["samples"][i:i+1]} for i in range(latent_image["samples"].shape[0])]
+                input_list = []
+                for i in range(latent_image["samples"].shape[0]):
+                    item = {}
+                    for k, v in latent_image.items():
+                        item[k] = v[i:i+1] if isinstance(v, torch.Tensor) else v
+                    input_list.append(item)
             elif input_type == "image":
                 if image is None:
                     raise ValueError("Image input is selected, but no image is provided.")
