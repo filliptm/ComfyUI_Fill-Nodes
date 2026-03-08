@@ -218,13 +218,10 @@ class FL_InpaintCrop:
         original_mask = mask
         original_height, original_width = image.shape[1], image.shape[2]
 
-        # Validate mask size
+        # Auto-resize mask to match image size
         if mask.shape[1] != image.shape[1] or mask.shape[2] != image.shape[2]:
-            non_zero_indices = torch.nonzero(mask[0], as_tuple=True)
-            if not non_zero_indices[0].size(0):
-                mask = torch.zeros_like(image[:, :, :, 0])
-            else:
-                raise ValueError("mask size must match image size")
+            mask = F.interpolate(mask.unsqueeze(1), size=(image.shape[1], image.shape[2]), mode='nearest').squeeze(1)
+            print(f"[FL Inpaint Crop] Auto-resized mask to {image.shape[2]}x{image.shape[1]}")
 
         # Invert mask if requested
         if invert_mask:
@@ -258,11 +255,9 @@ class FL_InpaintCrop:
         if optional_context_mask is None:
             context_mask = mask
         elif optional_context_mask.shape[1] != image.shape[1] or optional_context_mask.shape[2] != image.shape[2]:
-            non_zero_indices = torch.nonzero(optional_context_mask[0], as_tuple=True)
-            if not non_zero_indices[0].size(0):
-                context_mask = mask
-            else:
-                raise ValueError("context_mask size must match image size")
+            optional_context_mask = F.interpolate(optional_context_mask.unsqueeze(1), size=(image.shape[1], image.shape[2]), mode='nearest').squeeze(1)
+            print(f"[FL Inpaint Crop] Auto-resized context mask to {image.shape[2]}x{image.shape[1]}")
+            context_mask = torch.clamp(optional_context_mask + mask, 0.0, 1.0)
         else:
             context_mask = torch.clamp(optional_context_mask + mask, 0.0, 1.0)
 
@@ -298,22 +293,22 @@ class FL_InpaintCrop:
         if force_square:
             x_size = x_max - x_min + 1
             y_size = y_max - y_min + 1
-            target_size = max(x_size, y_size)
+            square_size = max(x_size, y_size)
 
             # Center the square
             x_mid = (x_min + x_max) // 2
             y_mid = (y_min + y_max) // 2
 
-            x_min = max(x_mid - target_size // 2, 0)
-            x_max = min(x_min + target_size - 1, original_width - 1)
-            y_min = max(y_mid - target_size // 2, 0)
-            y_max = min(y_min + target_size - 1, original_height - 1)
+            x_min = max(x_mid - square_size // 2, 0)
+            x_max = min(x_min + square_size - 1, original_width - 1)
+            y_min = max(y_mid - square_size // 2, 0)
+            y_max = min(y_min + square_size - 1, original_height - 1)
 
             # Adjust if we hit boundaries
             if x_max == original_width - 1:
-                x_min = max(0, x_max - target_size + 1)
+                x_min = max(0, x_max - square_size + 1)
             if y_max == original_height - 1:
-                y_min = max(0, y_max - target_size + 1)
+                y_min = max(0, y_max - square_size + 1)
 
             print(f"[FL Inpaint Crop] After square adjustment: x[{x_min}, {x_max}] y[{y_min}, {y_max}]")
 

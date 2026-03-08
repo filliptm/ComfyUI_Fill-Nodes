@@ -118,6 +118,7 @@ from .nodes.image.FL_ImageOverlay import FL_ImageOverlay
 from .nodes.image.FL_ImageSelector import FL_ImageSelector
 from .nodes.image.FL_ImagePicker import FL_ImagePicker
 from .nodes.image.FL_ImageSlicer import FL_ImageSlicer
+from .nodes.image.FL_ImageToMask import FL_ImageToMask
 from .nodes.image.FL_Image_AddToBatch import FL_ImageAddToBatch
 from .nodes.image.FL_Image_Blank import FL_ImageBlank
 from .nodes.image.FL_Image_Crop import FL_ImageCrop
@@ -390,6 +391,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_RunwayImageAPI": FL_RunwayImageAPI,
     "FL_RunwayAct2": FL_RunwayAct2,
     "FL_ImageCrop": FL_ImageCrop,
+    "FL_ImageToMask": FL_ImageToMask,
     "FL_WanFirstLastFrameToVideo": FL_WanFirstLastFrameToVideo,
     "FL_WanVideoContinue": FL_WanVideoContinue,
     "FL_WanVideoBlender": FL_WanVideoBlender,
@@ -578,6 +580,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_TextOverlayNode": "FL Text Overlay",
     "FL_SaveWebM": "FL Save WebM",
     "FL_ImageCrop": "FL Image Crop",
+    "FL_ImageToMask": "FL Image To Mask",
     "FL_WanFirstLastFrameToVideo": "FL Wan First Frame Last Frame",
     "FL_WanVideoContinue": "FL Wan Video Continue",
     "FL_WanVideoBlender": "FL Wan Video Blender",
