@@ -16,19 +16,21 @@ class FL_ImageListToImageBatch:
     def doit(self, images):
         if len(images) <= 1:
             return (images[0],)
-        else:
-            image1 = images[0]
-            for image2 in images[1:]:
-                if image1.shape[1:] != image2.shape[1:]:
-                    image2 = comfy.utils.common_upscale(
-                        image2.movedim(-1, 1),
-                        image1.shape[2],
-                        image1.shape[1],
-                        "lanczos",
-                        "center"
-                    ).movedim(1, -1)
-                image1 = torch.cat((image1, image2), dim=0)
-            return (image1,)
+
+        target_shape = images[0].shape[1:]  # (H, W, C)
+        processed = []
+        for img in images:
+            if img.shape[1:] != target_shape:
+                img = comfy.utils.common_upscale(
+                    img.movedim(-1, 1),
+                    target_shape[1],
+                    target_shape[0],
+                    "lanczos",
+                    "center"
+                ).movedim(1, -1)
+            processed.append(img)
+
+        return (torch.cat(processed, dim=0),)
 
 
 class FL_ImageBatchToImageList:
