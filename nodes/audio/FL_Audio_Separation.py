@@ -1,13 +1,20 @@
 # FL_Audio_Separation: Separate audio into stems (bass, drums, other, vocals)
 import torch
+from pathlib import Path
 from typing import Tuple, Dict, Any
+import folder_paths
 
 
 class FL_Audio_Separation:
     """
     A ComfyUI node for separating audio into four sources: bass, drums, other, and vocals.
-    Uses the Hybrid Demucs model from torchaudio.
+    Uses the Hybrid Demucs model from torchaudio with weights pre-downloaded into
+    the ComfyUI models directory.
     """
+
+    MODEL_SUBDIR = "audio"
+    MODEL_FILENAME = "hdemucs_high_trained.pt"
+    MODEL_SOURCES = ["drums", "bass", "other", "vocals"]
 
     RETURN_TYPES = ("AUDIO", "AUDIO", "AUDIO", "AUDIO")
     RETURN_NAMES = ("bass", "drums", "other", "vocals")
@@ -70,8 +77,7 @@ class FL_Audio_Separation:
 
         try:
             # Import required libraries
-            from torchaudio.transforms import Fade, Resample
-            from torchaudio.pipelines import HDEMUCS_HIGH_MUSDB_PLUS
+            from torchaudio.transforms import Resample
             import comfy.model_management
 
             waveform = audio['waveform']
@@ -87,9 +93,7 @@ class FL_Audio_Separation:
 
             # Load Demucs model
             print(f"[FL Audio Separation] Loading Demucs model...")
-            bundle = HDEMUCS_HIGH_MUSDB_PLUS
-            model = bundle.get_model().to(device)
-            model_sample_rate = bundle.sample_rate
+            model, model_sample_rate = self._load_demucs_model(device)
 
             # Ensure stereo
             waveform = self._ensure_stereo(waveform)
@@ -152,6 +156,31 @@ class FL_Audio_Separation:
             print(f"{'='*60}\n")
             # Return original audio for all outputs on error
             return (audio, audio, audio, audio)
+
+    def _get_model_path(self) -> Path:
+        """Resolve the Demucs weights from the ComfyUI models directory."""
+        return Path(folder_paths.models_dir) / self.MODEL_SUBDIR / self.MODEL_FILENAME
+
+    def _load_demucs_model(self, device: torch.device):
+        """Construct Hybrid Demucs manually so torchaudio does not auto-download weights."""
+        from torchaudio.models import hdemucs_high
+        from torchaudio.pipelines import HDEMUCS_HIGH_MUSDB_PLUS
+
+        model_path = self._get_model_path()
+        if not model_path.exists():
+            raise RuntimeError(
+                "Hybrid Demucs model not found. "
+                f"Expected model at: {model_path}. "
+                "Please ensure comfyagent downloaded hdemucs_high_trained.pt to "
+                "audio before running this node."
+            )
+
+        model = hdemucs_high(sources=self.MODEL_SOURCES)
+        state_dict = torch.load(str(model_path), map_location=device)
+        model.load_state_dict(state_dict)
+        model.eval()
+        model.to(device)
+        return model, HDEMUCS_HIGH_MUSDB_PLUS.sample_rate
 
     def _ensure_stereo(self, waveform: torch.Tensor) -> torch.Tensor:
         """Ensure waveform is stereo"""

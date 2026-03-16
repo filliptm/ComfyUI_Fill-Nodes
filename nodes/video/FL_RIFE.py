@@ -1,7 +1,4 @@
-import os
-import sys
 import torch
-import torch.nn.functional as F
 from pathlib import Path
 from comfy.utils import ProgressBar
 import folder_paths
@@ -11,14 +8,14 @@ class FL_RIFE:
     """
     RIFE (Real-Time Intermediate Flow Estimation) frame interpolation node.
     Generates intermediate frames between input frames for smooth slow-motion effects.
-    Downloads models to cache folder on first use.
+    Loads checkpoint weights from the ComfyUI models directory.
     """
 
     # Model version to architecture version mapping
-    # Using direct .pth downloads from HuggingFace (faster, no extraction needed)
+    # Checkpoints are resolved from the ComfyUI models directory.
     CKPT_CONFIGS = {
-        "rife47": {"arch": "4.7", "url": "https://huggingface.co/lividtm/RIFE/resolve/main/rife47.pth", "file": "rife47.pth"},
-        "rife49": {"arch": "4.7", "url": "https://huggingface.co/lividtm/RIFE/resolve/main/rife49.pth", "file": "rife49.pth"},
+        "rife47": {"arch": "4.7", "sub_dir": "ComfyUI_Fill-Nodes/rife", "file": "rife47.pth"},
+        "rife49": {"arch": "4.7", "sub_dir": "ComfyUI_Fill-Nodes/rife", "file": "rife49.pth"},
     }
 
     @classmethod
@@ -47,8 +44,6 @@ class FL_RIFE:
     CATEGORY = "🏵️Fill Nodes/Video"
 
     def __init__(self):
-        self.cache_dir = Path(__file__).parent.parent / "cache" / "rife_models"
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.model = None
         self.current_ckpt = None
 
@@ -60,44 +55,10 @@ class FL_RIFE:
         else:
             self.device = torch.device("cpu")
 
-    def download_model(self, ckpt_name):
-        """Download RIFE model weights to cache from HuggingFace"""
-        import requests
-
+    def get_model_path(self, ckpt_name):
+        """Resolve a RIFE checkpoint from the ComfyUI models directory."""
         config = self.CKPT_CONFIGS[ckpt_name]
-        model_path = self.cache_dir / config["file"]
-
-        # Check if already downloaded
-        if model_path.exists():
-            print(f"✓ RIFE model {ckpt_name} already downloaded")
-            return model_path
-
-        print(f"📥 Downloading RIFE model {ckpt_name} from HuggingFace...")
-        print(f"   URL: {config['url']}")
-
-        try:
-            response = requests.get(config['url'], stream=True, timeout=120)
-            response.raise_for_status()
-
-            total_size = int(response.headers.get('content-length', 0))
-            downloaded = 0
-
-            with open(model_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    downloaded += len(chunk)
-                    f.write(chunk)
-                    if total_size > 0:
-                        progress = (downloaded / total_size) * 100
-                        print(f"   Progress: {progress:.1f}%", end='\r')
-
-            print(f"\n✅ RIFE model {ckpt_name} downloaded successfully to cache!")
-            print(f"   Size: {model_path.stat().st_size / (1024*1024):.1f} MB")
-            return model_path
-
-        except Exception as e:
-            if model_path.exists():
-                model_path.unlink()
-            raise RuntimeError(f"Failed to download RIFE model: {e}")
+        return Path(folder_paths.models_dir) / config["sub_dir"] / config["file"]
 
     def load_model(self, ckpt_name):
         """Load RIFE model"""
@@ -105,7 +66,15 @@ class FL_RIFE:
             return self.model
 
         config = self.CKPT_CONFIGS[ckpt_name]
-        model_path = self.download_model(ckpt_name)
+        model_path = self.get_model_path(ckpt_name)
+
+        if not model_path.exists():
+            raise RuntimeError(
+                f"RIFE model {ckpt_name} not found. "
+                f"Expected model at: {model_path}. "
+                "Please ensure comfyagent downloaded the checkpoint to "
+                "ComfyUI_Fill-Nodes/rife before running this node."
+            )
 
         print(f"🔄 Loading RIFE model {ckpt_name} (arch {config['arch']}) on {self.device}...")
 

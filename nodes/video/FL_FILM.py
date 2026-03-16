@@ -1,7 +1,4 @@
-import os
-import sys
 import torch
-import torch.nn.functional as F
 from pathlib import Path
 from comfy.utils import ProgressBar
 import folder_paths
@@ -11,12 +8,12 @@ class FL_FILM:
     """
     FILM (Frame Interpolation for Large Motion) frame interpolation node.
     Generates intermediate frames between input frames, especially good for large motion.
-    Downloads model to cache folder on first use.
+    Loads model weights from the ComfyUI models directory.
     """
 
-    MODEL_CONFIG = {
+    MODEL_CONFIG 
         "film_net": {
-            "url": "https://huggingface.co/lividtm/RIFE/resolve/main/film_net_fp32.pt",
+            "sub_dir": "ComfyUI_Fill-Nodes/film",
             "file": "film_net_fp32.pt"
         }
     }
@@ -42,9 +39,8 @@ class FL_FILM:
     CATEGORY = "🏵️Fill Nodes/Video"
 
     def __init__(self):
-        self.cache_dir = Path(__file__).parent.parent / "cache" / "film_models"
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.model = None
+        self.model_path = self.get_model_path()
 
         # Device selection: CUDA or CPU only
         # MPS not supported - TorchScript model uses grid_sample with border padding
@@ -53,51 +49,25 @@ class FL_FILM:
         else:
             self.device = torch.device("cpu")
 
-    def download_model(self):
-        """Download FILM model weights to cache from HuggingFace"""
-        import requests
-
+    def get_model_path(self):
+        """Resolve the FILM model path from the ComfyUI models directory."""
         config = self.MODEL_CONFIG["film_net"]
-        model_path = self.cache_dir / config["file"]
-
-        # Check if already downloaded
-        if model_path.exists():
-            print(f"✓ FILM model already downloaded")
-            return model_path
-
-        print(f"📥 Downloading FILM model from HuggingFace...")
-        print(f"   URL: {config['url']}")
-
-        try:
-            response = requests.get(config['url'], stream=True, timeout=120)
-            response.raise_for_status()
-
-            total_size = int(response.headers.get('content-length', 0))
-            downloaded = 0
-
-            with open(model_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    downloaded += len(chunk)
-                    f.write(chunk)
-                    if total_size > 0:
-                        progress = (downloaded / total_size) * 100
-                        print(f"   Progress: {progress:.1f}%", end='\r')
-
-            print(f"\n✅ FILM model downloaded successfully to cache!")
-            print(f"   Size: {model_path.stat().st_size / (1024*1024):.1f} MB")
-            return model_path
-
-        except Exception as e:
-            if model_path.exists():
-                model_path.unlink()
-            raise RuntimeError(f"Failed to download FILM model: {e}")
+        return Path(folder_paths.models_dir) / config["sub_dir"] / config["file"]
 
     def load_model(self):
         """Load FILM model"""
         if self.model is not None:
             return self.model
 
-        model_path = self.download_model()
+        model_path = self.model_path
+
+        if not model_path.exists():
+            raise RuntimeError(
+                "FILM model not found. "
+                f"Expected model at: {model_path}. "
+                "Please ensure comfyagent downloaded film_net_fp32.pt to "
+                "ComfyUI_Fill-Nodes/film before running this node."
+            )
 
         print(f"🔄 Loading FILM model on {self.device}...")
 

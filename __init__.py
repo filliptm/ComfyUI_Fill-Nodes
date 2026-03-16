@@ -1,19 +1,35 @@
 # AI NODES
-from .nodes.ai.FL_Fal_Gemini_ImageEdit import FL_Fal_Gemini_ImageEdit
-from .nodes.ai.FL_Fal_Kling_AIAvatar import FL_Fal_Kling_AIAvatar
-from .nodes.ai.FL_Fal_Kontext import FL_Fal_Kontext
-from .nodes.ai.FL_Fal_Pixverse import FL_Fal_Pixverse
-from .nodes.ai.FL_Fal_Pixverse_LipSync import FL_Fal_Pixverse_LipSync
-from .nodes.ai.FL_Fal_Pixverse_Transition import FL_Fal_Pixverse_Transition
-from .nodes.ai.FL_Fal_Seedance_i2v import FL_Fal_Seedance_i2v
-from .nodes.ai.FL_Fal_Seedream_Edit import FL_Fal_Seedream_Edit
-from .nodes.ai.FL_Fal_SeedVR_Upscale import FL_Fal_SeedVR_Upscale
-from .nodes.ai.FL_Fal_Sora import FL_Fal_Sora
 from .nodes.ai.FL_GeminiVideoCaptioner import FL_GeminiVideoCaptioner
 from .nodes.ai.FL_Hedra_API import FL_Hedra_API
 from .nodes.ai.FL_PixVerseAPI import FL_PixVerseAPI
-from .nodes.ai.FL_RunwayAct2 import FL_RunwayAct2
-from .nodes.ai.FL_RunwayImageAPI import FL_RunwayImageAPI
+
+# fal-client nodes — wrapped so missing fal-client doesn't kill the entire pack
+_FAL_NODES_AVAILABLE = True
+try:
+    from .nodes.ai.FL_Fal_Gemini_ImageEdit import FL_Fal_Gemini_ImageEdit
+    from .nodes.ai.FL_Fal_Kling_AIAvatar import FL_Fal_Kling_AIAvatar
+    from .nodes.ai.FL_Fal_Kontext import FL_Fal_Kontext
+    from .nodes.ai.FL_Fal_Pixverse import FL_Fal_Pixverse
+    from .nodes.ai.FL_Fal_Pixverse_LipSync import FL_Fal_Pixverse_LipSync
+    from .nodes.ai.FL_Fal_Pixverse_Transition import FL_Fal_Pixverse_Transition
+    from .nodes.ai.FL_Fal_Seedance_i2v import FL_Fal_Seedance_i2v
+    from .nodes.ai.FL_Fal_Seedream_Edit import FL_Fal_Seedream_Edit
+    from .nodes.ai.FL_Fal_SeedVR_Upscale import FL_Fal_SeedVR_Upscale
+    from .nodes.ai.FL_Fal_Sora import FL_Fal_Sora
+except ImportError as e:
+    _FAL_NODES_AVAILABLE = False
+    print(f"[FL Fill-Nodes] Warning: Could not load fal-client nodes: {e}")
+    print("[FL Fill-Nodes] Install fal-client to enable FL_Fal_* nodes.")
+
+# runwayml nodes — wrapped so missing runwayml doesn't kill the entire pack
+_RUNWAY_NODES_AVAILABLE = True
+try:
+    from .nodes.ai.FL_RunwayAct2 import FL_RunwayAct2
+    from .nodes.ai.FL_RunwayImageAPI import FL_RunwayImageAPI
+except ImportError as e:
+    _RUNWAY_NODES_AVAILABLE = False
+    print(f"[FL Fill-Nodes] Warning: Could not load Runway nodes: {e}")
+    print("[FL Fill-Nodes] Install runwayml to enable FL_Runway* nodes.")
 
 # google-genai nodes — wrapped so a websockets version conflict doesn't kill the entire pack
 _GENAI_NODES_AVAILABLE = True
@@ -354,16 +370,6 @@ NODE_CLASS_MAPPINGS = {
     "FL_WF_Agent": FL_WF_Agent,
     "FL_BlackFrameReject": FL_BlackFrameReject,
     "FL_PixVerseAPI": FL_PixVerseAPI,
-    "FL_Fal_Pixverse": FL_Fal_Pixverse,
-    "FL_Fal_Kontext": FL_Fal_Kontext,
-    "FL_Fal_Gemini_ImageEdit": FL_Fal_Gemini_ImageEdit,
-    "FL_Fal_Seedance_i2v": FL_Fal_Seedance_i2v,
-    "FL_Fal_Seedream_Edit": FL_Fal_Seedream_Edit,
-    "FL_Fal_SeedVR_Upscale": FL_Fal_SeedVR_Upscale,
-    "FL_Fal_Pixverse_Transition": FL_Fal_Pixverse_Transition,
-    "FL_Fal_Pixverse_LipSync": FL_Fal_Pixverse_LipSync,
-    "FL_Fal_Kling_AIAvatar": FL_Fal_Kling_AIAvatar,
-    "FL_Fal_Sora": FL_Fal_Sora,
     "FL_PromptBasic": FL_PromptBasic,
     "FL_PromptMulti": FL_PromptMulti,
     "FL_PromptSelectorBasic": FL_PromptSelectorBasic,
@@ -389,8 +395,6 @@ NODE_CLASS_MAPPINGS = {
     "FL_GPT_Image1_ADV": FL_GPT_Image1_ADV,
     "FL_ImageBatch": FL_ImageBatch,
     "FL_Hedra_API": FL_Hedra_API,
-    "FL_RunwayImageAPI": FL_RunwayImageAPI,
-    "FL_RunwayAct2": FL_RunwayAct2,
     "FL_ImageCrop": FL_ImageCrop,
     "FL_ImageToMask": FL_ImageToMask,
     "FL_WanFirstLastFrameToVideo": FL_WanFirstLastFrameToVideo,
@@ -542,16 +546,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_WF_Agent": "FL Workflow Agent",
     "FL_BlackFrameReject": "FL Black Frame Reject",
     "FL_PixVerseAPI": "FL PixVerse API",
-    "FL_Fal_Pixverse": "FL Fal Pixverse API",
-    "FL_Fal_Kontext": "FL Fal Kontext API",
-    "FL_Fal_Gemini_ImageEdit": "FL Fal Gemini Image Edit",
-    "FL_Fal_Seedance_i2v": "FL Fal Seedance i2v",
-    "FL_Fal_Seedream_Edit": "FL Fal Seedream Edit",
-    "FL_Fal_SeedVR_Upscale": "FL Fal SeedVR Upscale",
-    "FL_Fal_Pixverse_Transition": "FL Fal Pixverse Transition",
-    "FL_Fal_Pixverse_LipSync": "FL Fal Pixverse LipSync",
-    "FL_Fal_Kling_AIAvatar": "FL Fal Kling AI Avatar",
-    "FL_Fal_Sora": "FL Fal Sora 2",
     "FL_PromptBasic": "FL Prompt Basic",
     "FL_PromptMulti": "FL Prompt Multi",
     "FL_PromptSelectorBasic": "FL Prompt Selector Basic",
@@ -577,8 +571,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_GPT_Image1_ADV": "FL GPT Image1 ADV",
     "FL_ImageBatch": "FL Image Batch",
     "FL_Hedra_API": "FL Hedra API",
-    "FL_RunwayImageAPI": "FL Runway Image API",
-    "FL_RunwayAct2": "FL Runway Act2",
     "FL_TextOverlayNode": "FL Text Overlay",
     "FL_SaveWebM": "FL Save WebM",
     "FL_ImageCrop": "FL Image Crop",
@@ -630,6 +622,44 @@ if _GENAI_NODES_AVAILABLE:
         "FL_GeminiTextAPI": "FL Gemini Text API",
         "FL_Veo3VideoGen": "FL Vertex Veo3",
         "FL_VertexGemini25FlashImage": "FL Vertex Gemini 2.5 Flash Image",
+    })
+
+# Conditionally register fal-client nodes if the SDK loaded successfully
+if _FAL_NODES_AVAILABLE:
+    NODE_CLASS_MAPPINGS.update({
+        "FL_Fal_Pixverse": FL_Fal_Pixverse,
+        "FL_Fal_Kontext": FL_Fal_Kontext,
+        "FL_Fal_Gemini_ImageEdit": FL_Fal_Gemini_ImageEdit,
+        "FL_Fal_Seedance_i2v": FL_Fal_Seedance_i2v,
+        "FL_Fal_Seedream_Edit": FL_Fal_Seedream_Edit,
+        "FL_Fal_SeedVR_Upscale": FL_Fal_SeedVR_Upscale,
+        "FL_Fal_Pixverse_Transition": FL_Fal_Pixverse_Transition,
+        "FL_Fal_Pixverse_LipSync": FL_Fal_Pixverse_LipSync,
+        "FL_Fal_Kling_AIAvatar": FL_Fal_Kling_AIAvatar,
+        "FL_Fal_Sora": FL_Fal_Sora,
+    })
+    NODE_DISPLAY_NAME_MAPPINGS.update({
+        "FL_Fal_Pixverse": "FL Fal Pixverse API",
+        "FL_Fal_Kontext": "FL Fal Kontext API",
+        "FL_Fal_Gemini_ImageEdit": "FL Fal Gemini Image Edit",
+        "FL_Fal_Seedance_i2v": "FL Fal Seedance i2v",
+        "FL_Fal_Seedream_Edit": "FL Fal Seedream Edit",
+        "FL_Fal_SeedVR_Upscale": "FL Fal SeedVR Upscale",
+        "FL_Fal_Pixverse_Transition": "FL Fal Pixverse Transition",
+        "FL_Fal_Pixverse_LipSync": "FL Fal Pixverse LipSync",
+        "FL_Fal_Kling_AIAvatar": "FL Fal Kling AI Avatar",
+        "FL_Fal_Sora": "FL Fal Sora 2",
+    })
+
+# Conditionally register Runway nodes if the SDK loaded successfully
+if _RUNWAY_NODES_AVAILABLE:
+    NODE_CLASS_MAPPINGS.update({
+        "FL_RunwayImageAPI": FL_RunwayImageAPI,
+        "FL_RunwayAct2": FL_RunwayAct2,
+    })
+    NODE_DISPLAY_NAME_MAPPINGS.update({
+        "FL_RunwayImageAPI": "FL Runway Image API",
+        "FL_RunwayAct2": "FL Runway Act2",
     })
 
 
