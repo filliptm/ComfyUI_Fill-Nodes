@@ -108,6 +108,8 @@ from .nodes.kartel.FL_KartelJobOutput import FL_KartelJobOutput
 from .nodes.image.FL_AnimeLineExtractor import FL_AnimeLineExtractor
 from .nodes.image.FL_ApplyMask import FL_ApplyMask
 from .nodes.image.FL_BlackFrameReject import FL_BlackFrameReject
+from .nodes.image.FL_CoTracker import FL_CoTracker
+from .nodes.image.FL_CreateShapeImageOnPath import FL_CreateShapeImageOnPath
 from .nodes.image.FL_ImageAddNoise import FL_ImageAddNoise
 from .nodes.image.FL_ImageAdjuster import FL_ImageAdjuster
 from .nodes.image.FL_ImageAspectCropper import FL_ImageAspectCropper
@@ -335,6 +337,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_ImageOverlay": FL_ImageOverlay,
     "FL_ImageReplace": FL_ImageReplace,
     "FL_ImageAspectCropper": FL_ImageAspectCropper,
+    "FL_CoTracker": FL_CoTracker,
+    "FL_CreateShapeImageOnPath": FL_CreateShapeImageOnPath,
     "FL_HF_UploaderAbsolute": FL_HF_UploaderAbsolute,
     "FL_ImageListToImageBatch": FL_ImageListToImageBatch,
     "FL_ImageBatchToImageList": FL_ImageBatchToImageList,
@@ -524,6 +528,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_ImageOverlay": "FL Image Overlay",
     "FL_ImageReplace": "FL Image Replace",
     "FL_ImageAspectCropper": "FL Image Aspect Cropper",
+    "FL_CoTracker": "FL CoTracker",
+    "FL_CreateShapeImageOnPath": "FL Create Shape Image On Path",
     "FL_HF_UploaderAbsolute": "FL HF Uploader Absolute",
     "FL_ImageListToImageBatch": "FL Image List To Image Batch",
     "FL_ImageBatchToImageList": "FL Image Batch To Image List",
