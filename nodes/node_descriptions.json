@@ -747,12 +747,6 @@
       "category": "utility"
     },
     {
-      "class": "FL_CodeNode",
-      "file": "FL_Code_Node.py",
-      "description": null,
-      "category": "utility"
-    },
-    {
       "class": "FL_DirectoryCrawl",
       "file": "FL_DirectoryCrawl.py",
       "description": null,

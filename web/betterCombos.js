@@ -1,5 +1,5 @@
 /**
-    File: fl_code_node.js
+    File: betterCombos.js
     Project: ComfyUI_Fill-Nodes
 
     pythongossss to the rescue again

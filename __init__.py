@@ -172,7 +172,6 @@ from .nodes.prompting.FL_PromptSelectorBasic import FL_PromptSelectorBasic
 
 # UTILITY NODES
 from .nodes.utility.FL_ClipScanner import FL_ClipScanner
-from .nodes.utility.FL_Code_Node import FL_CodeNode
 from .nodes.utility.FL_DirectoryCrawl import FL_DirectoryCrawl
 from .nodes.utility.FL_Float import FL_Float
 from .nodes.utility.FL_InpaintCrop import FL_InpaintCrop
@@ -249,7 +248,6 @@ NODE_CLASS_MAPPINGS = {
     "FL_ImageDimensionDisplay": FL_ImageDimensionDisplay,
     "FL_GeminiVideoCaptioner": FL_GeminiVideoCaptioner,
     "FL_GPT_Image1": FL_GPT_Image1,
-    "FL_CodeNode": FL_CodeNode,
     "FL_ImagePixelator": FL_ImagePixelator,
     "FL_ImageAddToBatch": FL_ImageAddToBatch,
     "FL_DirectoryCrawl": FL_DirectoryCrawl,
@@ -439,7 +437,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_ImageDimensionDisplay": "FL Image Size",
     "FL_GeminiVideoCaptioner": "FL Gemini Video Captioner",
     "FL_GPT_Image1": "FL GPT Image-1",
-    "FL_CodeNode": "FL Code Node",
     "FL_ImagePixelator": "FL Image Pixelator",
     "FL_ImageAddToBatch": "FL Image Add To Batch",
     "FL_DirectoryCrawl": "FL Directory Crawl",
