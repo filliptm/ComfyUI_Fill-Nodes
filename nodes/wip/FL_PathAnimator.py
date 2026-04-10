@@ -3,6 +3,22 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 import math
 import json
+import io
+import base64
+import threading
+import uuid
+from aiohttp import web
+from server import PromptServer
+import execution
+
+
+# Global storage for pending path editor sessions (mirrors FL_ImagePicker.pending_selections)
+pending_path_sessions = {}
+
+
+class InterruptProcessing(Exception):
+    """Exception to interrupt ComfyUI processing when user cancels."""
+    pass
 
 def pil2tensor(image):
     """Convert PIL Image to tensor"""
@@ -80,6 +96,11 @@ Outputs WAN ATI-compatible coordinate strings with proper 121-point resampling f
                 "border_width": ("INT", {"default": 0, "min": 0, "max": 20, "step": 1}),
                 "border_color": ("STRING", {"default": 'white'}),
                 "paths_data": ("STRING", {"default": '{"paths": [], "canvas_size": {"width": 512, "height": 512}}', "multiline": True}),
+                "image": ("IMAGE",),
+                "timeout_seconds": ("INT", {"default": 600, "min": 30, "max": 3600, "step": 10}),
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
             }
         }
 
@@ -266,7 +287,81 @@ Outputs WAN ATI-compatible coordinate strings with proper 121-point resampling f
     def animate_paths(self, frame_width, frame_height, frame_count, shape, shape_size,
                      shape_color, bg_color, blur_radius=0.0, trail_length=0.0,
                      rotation_speed=0.0, border_width=0, border_color='white',
-                     paths_data='{"paths": [], "canvas_size": {"width": 512, "height": 512}}'):
+                     paths_data='{"paths": [], "canvas_size": {"width": 512, "height": 512}}',
+                     image=None, timeout_seconds=600, unique_id=None):
+
+        # Blocking interactive mode: image wired -> pause execution and open editor
+        if image is not None:
+            try:
+                # Extract first frame from image batch
+                img_tensor = image[0]
+                img_np = (img_tensor.cpu().numpy() * 255).astype(np.uint8)
+                pil_img = Image.fromarray(img_np)
+                orig_width, orig_height = pil_img.size
+
+                # Encode as JPEG base64 for transport (mirror FL_ImagePicker pattern)
+                buffered = io.BytesIO()
+                pil_img.save(buffered, format="JPEG", quality=85)
+                img_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                data_url = f"data:image/jpeg;base64,{img_b64}"
+
+                # Generate session id and create event
+                session_id = f"{unique_id}_{uuid.uuid4().hex[:8]}"
+                event = threading.Event()
+                pending_path_sessions[session_id] = {
+                    "event": event,
+                    "paths_data": None,
+                    "cancelled": False,
+                }
+
+                print(f"[FL_PathAnimator] Session created: {session_id} ({orig_width}x{orig_height})")
+
+                # Dispatch WS event to frontend
+                PromptServer.instance.send_sync("fl_path_animator_show", {
+                    "session_id": session_id,
+                    "image_data": data_url,
+                    "canvas_width": orig_width,
+                    "canvas_height": orig_height,
+                    "existing_paths": paths_data,
+                    "timeout_seconds": timeout_seconds,
+                    "node_id": unique_id,
+                })
+
+                print(f"[FL_PathAnimator] Waiting for user input... (timeout: {timeout_seconds}s)")
+
+                # Block until user submits or timeout
+                event_set = event.wait(timeout=timeout_seconds)
+
+                # Retrieve result and clean up
+                result = pending_path_sessions.get(session_id, {})
+                new_paths_data = result.get("paths_data")
+                cancelled = result.get("cancelled", False)
+                if session_id in pending_path_sessions:
+                    del pending_path_sessions[session_id]
+
+                if not event_set:
+                    print(f"[FL_PathAnimator] Timeout reached. Cancelling execution...")
+                    nodes = execution.nodes
+                    if hasattr(nodes, 'interrupt_processing'):
+                        nodes.interrupt_processing()
+                    raise InterruptProcessing("Path editor timed out")
+
+                if cancelled:
+                    print(f"[FL_PathAnimator] Editing cancelled by user. Interrupting execution...")
+                    nodes = execution.nodes
+                    if hasattr(nodes, 'interrupt_processing'):
+                        nodes.interrupt_processing()
+                    raise InterruptProcessing("Path editing was cancelled by user")
+
+                # Success: use the newly-drawn paths
+                if new_paths_data:
+                    paths_data = new_paths_data
+                    print(f"[FL_PathAnimator] Received new paths from user.")
+            except InterruptProcessing:
+                raise
+            except Exception as e:
+                print(f"[FL_PathAnimator] Blocking mode error: {e}")
+                # Fall through to existing render with whatever paths_data we have
 
         # Parse colors
         shape_color = parse_color(shape_color)
@@ -421,3 +516,23 @@ Outputs WAN ATI-compatible coordinate strings with proper 121-point resampling f
         print(f"FL_PathAnimator: Generated {len(coord_tracks)} tracks with 121 points each for WAN ATI")
 
         return (out_images, out_masks, coord_string)
+
+
+# HTTP endpoint to receive path submission from frontend (mirrors FL_ImagePicker pattern)
+@PromptServer.instance.routes.post("/fl_path_animator/submit")
+async def receive_paths(request):
+    try:
+        data = await request.json()
+        session_id = data.get("session_id")
+        paths_data = data.get("paths_data")
+        cancelled = data.get("cancelled", False)
+
+        if session_id in pending_path_sessions:
+            pending_path_sessions[session_id]["paths_data"] = paths_data
+            pending_path_sessions[session_id]["cancelled"] = cancelled
+            pending_path_sessions[session_id]["event"].set()
+            return web.json_response({"status": "ok"})
+        else:
+            return web.json_response({"status": "error", "message": "Session not found"}, status=404)
+    except Exception as e:
+        return web.json_response({"status": "error", "message": str(e)}, status=500)

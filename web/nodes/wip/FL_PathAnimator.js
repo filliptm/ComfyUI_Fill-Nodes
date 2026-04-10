@@ -8,6 +8,78 @@
 import { app } from "../../../../../scripts/app.js";
 import { api } from "../../../../../scripts/api.js";
 
+// Track the currently-open PathEditorModal for concurrent session handling
+let activePathEditorModal = null;
+
+// Listen for blocking-mode events from the Python backend
+api.addEventListener("fl_path_animator_show", (event) => {
+    const { session_id, image_data, canvas_width, canvas_height, existing_paths, timeout_seconds, node_id } = event.detail;
+    console.log(`[FL_PathAnimator] Received blocking session ${session_id} (${canvas_width}x${canvas_height})`);
+    openBlockingPathEditor(session_id, image_data, canvas_width, canvas_height, existing_paths, timeout_seconds, node_id);
+});
+
+function openBlockingPathEditor(sessionId, imageData, canvasWidth, canvasHeight, existingPaths, timeoutSeconds, nodeId) {
+    // Find the actual graph node
+    let node = app.graph.getNodeById(parseInt(nodeId));
+    let pathsDataWidget = null;
+
+    if (node) {
+        pathsDataWidget = node.widgets?.find(w => w.name === "paths_data");
+    }
+
+    // Fallback: create a stub widget object if the node is unavailable
+    if (!pathsDataWidget) {
+        console.warn(`[FL_PathAnimator] Could not find paths_data widget for node ${nodeId}, using stub`);
+        pathsDataWidget = {
+            name: "paths_data",
+            value: existingPaths || '{"paths": [], "canvas_size": {"width": 512, "height": 512}}',
+            _cachedBackgroundImage: null,
+            _incomingImageDataUrl: null,
+        };
+    }
+
+    // Seed the widget with existing paths so loadPaths() picks them up
+    if (existingPaths) {
+        pathsDataWidget.value = existingPaths;
+    }
+    // Stash the incoming image URL so the modal consumes it on construct
+    pathsDataWidget._incomingImageDataUrl = imageData;
+
+    // Edge case: modal already open
+    if (activePathEditorModal) {
+        if (activePathEditorModal.mode === 'blocking') {
+            // Concurrent blocking sessions: auto-cancel the old one, promote the new one
+            console.warn('[FL_PathAnimator] Concurrent blocking session detected, cancelling old session');
+            if (!activePathEditorModal.submitted) {
+                activePathEditorModal.submitted = true;
+                activePathEditorModal.submitBlocking(null, true);
+            }
+            activePathEditorModal.close();
+            // fall through to construct a new modal below
+        } else {
+            // Transition in place: switch edit mode modal to blocking mode
+            console.log('[FL_PathAnimator] Transitioning open edit modal to blocking mode');
+            activePathEditorModal.mode = 'blocking';
+            activePathEditorModal.sessionId = sessionId;
+            activePathEditorModal.timeoutSeconds = timeoutSeconds;
+            activePathEditorModal.submitted = false;
+            activePathEditorModal.loadIncomingImage();
+            activePathEditorModal.refreshFooterForMode();
+            activePathEditorModal.updateHeaderForMode();
+            activePathEditorModal.startCountdown();
+            return;
+        }
+    }
+
+    // Construct fresh blocking modal
+    const modal = new PathEditorModal(node || {}, pathsDataWidget, canvasWidth, canvasHeight, {
+        mode: 'blocking',
+        sessionId: sessionId,
+        timeoutSeconds: timeoutSeconds,
+    });
+    modal.show();
+}
+
 // SVG Icon Helper Functions
 const Icons = {
     pencil: () => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`,
@@ -108,7 +180,7 @@ function openPathEditor(node, pathsDataWidget) {
 }
 
 class PathEditorModal {
-    constructor(node, pathsDataWidget, frameWidth, frameHeight) {
+    constructor(node, pathsDataWidget, frameWidth, frameHeight, options = {}) {
         this.node = node;
         this.pathsDataWidget = pathsDataWidget;
         this.frameWidth = frameWidth;
@@ -129,11 +201,22 @@ class PathEditorModal {
         this.animationOffset = 0; // For animated directional indicators
         this.animationFrame = null; // Animation frame ID
 
+        // Blocking mode options
+        this.mode = options.mode || 'edit'; // 'edit' | 'blocking'
+        this.sessionId = options.sessionId || null;
+        this.timeoutSeconds = options.timeoutSeconds || 0;
+        this.remainingSeconds = this.timeoutSeconds;
+        this.submitted = false;
+        this.countdownInterval = null;
+
         // Load existing paths
         this.loadPaths();
 
-        // Load cached background image if it exists
-        this.loadCachedBackgroundImage();
+        // Load incoming image first (blocking mode), then cached (edit mode)
+        this.loadIncomingImage();
+        if (!this.backgroundImage) {
+            this.loadCachedBackgroundImage();
+        }
 
         // Create modal elements
         this.createModal();
@@ -143,6 +226,90 @@ class PathEditorModal {
 
         // Start animation loop for directional indicators
         this.startAnimation();
+
+        // Start countdown if in blocking mode
+        if (this.mode === 'blocking' && this.timeoutSeconds > 0) {
+            this.startCountdown();
+        }
+    }
+
+    loadIncomingImage() {
+        // Check if there's an incoming image from a blocking session
+        if (this.pathsDataWidget && this.pathsDataWidget._incomingImageDataUrl) {
+            const dataUrl = this.pathsDataWidget._incomingImageDataUrl;
+            const img = new Image();
+            img.onload = () => {
+                this.backgroundImage = img;
+                if (this.canvas) {
+                    this.canvas.width = img.width;
+                    this.canvas.height = img.height;
+                    this.render();
+                }
+            };
+            img.src = dataUrl;
+            // Assign immediately so the skip-cached-image check in constructor works
+            // (the img may still be loading but the reference is set)
+            this.backgroundImage = img;
+            // Cache it for subsequent reopens AND clear the incoming flag
+            this.pathsDataWidget._cachedBackgroundImage = dataUrl;
+            this.pathsDataWidget._incomingImageDataUrl = null;
+        }
+    }
+
+    startCountdown() {
+        if (this.countdownInterval) clearInterval(this.countdownInterval);
+        this.remainingSeconds = this.timeoutSeconds;
+        this.countdownInterval = setInterval(() => {
+            this.remainingSeconds--;
+            this.updateCountdownDisplay();
+            if (this.remainingSeconds <= 0) {
+                clearInterval(this.countdownInterval);
+                this.countdownInterval = null;
+                // Let Python's timeout fire naturally
+            }
+        }, 1000);
+        this.updateCountdownDisplay();
+    }
+
+    updateCountdownDisplay() {
+        if (!this._countdownLabel) return;
+        const m = Math.floor(Math.max(0, this.remainingSeconds) / 60);
+        const s = Math.max(0, this.remainingSeconds) % 60;
+        this._countdownLabel.textContent = `Timeout: ${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    async submitBlocking(pathsJson, cancelled) {
+        try {
+            await fetch('/fl_path_animator/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: this.sessionId,
+                    paths_data: pathsJson,
+                    cancelled: cancelled,
+                }),
+            });
+            console.log(`[FL_PathAnimator] Submitted session ${this.sessionId} (cancelled=${cancelled})`);
+        } catch (e) {
+            console.error('[FL_PathAnimator] Submit failed:', e);
+        }
+    }
+
+    refreshFooterForMode() {
+        if (this._saveBtn) {
+            this._saveBtn.textContent = this.mode === 'blocking' ? 'Continue' : 'Save Paths';
+        }
+    }
+
+    updateHeaderForMode() {
+        if (this._titleText) {
+            this._titleText.textContent = this.mode === 'blocking' ? 'Path Animator — Awaiting Input' : 'Path Animator Editor';
+        }
+        if (this._subtitleText) {
+            this._subtitleText.textContent = this.mode === 'blocking'
+                ? 'Execution paused — draw your paths and click Continue. Cancel will abort the workflow.'
+                : 'Press ESC to save & close | Hold SHIFT for straight lines | CTRL+V to paste image';
+        }
     }
 
     startAnimation() {
@@ -172,9 +339,14 @@ class PathEditorModal {
                 this.shiftPressed = true;
             }
 
-            // Escape to save and close
+            // Escape: save (edit mode) or cancel (blocking mode)
             if (e.key === 'Escape') {
-                this.savePaths();
+                if (this.mode === 'blocking' && !this.submitted) {
+                    this.submitted = true;
+                    this.submitBlocking(null, true);
+                } else {
+                    this.savePaths();
+                }
                 this.close();
             }
 
@@ -406,9 +578,13 @@ class PathEditorModal {
 
         this.overlay.appendChild(this.container);
 
-        // Close on overlay click
+        // Close on overlay click (cancel in blocking mode)
         this.overlay.addEventListener('click', (e) => {
             if (e.target === this.overlay) {
+                if (this.mode === 'blocking' && !this.submitted) {
+                    this.submitted = true;
+                    this.submitBlocking(null, true);
+                }
                 this.close();
             }
         });
@@ -442,7 +618,11 @@ class PathEditorModal {
         `;
 
         const title = document.createElement('h2');
-        title.innerHTML = `${Icons.edit()} <span style="margin-left: 8px;">Path Animator Editor</span>`;
+        const titleText = document.createElement('span');
+        titleText.style.cssText = 'margin-left: 8px;';
+        titleText.textContent = this.mode === 'blocking' ? 'Path Animator — Awaiting Input' : 'Path Animator Editor';
+        title.innerHTML = Icons.edit();
+        title.appendChild(titleText);
         title.style.cssText = `
             margin: 0;
             color: #fff;
@@ -453,14 +633,18 @@ class PathEditorModal {
             display: flex;
             align-items: center;
         `;
+        this._titleText = titleText;
 
         const subtitle = document.createElement('div');
-        subtitle.textContent = 'Press ESC to save & close | Hold SHIFT for straight lines | CTRL+V to paste image';
+        subtitle.textContent = this.mode === 'blocking'
+            ? 'Execution paused — draw your paths and click Continue. Cancel will abort the workflow.'
+            : 'Press ESC to save & close | Hold SHIFT for straight lines | CTRL+V to paste image';
         subtitle.style.cssText = `
-            color: #888;
+            color: ${this.mode === 'blocking' ? '#4ECDC4' : '#888'};
             font-size: 12px;
             font-weight: 400;
         `;
+        this._subtitleText = subtitle;
 
         titleContainer.appendChild(title);
         titleContainer.appendChild(subtitle);
@@ -491,7 +675,13 @@ class PathEditorModal {
             closeBtn.style.borderColor = 'rgba(255, 255, 255, 0.1)';
             closeBtn.style.transform = 'scale(1)';
         };
-        closeBtn.onclick = () => this.close();
+        closeBtn.onclick = () => {
+            if (this.mode === 'blocking' && !this.submitted) {
+                this.submitted = true;
+                this.submitBlocking(null, true);
+            }
+            this.close();
+        };
 
         topRow.appendChild(titleContainer);
         topRow.appendChild(closeBtn);
@@ -1708,10 +1898,30 @@ class PathEditorModal {
         statsContainer.style.cssText = `
             color: #888;
             font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         `;
         const staticCount = this.paths.filter(p => p.isSinglePoint || p.points.length === 1).length;
         const motionCount = this.paths.length - staticCount;
-        statsContainer.textContent = `Total: ${this.paths.length} paths (${staticCount} static, ${motionCount} motion)`;
+
+        const statsText = document.createElement('div');
+        statsText.textContent = `Total: ${this.paths.length} paths (${staticCount} static, ${motionCount} motion)`;
+        statsContainer.appendChild(statsText);
+
+        // Countdown label (only visible in blocking mode)
+        const countdownLabel = document.createElement('div');
+        countdownLabel.style.cssText = `
+            color: #4ECDC4;
+            font-size: 11px;
+            font-weight: 500;
+            display: ${this.mode === 'blocking' ? 'block' : 'none'};
+        `;
+        this._countdownLabel = countdownLabel;
+        statsContainer.appendChild(countdownLabel);
+        if (this.mode === 'blocking') {
+            this.updateCountdownDisplay();
+        }
 
         const buttonContainer = document.createElement('div');
         buttonContainer.style.cssText = `
@@ -1730,10 +1940,16 @@ class PathEditorModal {
             cursor: pointer;
             font-size: 14px;
         `;
-        cancelBtn.onclick = () => this.close();
+        cancelBtn.onclick = () => {
+            if (this.mode === 'blocking' && !this.submitted) {
+                this.submitted = true;
+                this.submitBlocking(null, true);
+            }
+            this.close();
+        };
 
         const saveBtn = document.createElement('button');
-        saveBtn.textContent = 'Save Paths';
+        saveBtn.textContent = this.mode === 'blocking' ? 'Continue' : 'Save Paths';
         saveBtn.style.cssText = `
             padding: 8px 20px;
             background: #4ECDC4;
@@ -1746,8 +1962,13 @@ class PathEditorModal {
         `;
         saveBtn.onclick = () => {
             this.savePaths();
+            if (this.mode === 'blocking' && !this.submitted) {
+                this.submitted = true;
+                this.submitBlocking(this.pathsDataWidget.value, false);
+            }
             this.close();
         };
+        this._saveBtn = saveBtn;
 
         buttonContainer.appendChild(cancelBtn);
         buttonContainer.appendChild(saveBtn);
@@ -1758,6 +1979,9 @@ class PathEditorModal {
     }
 
     show() {
+        // Register as the active modal for concurrent session handling
+        activePathEditorModal = this;
+
         // Add CSS animations if not already added
         if (!document.getElementById('fl-path-animator-styles')) {
             const style = document.createElement('style');
@@ -1793,6 +2017,24 @@ class PathEditorModal {
     }
 
     close() {
+        // Safeguard: if blocking mode and we haven't submitted yet, cancel the session
+        // so the Python thread never permanently blocks
+        if (this.mode === 'blocking' && !this.submitted) {
+            this.submitted = true;
+            this.submitBlocking(null, true);
+        }
+
+        // Clear countdown timer
+        if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
+        }
+
+        // Clear active modal reference
+        if (activePathEditorModal === this) {
+            activePathEditorModal = null;
+        }
+
         // Stop animation loop
         this.stopAnimation();
 
