@@ -279,20 +279,24 @@ class PathEditorModal {
     }
 
     async submitBlocking(pathsJson, cancelled) {
-        try {
-            await fetch('/fl_path_animator/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    session_id: this.sessionId,
-                    paths_data: pathsJson,
-                    cancelled: cancelled,
-                }),
-            });
-            console.log(`[FL_PathAnimator] Submitted session ${this.sessionId} (cancelled=${cancelled})`);
-        } catch (e) {
-            console.error('[FL_PathAnimator] Submit failed:', e);
+        console.log(`[FL_PathAnimator] Submitting session ${this.sessionId} (cancelled=${cancelled})`);
+        const response = await fetch('/fl_path_animator/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                session_id: this.sessionId,
+                paths_data: pathsJson,
+                cancelled: cancelled,
+            }),
+        });
+        if (!response.ok) {
+            const msg = `Submit failed with status ${response.status}`;
+            console.error(`[FL_PathAnimator] ${msg}`);
+            throw new Error(msg);
         }
+        const result = await response.json();
+        console.log(`[FL_PathAnimator] Submit OK:`, result);
+        return result;
     }
 
     refreshFooterForMode() {
@@ -343,11 +347,18 @@ class PathEditorModal {
             if (e.key === 'Escape') {
                 if (this.mode === 'blocking' && !this.submitted) {
                     this.submitted = true;
-                    this.submitBlocking(null, true);
+                    (async () => {
+                        try {
+                            await this.submitBlocking(null, true);
+                        } catch (err) {
+                            console.error('[FL_PathAnimator] ESC cancel failed:', err);
+                        }
+                        this.close();
+                    })();
                 } else {
                     this.savePaths();
+                    this.close();
                 }
-                this.close();
             }
 
             // Ctrl+V to paste image from clipboard
@@ -579,11 +590,15 @@ class PathEditorModal {
         this.overlay.appendChild(this.container);
 
         // Close on overlay click (cancel in blocking mode)
-        this.overlay.addEventListener('click', (e) => {
+        this.overlay.addEventListener('click', async (e) => {
             if (e.target === this.overlay) {
                 if (this.mode === 'blocking' && !this.submitted) {
                     this.submitted = true;
-                    this.submitBlocking(null, true);
+                    try {
+                        await this.submitBlocking(null, true);
+                    } catch (err) {
+                        console.error('[FL_PathAnimator] Overlay click cancel failed:', err);
+                    }
                 }
                 this.close();
             }
@@ -675,10 +690,14 @@ class PathEditorModal {
             closeBtn.style.borderColor = 'rgba(255, 255, 255, 0.1)';
             closeBtn.style.transform = 'scale(1)';
         };
-        closeBtn.onclick = () => {
+        closeBtn.onclick = async () => {
             if (this.mode === 'blocking' && !this.submitted) {
                 this.submitted = true;
-                this.submitBlocking(null, true);
+                try {
+                    await this.submitBlocking(null, true);
+                } catch (err) {
+                    console.error('[FL_PathAnimator] Header close cancel failed:', err);
+                }
             }
             this.close();
         };
@@ -1940,10 +1959,16 @@ class PathEditorModal {
             cursor: pointer;
             font-size: 14px;
         `;
-        cancelBtn.onclick = () => {
+        cancelBtn.onclick = async () => {
             if (this.mode === 'blocking' && !this.submitted) {
                 this.submitted = true;
-                this.submitBlocking(null, true);
+                cancelBtn.disabled = true;
+                saveBtn.disabled = true;
+                try {
+                    await this.submitBlocking(null, true);
+                } catch (e) {
+                    console.error('[FL_PathAnimator] Cancel submit failed:', e);
+                }
             }
             this.close();
         };
@@ -1960,11 +1985,25 @@ class PathEditorModal {
             font-size: 14px;
             font-weight: 500;
         `;
-        saveBtn.onclick = () => {
+        saveBtn.onclick = async () => {
             this.savePaths();
             if (this.mode === 'blocking' && !this.submitted) {
                 this.submitted = true;
-                this.submitBlocking(this.pathsDataWidget.value, false);
+                cancelBtn.disabled = true;
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Sending...';
+                try {
+                    await this.submitBlocking(this.pathsDataWidget.value, false);
+                } catch (e) {
+                    console.error('[FL_PathAnimator] Continue submit failed:', e);
+                    // Re-enable so user can retry or cancel
+                    this.submitted = false;
+                    cancelBtn.disabled = false;
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Continue';
+                    alert('Failed to submit paths to backend. Check console for details.');
+                    return;
+                }
             }
             this.close();
         };
@@ -2018,10 +2057,14 @@ class PathEditorModal {
 
     close() {
         // Safeguard: if blocking mode and we haven't submitted yet, cancel the session
-        // so the Python thread never permanently blocks
+        // so the Python thread never permanently blocks. Note: this is fire-and-forget
+        // because close() is synchronous — all primary exit paths (Continue, Cancel, ESC,
+        // overlay-click, header-close) already await submitBlocking before calling close().
         if (this.mode === 'blocking' && !this.submitted) {
             this.submitted = true;
-            this.submitBlocking(null, true);
+            this.submitBlocking(null, true).catch(err => {
+                console.error('[FL_PathAnimator] Safeguard cancel failed:', err);
+            });
         }
 
         // Clear countdown timer

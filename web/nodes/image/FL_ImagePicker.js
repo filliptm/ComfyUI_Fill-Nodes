@@ -190,7 +190,11 @@ function showImagePickerModal(sessionId, images, batchSize, timeoutSeconds) {
             clearInterval(countdownInterval);
             countdownInterval = null;
             // Timeout - cancel the job instead of sending images through
-            await sendSelection(sessionId, [], true);
+            try {
+                await sendSelection(sessionId, [], true);
+            } catch (err) {
+                console.error('[FL_ImagePicker] Timeout cancel failed:', err);
+            }
             closeModal();
         }
     }, 1000);
@@ -434,13 +438,23 @@ function showImagePickerModal(sessionId, images, batchSize, timeoutSeconds) {
     `;
 
     const cancelBtn = createButton('Cancel', '#d9534f', async () => {
-        await sendSelection(sessionId, [], true);
+        try {
+            await sendSelection(sessionId, [], true);
+        } catch (e) {
+            console.error('[FL_ImagePicker] Cancel submit failed:', e);
+        }
         closeModal();
     });
 
     const confirmBtn = createButton('Continue with Selected', '#4ECDC4', async () => {
         const selection = Array.from(selectedIndices).sort((a, b) => a - b);
-        await sendSelection(sessionId, selection, false);
+        try {
+            await sendSelection(sessionId, selection, false);
+        } catch (e) {
+            console.error('[FL_ImagePicker] Confirm submit failed:', e);
+            alert('Failed to submit selection to backend. Check console for details.');
+            return;  // Don't close — let user retry
+        }
         closeModal();
     }, true);
 
@@ -470,12 +484,22 @@ function showImagePickerModal(sessionId, images, batchSize, timeoutSeconds) {
 
         if (e.key === 'Escape') {
             e.preventDefault();
-            await sendSelection(sessionId, [], true);
+            try {
+                await sendSelection(sessionId, [], true);
+            } catch (err) {
+                console.error('[FL_ImagePicker] ESC cancel failed:', err);
+            }
             closeModal();
         } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
             const selection = Array.from(selectedIndices).sort((a, b) => a - b);
-            await sendSelection(sessionId, selection, false);
+            try {
+                await sendSelection(sessionId, selection, false);
+            } catch (err) {
+                console.error('[FL_ImagePicker] Ctrl+Enter confirm failed:', err);
+                alert('Failed to submit selection to backend. Check console for details.');
+                return;
+            }
             closeModal();
         }
     };
@@ -532,25 +556,25 @@ function createButton(text, color, onClick, isPrimary = false) {
 
 async function sendSelection(sessionId, selection, cancelled) {
     console.log(`[FL_ImagePicker] Sending selection: session=${sessionId}, selection=${JSON.stringify(selection)}, cancelled=${cancelled}`);
-    try {
-        const response = await fetch('/fl_image_picker/select', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                session_id: sessionId,
-                selection: selection,
-                cancelled: cancelled
-            })
-        });
-        const result = await response.json();
-        console.log('[FL_ImagePicker] Selection sent successfully:', result);
-        return result;
-    } catch (error) {
-        console.error('[FL_ImagePicker] Error sending selection:', error);
-        throw error;
+    const response = await fetch('/fl_image_picker/select', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            session_id: sessionId,
+            selection: selection,
+            cancelled: cancelled
+        })
+    });
+    if (!response.ok) {
+        const msg = `[FL_ImagePicker] Selection POST failed with status ${response.status}`;
+        console.error(msg);
+        throw new Error(msg);
     }
+    const result = await response.json();
+    console.log('[FL_ImagePicker] Selection sent successfully:', result);
+    return result;
 }
 
 // Full-resolution preview modal
