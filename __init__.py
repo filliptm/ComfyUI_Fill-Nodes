@@ -1,5 +1,6 @@
 # AI NODES
 from .nodes.ai.FL_Fal_Gemini_ImageEdit import FL_Fal_Gemini_ImageEdit
+from .nodes.ai.FL_Fal_GPTImage2_Edit import FL_Fal_GPTImage2_Edit
 from .nodes.ai.FL_Fal_Kling_AIAvatar import FL_Fal_Kling_AIAvatar
 from .nodes.ai.FL_Fal_Kontext import FL_Fal_Kontext
 from .nodes.ai.FL_Fal_Pixverse import FL_Fal_Pixverse
@@ -141,6 +142,7 @@ from .nodes.image.FL_SaveWebpImages import FL_SaveWebPImage
 from .nodes.ksamplers.FL_KsamplerBasic import FL_KsamplerBasic
 from .nodes.ksamplers.FL_KsamplerPlus import FL_KsamplerPlus
 from .nodes.ksamplers.FL_KsamplerPlusV2 import FL_KsamplerPlusV2
+from .nodes.ksamplers.FL_KsamplerSigma import FL_KsamplerSigma
 from .nodes.ksamplers.FL_KsamplerSettings import FL_KsamplerSettings
 from .nodes.ksamplers.FL_SamplerStrings import FL_SamplerStrings
 from .nodes.ksamplers.FL_SchedulerStrings import FL_SchedulerStrings
@@ -299,6 +301,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_KsamplerPlus": FL_KsamplerPlus,
     "FL_KsamplerPlusV2": FL_KsamplerPlusV2,
     "FL_KsamplerBasic": FL_KsamplerBasic,
+    "FL_KsamplerSigma": FL_KsamplerSigma,
     "FL_FractalKSampler": FL_FractalKSampler,
     "FL_UpscaleModel": FL_UpscaleModel,
     "FL_SaveCSV": FL_SaveCSV,
@@ -360,6 +363,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_PixVerseAPI": FL_PixVerseAPI,
     "FL_Fal_Pixverse": FL_Fal_Pixverse,
     "FL_Fal_Kontext": FL_Fal_Kontext,
+    "FL_Fal_GPTImage2_Edit": FL_Fal_GPTImage2_Edit,
     "FL_Fal_Gemini_ImageEdit": FL_Fal_Gemini_ImageEdit,
     "FL_Fal_Seedance_i2v": FL_Fal_Seedance_i2v,
     "FL_Fal_Seedream_Edit": FL_Fal_Seedream_Edit,
@@ -489,6 +493,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_KsamplerPlus": "FL KSampler Plus",
     "FL_KsamplerPlusV2": "FL KSampler Plus V2",
     "FL_KsamplerBasic": "FL KSampler Basic",
+    "FL_KsamplerSigma": "FL KSampler Sigma",
     "FL_FractalKSampler": "FL Fractal KSampler",
     "FL_UpscaleModel": "FL Upscale Model",
     "FL_SaveCSV": "FL Save CSV",
@@ -550,6 +555,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_PixVerseAPI": "FL PixVerse API",
     "FL_Fal_Pixverse": "FL Fal Pixverse API",
     "FL_Fal_Kontext": "FL Fal Kontext API",
+    "FL_Fal_GPTImage2_Edit": "FL Fal GPT-Image-2 Edit",
     "FL_Fal_Gemini_ImageEdit": "FL Fal Gemini Image Edit",
     "FL_Fal_Seedance_i2v": "FL Fal Seedance i2v",
     "FL_Fal_Seedream_Edit": "FL Fal Seedream Edit",
