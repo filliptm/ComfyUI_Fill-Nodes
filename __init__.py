@@ -200,6 +200,7 @@ from .nodes.utility.FL_VideoCropNStitch import FL_VideoRecompose
 
 # VFX NODES
 from .nodes.vfx.FL_Ascii import FL_Ascii
+from .nodes.vfx.FL_DepthBlur import FL_DepthBlur
 from .nodes.vfx.FL_Dither import FL_Dither
 from .nodes.vfx.FL_Glitch import FL_Glitch
 from .nodes.vfx.FL_HalfTone import FL_HalftonePattern
@@ -263,6 +264,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_HexagonalPattern": FL_HexagonalPattern,
     "FL_NFTGenerator": FL_NFTGenerator,
     "FL_HalftonePattern": FL_HalftonePattern,
+    "FL_DepthBlur": FL_DepthBlur,
     "FL_RandomNumber": FL_RandomNumber,
     "FL_PromptSelector": FL_PromptSelector,
     "FL_Shadertoy": FL_Shadertoy,
@@ -454,6 +456,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_HexagonalPattern": "FL Hexagonal Pattern",
     "FL_NFTGenerator": "FL NFT Generator",
     "FL_HalftonePattern": "FL Halftone",
+    "FL_DepthBlur": "FL Depth Blur",
     "FL_RandomNumber": "FL Random Number",
     "FL_PromptSelector": "FL Prompt Selector",
     "FL_PromptSelectorBasic": "FL Prompt Selector Basic",
