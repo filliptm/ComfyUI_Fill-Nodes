@@ -143,6 +143,10 @@ from .nodes.ksamplers.FL_KsamplerBasic import FL_KsamplerBasic
 from .nodes.ksamplers.FL_KsamplerPlus import FL_KsamplerPlus
 from .nodes.ksamplers.FL_KsamplerPlusV2 import FL_KsamplerPlusV2
 from .nodes.ksamplers.FL_KsamplerSigma import FL_KsamplerSigma
+from .nodes.ksamplers.FL_KsamplerSEG_Regions import FL_KsamplerSEG_Regions
+from .nodes.ksamplers.FL_KsamplerSEG_Captioner import FL_KsamplerSEG_Captioner
+from .nodes.ksamplers.FL_KsamplerSEG_Encoder import FL_KsamplerSEG_Encoder
+from .nodes.ksamplers.FL_KsamplerSEG import FL_KsamplerSEG
 from .nodes.ksamplers.FL_KsamplerSettings import FL_KsamplerSettings
 from .nodes.ksamplers.FL_SamplerStrings import FL_SamplerStrings
 from .nodes.ksamplers.FL_SchedulerStrings import FL_SchedulerStrings
@@ -304,6 +308,10 @@ NODE_CLASS_MAPPINGS = {
     "FL_KsamplerPlusV2": FL_KsamplerPlusV2,
     "FL_KsamplerBasic": FL_KsamplerBasic,
     "FL_KsamplerSigma": FL_KsamplerSigma,
+    "FL_KsamplerSEG_Regions": FL_KsamplerSEG_Regions,
+    "FL_KsamplerSEG_Captioner": FL_KsamplerSEG_Captioner,
+    "FL_KsamplerSEG_Encoder": FL_KsamplerSEG_Encoder,
+    "FL_KsamplerSEG": FL_KsamplerSEG,
     "FL_FractalKSampler": FL_FractalKSampler,
     "FL_UpscaleModel": FL_UpscaleModel,
     "FL_SaveCSV": FL_SaveCSV,
@@ -497,6 +505,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_KsamplerPlusV2": "FL KSampler Plus V2",
     "FL_KsamplerBasic": "FL KSampler Basic",
     "FL_KsamplerSigma": "FL KSampler Sigma",
+    "FL_KsamplerSEG_Regions": "FL KSampler SEG Regions",
+    "FL_KsamplerSEG_Captioner": "FL KSampler SEG Captioner",
+    "FL_KsamplerSEG_Encoder": "FL KSampler SEG Encoder",
+    "FL_KsamplerSEG": "FL KSampler SEG",
     "FL_FractalKSampler": "FL Fractal KSampler",
     "FL_UpscaleModel": "FL Upscale Model",
     "FL_SaveCSV": "FL Save CSV",
