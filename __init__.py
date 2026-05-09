@@ -122,6 +122,7 @@ from .nodes.image.FL_ImageOverlay import FL_ImageOverlay
 from .nodes.image.FL_ImageReplace import FL_ImageReplace
 from .nodes.image.FL_ImageSelector import FL_ImageSelector
 from .nodes.image.FL_ImagePicker import FL_ImagePicker
+from .nodes.image.FL_RegionPNGOverlay import FL_RegionPNGOverlay
 from .nodes.image.FL_ImageSlicer import FL_ImageSlicer
 from .nodes.image.FL_ImageToMask import FL_ImageToMask
 from .nodes.image.FL_Image_AddToBatch import FL_ImageAddToBatch
@@ -346,6 +347,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_ImageSelector": FL_ImageSelector,
     "FL_ImagePicker": FL_ImagePicker,
     "FL_ImageOverlay": FL_ImageOverlay,
+    "FL_RegionPNGOverlay": FL_RegionPNGOverlay,
     "FL_ImageReplace": FL_ImageReplace,
     "FL_ImageAspectCropper": FL_ImageAspectCropper,
     "FL_CoTracker": FL_CoTracker,
@@ -543,6 +545,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_ImageSelector": "FL Image Selector",
     "FL_ImagePicker": "FL Image Picker",
     "FL_ImageOverlay": "FL Image Overlay",
+    "FL_RegionPNGOverlay": "FL Region PNG Overlay",
     "FL_ImageReplace": "FL Image Replace",
     "FL_ImageAspectCropper": "FL Image Aspect Cropper",
     "FL_CoTracker": "FL CoTracker",
