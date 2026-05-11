@@ -81,21 +81,19 @@ class FL_VideoCropMask:
                 # Crop is taller, adjust width
                 crop_width = int(crop_height * output_aspect_ratio)
 
-            # Ensure the crop stays within the frame
-            top = max(0, center_y - crop_height // 2)
-            bottom = min(height, top + crop_height)
-            left = max(0, center_x - crop_width // 2)
-            right = min(width, left + crop_width)
+            crop_width = max(1, crop_width)
+            crop_height = max(1, crop_height)
 
-            # Adjust if the crop goes out of bounds
-            if top == 0:
-                bottom = crop_height
-            if bottom == height:
-                top = height - crop_height
-            if left == 0:
-                right = crop_width
-            if right == width:
-                left = width - crop_width
+            # Scale oversized crops back inside the source frame while preserving aspect ratio.
+            crop_scale = min(width / crop_width, height / crop_height, 1.0)
+            crop_width = max(1, int(crop_width * crop_scale))
+            crop_height = max(1, int(crop_height * crop_scale))
+
+            # Ensure the crop stays within the frame
+            top = min(max(0, center_y - crop_height // 2), height - crop_height)
+            bottom = top + crop_height
+            left = min(max(0, center_x - crop_width // 2), width - crop_width)
+            right = left + crop_width
 
             # Crop the video and mask
             cropped_frame = frame[top:bottom, left:right, :]
@@ -148,6 +146,28 @@ class FL_VideoRecompose:
     FUNCTION = "replace_crop"
     CATEGORY = "🏵️Fill Nodes/experiments"
 
+    @staticmethod
+    def _fit_crop_channels(base_region: torch.Tensor, crop: torch.Tensor) -> torch.Tensor:
+        base_channels = base_region.shape[-1]
+        crop_channels = crop.shape[-1]
+
+        if crop_channels == base_channels:
+            return crop
+
+        if crop_channels == 4 and base_channels >= 3:
+            alpha = crop[..., 3:4].clamp(0.0, 1.0)
+            fitted = base_region.clone()
+            fitted[..., :3] = crop[..., :3] * alpha + base_region[..., :3] * (1.0 - alpha)
+            if base_channels > 3:
+                shared_extra_channels = min(base_channels, crop_channels) - 3
+                fitted[..., 3:3 + shared_extra_channels] = crop[..., 3:3 + shared_extra_channels]
+            return fitted
+
+        fitted = base_region.clone()
+        shared_channels = min(base_channels, crop_channels)
+        fitted[..., :shared_channels] = crop[..., :shared_channels]
+        return fitted
+
     def replace_crop(self, original_video: torch.Tensor, cropped_video: torch.Tensor, crop_data: list):
         batch_size, height, width, channels = original_video.shape
 
@@ -158,11 +178,19 @@ class FL_VideoRecompose:
             cropped_frame = cropped_video[i]
             frame_crop_data = crop_data[i]
 
+            top = max(0, min(height, int(frame_crop_data["top"])))
+            bottom = max(top, min(height, int(frame_crop_data["bottom"])))
+            left = max(0, min(width, int(frame_crop_data["left"])))
+            right = max(left, min(width, int(frame_crop_data["right"])))
+
+            if bottom <= top or right <= left:
+                output_video.append(frame.clone())
+                continue
+
             # Resize the cropped video back to its original size
             resized_crop = F.interpolate(
                 cropped_frame.unsqueeze(0).permute(0, 3, 1, 2),
-                size=(
-                frame_crop_data["bottom"] - frame_crop_data["top"], frame_crop_data["right"] - frame_crop_data["left"]),
+                size=(bottom - top, right - left),
                 mode='bilinear',
                 align_corners=False
             ).squeeze(0).permute(1, 2, 0)
@@ -170,9 +198,15 @@ class FL_VideoRecompose:
             # Create a copy of the original frame
             output_frame = frame.clone()
 
+            target_region = output_frame[
+                top:bottom,
+                left:right,
+                :
+            ]
+            resized_crop = self._fit_crop_channels(target_region, resized_crop)
+
             # Replace the cropped area in the original frame
-            output_frame[frame_crop_data["top"]:frame_crop_data["bottom"],
-            frame_crop_data["left"]:frame_crop_data["right"], :] = resized_crop
+            output_frame[top:bottom, left:right, :] = resized_crop
 
             output_video.append(output_frame)
 
