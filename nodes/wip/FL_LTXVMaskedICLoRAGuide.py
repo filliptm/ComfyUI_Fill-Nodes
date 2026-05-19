@@ -21,7 +21,6 @@ class FL_LTXVMaskedICLoRAGuide:
                 "vae": ("VAE",),
                 "latent": ("LATENT",),
                 "image": ("IMAGE",),
-                "mask": ("MASK",),
                 "frame_idx": (
                     "INT",
                     {
@@ -97,6 +96,14 @@ class FL_LTXVMaskedICLoRAGuide:
                 "use_tiled_encode": ("BOOLEAN", {"default": False}),
                 "tile_size": ("INT", {"default": 256, "min": 64, "max": 1024, "step": 32}),
                 "tile_overlap": ("INT", {"default": 64, "min": 16, "max": 512, "step": 16}),
+            },
+            "optional": {
+                "mask": (
+                    "MASK",
+                    {
+                        "tooltip": "Optional mask for latent denoise, guide attention, and green inpaint preprocessing.",
+                    },
+                ),
             }
         }
 
@@ -105,9 +112,10 @@ class FL_LTXVMaskedICLoRAGuide:
     FUNCTION = "apply"
     CATEGORY = "🏵️Fill Nodes/WIP"
     DESCRIPTION = (
-        "Adds an image/video as an LTXV IC-LoRA guide while applying a video mask "
-        "to latent denoising, guide attention, or both."
+        "Adds an image/video as an LTXV IC-LoRA guide. When a mask is connected, "
+        "it can affect latent denoising, guide attention, or both."
     )
+
     def apply(
         self,
         positive,
@@ -115,7 +123,6 @@ class FL_LTXVMaskedICLoRAGuide:
         vae,
         latent,
         image,
-        mask,
         frame_idx,
         guide_strength,
         denoise_strength,
@@ -129,11 +136,13 @@ class FL_LTXVMaskedICLoRAGuide:
         use_tiled_encode,
         tile_size,
         tile_overlap,
+        mask=None,
     ):
         latent_downscale_factor = max(1, int(round(latent_downscale_factor)))
         scale_factors = vae.downscale_index_formula
         latent_image = latent["samples"].clone()
-        uses_latent_noise_mask = mask_mode in ("both", "latent_noise")
+        has_mask = mask is not None
+        uses_latent_noise_mask = has_mask and mask_mode in ("both", "latent_noise")
         noise_mask = self._get_noise_mask(latent, latent_image, uses_latent_noise_mask)
 
         if latent_image.ndim != 5:
@@ -142,11 +151,12 @@ class FL_LTXVMaskedICLoRAGuide:
             raise ValueError("Adding LTXV guides to combined audio/video latents is not supported.")
 
         _, _, latent_length, latent_height, latent_width = latent_image.shape
-        mask = self._normalize_mask(mask, image.shape[0], image.shape[1], image.shape[2], image.device, invert_mask)
+        if has_mask:
+            mask = self._normalize_mask(mask, image.shape[0], image.shape[1], image.shape[2], image.device, invert_mask)
 
         source_image = image
         guide_input = image
-        if inpaint_preprocess:
+        if has_mask and inpaint_preprocess:
             guide_input = self._green_fill_masked_pixels(image, mask)
 
         time_scale_factor = scale_factors[0]
@@ -155,7 +165,8 @@ class FL_LTXVMaskedICLoRAGuide:
         if not causal_fix:
             guide_input = torch.cat([guide_input[:1], guide_input], dim=0)
             source_image = torch.cat([source_image[:1], source_image], dim=0)
-            mask = torch.cat([mask[:1], mask], dim=0)
+            if has_mask:
+                mask = torch.cat([mask[:1], mask], dim=0)
 
         guide_image, guide_latent, source_latent = self._encode_guides(
             vae=vae,
@@ -171,14 +182,16 @@ class FL_LTXVMaskedICLoRAGuide:
             tile_overlap=tile_overlap,
             needs_source_latent=write_source_to_latent,
         )
-        mask = mask[: guide_image.shape[0]]
+        if has_mask:
+            mask = mask[: guide_image.shape[0]]
 
         if not causal_fix:
             guide_latent = guide_latent[:, :, 1:, :, :]
             if source_latent is not None:
                 source_latent = source_latent[:, :, 1:, :, :]
             guide_image = guide_image[1:]
-            mask = mask[1:]
+            if has_mask:
+                mask = mask[1:]
 
         guide_orig_shape = list(guide_latent.shape[2:])
         guide_mask = None
@@ -203,7 +216,7 @@ class FL_LTXVMaskedICLoRAGuide:
         if write_source_to_latent and source_latent is not None:
             self._write_source_latent(latent_image, source_latent, latent_idx)
 
-        if mask_mode in ("both", "latent_noise"):
+        if has_mask and mask_mode in ("both", "latent_noise"):
             noise_mask = self._apply_target_noise_mask(
                 noise_mask=noise_mask,
                 source_mask=mask,
@@ -231,7 +244,7 @@ class FL_LTXVMaskedICLoRAGuide:
 
         pre_filter_count = guide_latent.shape[2] * guide_latent.shape[3] * guide_latent.shape[4]
         attention_mask = None
-        if mask_mode in ("both", "attention"):
+        if has_mask and mask_mode in ("both", "attention"):
             attention_mask = self._attention_mask(mask, guide_image.shape[0])
 
         positive = self._append_guide_attention_entry(
