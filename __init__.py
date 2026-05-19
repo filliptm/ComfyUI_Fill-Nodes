@@ -246,6 +246,7 @@ from .nodes.wip.FL_WanVideoBlender import FL_WanVideoBlender
 from .nodes.wip.FL_WanVideoBlender3Way import FL_WanVideoBlender3Way
 from .nodes.wip.FL_WanVideoContinuationBlender import FL_WanVideoContinuationBlender
 from .nodes.wip.FL_ZImageControlNetPatch import FL_ZImageControlNetPatch
+from .nodes.wip.FL_LTXVMaskedICLoRAGuide import FL_LTXVMaskedICLoRAGuide
 
 NODE_CLASS_MAPPINGS = {
     "FL_SaveWebM": FL_SaveWebM,
@@ -420,6 +421,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_WanVideoBlender3Way": FL_WanVideoBlender3Way,
     "FL_WanVideoContinuationBlender": FL_WanVideoContinuationBlender,
     "FL_ZImageControlNetPatch": FL_ZImageControlNetPatch,
+    "FL_LTXVMaskedICLoRAGuide": FL_LTXVMaskedICLoRAGuide,
     "FL_SaveRGBAAnimatedWebP": FL_SaveRGBAAnimatedWebP,
     "FL_Audio_BPM_Analyzer": FL_Audio_BPM_Analyzer,
     "FL_Audio_Beat_Visualizer": FL_Audio_Beat_Visualizer,
@@ -621,6 +623,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_WanVideoBlender3Way": "FL Wan Video Blender 3-Way",
     "FL_WanVideoContinuationBlender": "FL Wan Video Continuation Blender",
     "FL_ZImageControlNetPatch": "FL Z-Image ControlNet Patch Loader",
+    "FL_LTXVMaskedICLoRAGuide": "FL LTXV Masked IC-LoRA Guide",
     "FL_SaveRGBAAnimatedWebP": "FL Save RGBA Animated WebP",
     "FL_Audio_BPM_Analyzer": "FL Audio BPM Analyzer",
     "FL_Audio_Beat_Visualizer": "FL Audio Beat Visualizer",
