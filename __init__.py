@@ -141,6 +141,7 @@ from .nodes.image.FL_SaveWebpImages import FL_SaveWebPImage
 
 # KSAMPLERS NODES
 from .nodes.ksamplers.FL_KsamplerBasic import FL_KsamplerBasic
+from .nodes.ksamplers.FL_KsamplerContextWindow import FL_KsamplerContextWindow
 from .nodes.ksamplers.FL_KsamplerPlus import FL_KsamplerPlus
 from .nodes.ksamplers.FL_KsamplerPlusV2 import FL_KsamplerPlusV2
 from .nodes.ksamplers.FL_KsamplerSigma import FL_KsamplerSigma
@@ -310,6 +311,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_KsamplerPlus": FL_KsamplerPlus,
     "FL_KsamplerPlusV2": FL_KsamplerPlusV2,
     "FL_KsamplerBasic": FL_KsamplerBasic,
+    "FL_KsamplerContextWindow": FL_KsamplerContextWindow,
     "FL_KsamplerSigma": FL_KsamplerSigma,
     "FL_KsamplerSEG_Regions": FL_KsamplerSEG_Regions,
     "FL_KsamplerSEG_Captioner": FL_KsamplerSEG_Captioner,
@@ -510,6 +512,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_KsamplerPlus": "FL KSampler Plus",
     "FL_KsamplerPlusV2": "FL KSampler Plus V2",
     "FL_KsamplerBasic": "FL KSampler Basic",
+    "FL_KsamplerContextWindow": "FL Context Window KSampler",
     "FL_KsamplerSigma": "FL KSampler Sigma",
     "FL_KsamplerSEG_Regions": "FL KSampler SEG Regions",
     "FL_KsamplerSEG_Captioner": "FL KSampler SEG Captioner",
