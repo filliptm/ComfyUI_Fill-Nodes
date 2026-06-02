@@ -71,7 +71,7 @@ const STYLES = `
   }
   .fl-region-png-dir-row {
     display: grid;
-    grid-template-columns: 58px 1fr 28px;
+    grid-template-columns: 58px 1fr 58px 58px 28px;
     gap: 6px;
     align-items: center;
   }
@@ -91,6 +91,10 @@ const STYLES = `
     color: #f4f4f5;
     padding: 0 7px;
     font-size: 11px;
+  }
+  .fl-region-png-size-input {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
   }
   .fl-region-png-dir-delete {
     width: 26px;
@@ -173,8 +177,16 @@ class RegionPNGOverlayWidget {
       if (!input) return;
       const index = parseInt(input.dataset.index, 10);
       if (!Number.isFinite(index) || !this.regions[index]) return;
-      this.regions[index].directory = input.value;
-      this.commit(false);
+      const field = input.dataset.field || "directory";
+      const region = this.regions[index];
+      if (field === "w" || field === "h") {
+        region[field] = Math.max(1, Math.round(Number(input.value) || 1));
+        this.clampRegion(region);
+        this.commit();
+      } else {
+        region.directory = input.value;
+        this.commit(false);
+      }
     });
     this.editor.addEventListener("click", (event) => {
       const button = event.target.closest("button[data-delete-index]");
@@ -367,9 +379,15 @@ class RegionPNGOverlayWidget {
       ctx.lineWidth = selected ? 2 : 1.5;
       ctx.fillRect(x, y, w, h);
       ctx.strokeRect(x, y, w, h);
-      ctx.fillStyle = selected ? "#38bdf8" : "#facc15";
       ctx.font = "12px sans-serif";
-      ctx.fillText(String(index + 1), x + 5, y + 15);
+      const label = selected
+        ? `${index + 1} - ${Math.round(r.w)}x${Math.round(r.h)}`
+        : String(index + 1);
+      const labelWidth = Math.ceil(ctx.measureText(label).width) + 10;
+      ctx.fillStyle = selected ? "rgba(2, 132, 199, 0.85)" : "rgba(0, 0, 0, 0.55)";
+      ctx.fillRect(x + 4, y + 4, labelWidth, 18);
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillText(label, x + 9, y + 17);
       if (selected) this.drawHandles(ctx, x, y, w, h);
     });
 
@@ -545,7 +563,8 @@ class RegionPNGOverlayWidget {
 
     const active = document.activeElement;
     const activeIndex = active?.dataset?.index;
-    const activeSelection = active && active.tagName === "INPUT"
+    const activeField = active?.dataset?.field;
+    const activeSelection = active && active.tagName === "INPUT" && active.type !== "number"
       ? [active.selectionStart, active.selectionEnd]
       : null;
 
@@ -557,16 +576,19 @@ class RegionPNGOverlayWidget {
     this.editor.innerHTML = this.regions.map((region, index) => `
       <div class="fl-region-png-dir-row ${index === this.selected ? "is-selected" : ""}">
         <label>Box ${index + 1}</label>
-        <input data-index="${index}" value="${this.escapeAttr(region.directory || "")}" placeholder="Paste PNG folder path" />
+        <input data-index="${index}" data-field="directory" value="${this.escapeAttr(region.directory || "")}" placeholder="Paste PNG folder path" />
+        <input class="fl-region-png-size-input" data-index="${index}" data-field="w" type="number" min="1" step="1" value="${Math.round(region.w || 1)}" title="Box width in source pixels" />
+        <input class="fl-region-png-size-input" data-index="${index}" data-field="h" type="number" min="1" step="1" value="${Math.round(region.h || 1)}" title="Box height in source pixels" />
         <button class="fl-region-png-dir-delete" type="button" data-delete-index="${index}" title="Delete box ${index + 1}">×</button>
       </div>
     `).join("");
 
     if (activeIndex !== undefined) {
-      const next = this.editor.querySelector(`input[data-index="${activeIndex}"]`);
+      const fieldSelector = activeField ? `[data-field="${activeField}"]` : "";
+      const next = this.editor.querySelector(`input[data-index="${activeIndex}"]${fieldSelector}`);
       if (next) {
         next.focus();
-        if (activeSelection) next.setSelectionRange(activeSelection[0], activeSelection[1]);
+        if (activeSelection && next.type !== "number") next.setSelectionRange(activeSelection[0], activeSelection[1]);
       }
     }
   }
