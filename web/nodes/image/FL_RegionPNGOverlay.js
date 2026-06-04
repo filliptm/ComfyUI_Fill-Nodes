@@ -62,18 +62,24 @@ const STYLES = `
   .fl-region-png-editor {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 4px;
     max-height: 150px;
     overflow-y: auto;
     padding: 7px;
     border-top: 1px solid #2f3137;
     background: #202127;
   }
+  .fl-region-png-editor-header,
   .fl-region-png-dir-row {
     display: grid;
     grid-template-columns: 58px 1fr 52px 52px 52px 52px 28px;
     gap: 6px;
     align-items: center;
+  }
+  .fl-region-png-editor-header {
+    color: #71717a;
+    font-size: 10px;
+    text-transform: uppercase;
   }
   .fl-region-png-dir-row.is-selected label {
     color: #38bdf8;
@@ -178,19 +184,25 @@ class RegionPNGOverlayWidget {
       const index = parseInt(input.dataset.index, 10);
       if (!Number.isFinite(index) || !this.regions[index]) return;
       const field = input.dataset.field || "directory";
-      const region = this.regions[index];
-      if (field === "x" || field === "y") {
-        region[field] = Math.max(0, Math.round(Number(input.value) || 0));
-        this.clampRegion(region);
-        this.commit();
-      } else if (field === "w" || field === "h") {
-        region[field] = Math.max(1, Math.round(Number(input.value) || 1));
-        this.clampRegion(region);
-        this.commit();
-      } else {
-        region.directory = input.value;
-        this.commit(false);
-      }
+      if (field !== "directory") return;
+      this.regions[index].directory = input.value;
+      this.commit(false);
+    });
+    this.editor.addEventListener("change", (event) => {
+      const input = event.target.closest("input[data-index]");
+      if (!input) return;
+      this.commitRegionNumberInput(input);
+    });
+    this.editor.addEventListener("blur", (event) => {
+      const input = event.target.closest("input[data-index]");
+      if (!input) return;
+      this.commitRegionNumberInput(input);
+    }, true);
+    this.editor.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      const input = event.target.closest("input[data-index]");
+      if (!input) return;
+      if (this.commitRegionNumberInput(input)) input.blur();
     });
     this.editor.addEventListener("click", (event) => {
       const button = event.target.closest("button[data-delete-index]");
@@ -356,6 +368,21 @@ class RegionPNGOverlayWidget {
     if (edge.includes("t")) y1 += dy;
     if (edge.includes("b")) y2 += dy;
     this.setRegionRect(region, x1, y1, x2 - x1, y2 - y1);
+  }
+
+  commitRegionNumberInput(input) {
+    const field = input.dataset.field;
+    if (!["x", "y", "w", "h"].includes(field)) return false;
+
+    const index = parseInt(input.dataset.index, 10);
+    if (!Number.isFinite(index) || !this.regions[index]) return false;
+
+    const min = field === "w" || field === "h" ? 1 : 0;
+    const parsed = Number(input.value);
+    this.regions[index][field] = Math.max(min, Math.round(Number.isFinite(parsed) ? parsed : min));
+    this.clampRegion(this.regions[index]);
+    this.commit();
+    return true;
   }
 
   render() {
@@ -577,7 +604,17 @@ class RegionPNGOverlayWidget {
       return;
     }
 
-    this.editor.innerHTML = this.regions.map((region, index) => `
+    this.editor.innerHTML = `
+      <div class="fl-region-png-editor-header">
+        <span>Box</span>
+        <span>Folder</span>
+        <span>X</span>
+        <span>Y</span>
+        <span>W</span>
+        <span>H</span>
+        <span></span>
+      </div>
+    ` + this.regions.map((region, index) => `
       <div class="fl-region-png-dir-row ${index === this.selected ? "is-selected" : ""}">
         <label>Box ${index + 1}</label>
         <input data-index="${index}" data-field="directory" value="${this.escapeAttr(region.directory || "")}" placeholder="Paste PNG folder path" />
@@ -585,7 +622,7 @@ class RegionPNGOverlayWidget {
         <input class="fl-region-png-size-input" data-index="${index}" data-field="y" type="number" min="0" step="1" value="${Math.round(region.y || 0)}" title="Box Y position in source pixels" />
         <input class="fl-region-png-size-input" data-index="${index}" data-field="w" type="number" min="1" step="1" value="${Math.round(region.w || 1)}" title="Box width in source pixels" />
         <input class="fl-region-png-size-input" data-index="${index}" data-field="h" type="number" min="1" step="1" value="${Math.round(region.h || 1)}" title="Box height in source pixels" />
-        <button class="fl-region-png-dir-delete" type="button" data-delete-index="${index}" title="Delete box ${index + 1}">×</button>
+        <button class="fl-region-png-dir-delete" type="button" data-delete-index="${index}" title="Delete box ${index + 1}">X</button>
       </div>
     `).join("");
 
