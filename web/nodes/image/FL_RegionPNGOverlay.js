@@ -71,7 +71,7 @@ const STYLES = `
   }
   .fl-region-png-dir-row {
     display: grid;
-    grid-template-columns: 58px 1fr 58px 58px 28px;
+    grid-template-columns: 58px 1fr 52px 52px 52px 52px 28px;
     gap: 6px;
     align-items: center;
   }
@@ -179,7 +179,11 @@ class RegionPNGOverlayWidget {
       if (!Number.isFinite(index) || !this.regions[index]) return;
       const field = input.dataset.field || "directory";
       const region = this.regions[index];
-      if (field === "w" || field === "h") {
+      if (field === "x" || field === "y") {
+        region[field] = Math.max(0, Math.round(Number(input.value) || 0));
+        this.clampRegion(region);
+        this.commit();
+      } else if (field === "w" || field === "h") {
         region[field] = Math.max(1, Math.round(Number(input.value) || 1));
         this.clampRegion(region);
         this.commit();
@@ -577,6 +581,8 @@ class RegionPNGOverlayWidget {
       <div class="fl-region-png-dir-row ${index === this.selected ? "is-selected" : ""}">
         <label>Box ${index + 1}</label>
         <input data-index="${index}" data-field="directory" value="${this.escapeAttr(region.directory || "")}" placeholder="Paste PNG folder path" />
+        <input class="fl-region-png-size-input" data-index="${index}" data-field="x" type="number" min="0" step="1" value="${Math.round(region.x || 0)}" title="Box X position in source pixels" />
+        <input class="fl-region-png-size-input" data-index="${index}" data-field="y" type="number" min="0" step="1" value="${Math.round(region.y || 0)}" title="Box Y position in source pixels" />
         <input class="fl-region-png-size-input" data-index="${index}" data-field="w" type="number" min="1" step="1" value="${Math.round(region.w || 1)}" title="Box width in source pixels" />
         <input class="fl-region-png-size-input" data-index="${index}" data-field="h" type="number" min="1" step="1" value="${Math.round(region.h || 1)}" title="Box height in source pixels" />
         <button class="fl-region-png-dir-delete" type="button" data-delete-index="${index}" title="Delete box ${index + 1}">×</button>
@@ -641,7 +647,7 @@ app.registerExtension({
     });
 
     const [oldW, oldH] = node.size;
-    node.setSize([Math.max(oldW, 460), Math.max(oldH, 640)]);
+    node.setSize([Math.max(oldW, 560), Math.max(oldH, 640)]);
 
     setTimeout(() => {
       const inst = new RegionPNGOverlayWidget(node, container);
