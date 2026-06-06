@@ -1,15 +1,11 @@
+import comfy.samplers
+
 class FL_SchedulerStrings:
     @classmethod
     def INPUT_TYPES(s):
         return {
             "required": {
-                "normal": ("BOOLEAN", {"default": False}),
-                "karras": ("BOOLEAN", {"default": False}),
-                "exponential": ("BOOLEAN", {"default": False}),
-                "sgm_uniform": ("BOOLEAN", {"default": False}),
-                "simple": ("BOOLEAN", {"default": False}),
-                "ddim_uniform": ("BOOLEAN", {"default": False}),
-                "beta": ("BOOLEAN", {"default": False}),
+                scheduler: ("BOOLEAN", {"default": False}) for scheduler in comfy.samplers.KSampler.SCHEDULERS
             }
         }
 
