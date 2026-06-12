@@ -196,6 +196,7 @@ from .nodes.utility.FL_RandomRange import FL_RandomNumber
 from .nodes.utility.FL_RandomShapeGenerator import FL_RandomShapeGenerator
 from .nodes.utility.FL_SD_Slices import FL_SDUltimate_Slices
 from .nodes.utility.FL_SeparateMasks import FL_SeparateMaskComponents
+from .nodes.utility.FL_ShowText import FL_ShowText
 from .nodes.utility.FL_StringToLoraName import FL_StringToLoraName
 from .nodes.utility.FL_Switch import FL_Switch
 from .nodes.utility.FL_Switch_Big import FL_Switch_Big
@@ -449,6 +450,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_RandomShapeGenerator": FL_RandomShapeGenerator,
     "FL_KartelJobInput": FL_KartelJobInput,
     "FL_KartelJobOutput": FL_KartelJobOutput,
+    "FL_ShowText": FL_ShowText,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -652,6 +654,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_RandomShapeGenerator": "FL Random Shape Generator",
     "FL_KartelJobInput": "FL Kartel Job Input",
     "FL_KartelJobOutput": "FL Kartel Job Output",
+    "FL_ShowText": "FL Show Text",
 }
 
 # Conditionally register google-genai nodes if the SDK loaded successfully
