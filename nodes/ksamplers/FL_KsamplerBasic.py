@@ -4,6 +4,8 @@ import comfy.samplers
 import comfy.utils
 import logging
 
+from ._vae_helpers import safe_vae_decode
+
 class FL_KsamplerBasic:
     @classmethod
     def INPUT_TYPES(s):
@@ -46,8 +48,7 @@ class FL_KsamplerBasic:
 
             output_image = None
             if vae is not None:
-                vae_decoder = VAEDecode()
-                output_image = vae_decoder.decode(vae, samples)[0]
+                output_image = safe_vae_decode(vae, samples, node_name="FL_KsamplerBasic")
 
             return (model, positive, negative, samples, vae, output_image)
 

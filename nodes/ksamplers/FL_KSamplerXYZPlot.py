@@ -7,6 +7,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from ..utils import tensor_to_pil, pil_to_tensor
 
+from ._vae_helpers import safe_vae_decode
+
 class FL_KSamplerXYZPlot:
     # Positioning and style parameters
     CELL_MARGIN = 70
@@ -162,8 +164,7 @@ class FL_KSamplerXYZPlot:
                                               denoise=current_params["denoise"])[0]
 
                     if vae is not None:
-                        vae_decoder = VAEDecode()
-                        output_image = vae_decoder.decode(vae, samples)[0]
+                        output_image = safe_vae_decode(vae, samples, node_name="FL_KSamplerXYZPlot")
                         results.append(tensor_to_pil(output_image))
 
                 if z_axis != "none":

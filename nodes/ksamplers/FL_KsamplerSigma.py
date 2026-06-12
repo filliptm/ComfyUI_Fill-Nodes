@@ -11,6 +11,8 @@ import latent_preview
 from nodes import VAEDecode, VAEEncode
 from server import PromptServer
 
+from ._vae_helpers import safe_vae_decode
+
 
 class FL_KsamplerSigma:
     @classmethod
@@ -67,7 +69,7 @@ class FL_KsamplerSigma:
 
             output_image = None
             if vae is not None:
-                output_image = VAEDecode().decode(vae, samples_dict)[0]
+                output_image = safe_vae_decode(vae, samples_dict, node_name="FL_KsamplerSigma")
 
             return (model, positive, negative, samples_dict, vae, output_image, sigmas_out)
 

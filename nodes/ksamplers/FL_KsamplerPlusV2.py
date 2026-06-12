@@ -9,6 +9,8 @@ from PIL import Image
 import torch.nn.functional as F
 import latent_preview
 
+from ._vae_helpers import safe_vae_decode
+
 
 class FL_KsamplerPlusV2:
     @classmethod
@@ -294,8 +296,7 @@ class FL_KsamplerPlusV2:
 
             output_image = None
             if vae is not None:
-                vae_decoder = VAEDecode()
-                output_image = vae_decoder.decode(vae, {"samples": samples})[0]
+                output_image = safe_vae_decode(vae, {"samples": samples}, node_name="FL_KsamplerPlusV2")
 
             # Prepare debug info if debug mode is enabled
             debug_info = ""

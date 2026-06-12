@@ -8,6 +8,8 @@ import comfy.samplers
 from comfy_execution.utils import get_executing_context
 from nodes import VAEDecode, VAEEncode, common_ksampler
 
+from ._vae_helpers import safe_vae_decode
+
 
 CONTEXT_SCHEDULES = [
     comfy.context_windows.ContextSchedules.STATIC_STANDARD,
@@ -276,7 +278,7 @@ class FL_KsamplerContextWindow:
 
             output_image = None
             if vae is not None:
-                output_image = VAEDecode().decode(vae, sampled)[0]
+                output_image = safe_vae_decode(vae, sampled, node_name="FL_KsamplerContextWindow")
 
             debug_info = self._debug_info(
                 samples=samples,
