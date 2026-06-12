@@ -178,3 +178,8 @@ cython_debug/
 
 # Claude Code folder
 .claude/
+
+# Build artifacts
+node.zip
+*.zip
+temp_downloads/

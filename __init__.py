@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger("fl_fill_nodes")
+
 # AI NODES
 from .nodes.ai.FL_Fal_Gemini_ImageEdit import FL_Fal_Gemini_ImageEdit
 from .nodes.ai.FL_Fal_GPTImage2_Edit import FL_Fal_GPTImage2_Edit
@@ -26,8 +30,8 @@ try:
     from .nodes.ai.FL_VertexVeo3 import FL_Veo3VideoGen
 except ImportError as e:
     _GENAI_NODES_AVAILABLE = False
-    print(f"[FL Fill-Nodes] Warning: Could not load Google Gemini/Vertex nodes: {e}")
-    print("[FL Fill-Nodes] Install google-genai with a compatible websockets version to enable these nodes.")
+    logger.warning("Could not load Google Gemini/Vertex nodes: %s", e)
+    logger.info("Install google-genai with a compatible websockets version to enable these nodes.")
 
 # API_TOOLS NODES
 from .nodes.api_tools.FL_API_Base64_ImageLoader import FL_API_Base64_ImageLoader
