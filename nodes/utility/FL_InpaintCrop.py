@@ -146,8 +146,8 @@ class FL_InpaintCrop:
         padding = kernel_size // 2
         padded = F.pad(binary_mask_tensor.unsqueeze(0).unsqueeze(0), (padding, padding, padding, padding), mode='constant', value=1)
 
-        # Dilate
-        dilated = F.conv2d(padded, kernel, padding=0)
+        # Dilate - FIX: Cast padded to float() here
+        dilated = F.conv2d(padded.float(), kernel, padding=0)
         dilated = (dilated > 0).float()
 
         # Erode
@@ -192,8 +192,8 @@ class FL_InpaintCrop:
             if not new_seed.any():
                 break
 
-        # The holes are the areas that weren't reached
-        holes = (1 - seed) * (1 - closed)
+            # The holes are the areas that weren't reached
+            holes = (1 - seed) * (1 - closed)
 
         # Add the holes to the original mask
         filled = torch.clamp(closed + holes, 0, 1)
@@ -219,8 +219,37 @@ class FL_InpaintCrop:
         original_height, original_width = image.shape[1], image.shape[2]
 
         # Auto-resize mask to match image size
-        if mask.shape[1] != image.shape[1] or mask.shape[2] != image.shape[2]:
-            mask = F.interpolate(mask.unsqueeze(1), size=(image.shape[1], image.shape[2]), mode='nearest').squeeze(1)
+        if mask.shape[-2] != image.shape[1] or mask.shape[-1] != image.shape[2]:
+        
+            # Normalize mask to NCHW
+            if mask.dim() == 2:
+                mask_nchw = mask.unsqueeze(0).unsqueeze(0)
+            elif mask.dim() == 3:
+                if mask.shape[0] == 1:
+                    mask_nchw = mask.unsqueeze(1)
+                else:
+                    mask_nchw = mask.unsqueeze(0)
+            elif mask.dim() == 4:
+                mask_nchw = mask
+            else:
+                raise ValueError(f"Unsupported mask shape: {mask.shape}")
+
+            # 🔥 nchw to float
+            mask_nchw = mask_nchw.float()
+
+            # Resize safely
+            mask_resized = F.interpolate(
+                mask_nchw,
+                size=(image.shape[1], image.shape[2]),
+                mode='nearest'
+            )
+        
+            # Return to [1, H, W]
+            mask = mask_resized.squeeze(0).squeeze(0)
+        
+            # Clamp to valid mask range
+            mask = torch.clamp(mask, 0.0, 1.0)
+        
             print(f"[FL Inpaint Crop] Auto-resized mask to {image.shape[2]}x{image.shape[1]}")
 
         # Invert mask if requested
