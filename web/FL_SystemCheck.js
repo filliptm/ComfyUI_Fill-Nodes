@@ -1,8 +1,6 @@
 // custom_nodes/FL_SystemCheck.js
-// PATCHED VERSION (DOM widget) — compatible con el frontend nuevo de ComfyUI (>= 1.x).
-// Mantiene el boton "Run System Check" y el fetch a /fl_system_info, pero renderiza la
-// informacion en un DOM widget en lugar del dibujo legacy con onDrawForeground (que el
-// frontend nuevo ya no pinta). Original de filliptm (Machine Delusions).
+// Render system info in a DOM widget so it stays visible on the current
+// ComfyUI frontend instead of relying on legacy canvas foreground drawing.
 
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
@@ -45,37 +43,39 @@ const colorFor = (k) => COLORS[k] || "#95a5a6";
 app.registerExtension({
     name: "FL.SystemCheck",
     async nodeCreated(node) {
-        if (node.comfyClass !== "FL_SystemCheck") return;
+        const comfyClass = (node.constructor && node.constructor.comfyClass) || node.comfyClass || "";
+        if (comfyClass !== "FL_SystemCheck") return;
 
         node.color = "#2a363b";
         node.bgcolor = "#4F0074";
 
-        // Contenedor del DOM widget donde se pinta la info
         const container = document.createElement("div");
         container.style.cssText =
             "display:flex;flex-direction:column;gap:6px;padding:6px;box-sizing:border-box;" +
             "width:100%;height:100%;overflow:auto;font-family:Arial,sans-serif;font-size:12px;color:#fff;";
 
         const placeholder = document.createElement("div");
-        placeholder.textContent = 'Pulsa "Run System Check".';
+        placeholder.textContent = 'Click "Run System Check".';
         placeholder.style.opacity = "0.6";
         container.appendChild(placeholder);
 
-        // Boton
         node.addWidget("button", "Run System Check", null, () => runSystemCheck(node, container));
 
-        // DOM widget (esto es lo que el frontend nuevo SI renderiza)
-        node.addDOMWidget("fl_system_info", "div", container, { serialize: false });
+        node.addDOMWidget("fl_system_info", "div", container, {
+            getMinHeight: () => 260,
+            hideOnZoom: false,
+            serialize: false,
+        });
 
-        // Tamano inicial decente
-        node.size = [360, 340];
+        const [oldWidth, oldHeight] = node.size;
+        node.setSize([Math.max(oldWidth, 360), Math.max(oldHeight, 340)]);
     },
 });
 
 async function runSystemCheck(node, container) {
     container.innerHTML = "";
     const loading = document.createElement("div");
-    loading.textContent = "Comprobando…";
+    loading.textContent = "Checking...";
     loading.style.opacity = "0.7";
     container.appendChild(loading);
 
@@ -90,7 +90,7 @@ async function runSystemCheck(node, container) {
         container.innerHTML = "";
         const err = document.createElement("div");
         err.style.color = "#ff6b6b";
-        err.textContent = "Error: " + e.message + " (mira la consola).";
+        err.textContent = "Error: " + e.message + " (check the console).";
         container.appendChild(err);
         console.error("[FL System Check]", e);
     }
