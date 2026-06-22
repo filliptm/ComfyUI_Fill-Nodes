@@ -1,233 +1,121 @@
 // custom_nodes/FL_SystemCheck.js
+// PATCHED VERSION (DOM widget) — compatible con el frontend nuevo de ComfyUI (>= 1.x).
+// Mantiene el boton "Run System Check" y el fetch a /fl_system_info, pero renderiza la
+// informacion en un DOM widget en lugar del dibujo legacy con onDrawForeground (que el
+// frontend nuevo ya no pinta). Original de filliptm (Machine Delusions).
 
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
+const ICONS = {
+    "Operating System": "🖥️",
+    "CPU": "⚙️",
+    "RAM": "🧠",
+    "GPU": "🎮",
+    "CUDA version": "🚀",
+    "Python version": "🐍",
+    "PyTorch": "🔥",
+    "xformers": "⚡",
+    "torchvision": "👁️",
+    "numpy": "🔢",
+    "Pillow": "🖼️",
+    "OpenCV": "📷",
+    "transformers": "🤖",
+};
+
+const COLORS = {
+    "Operating System": "#4a90e2",
+    "CPU": "#50c878",
+    "RAM": "#9b59b6",
+    "GPU": "#e74c3c",
+    "CUDA version": "#f39c12",
+    "Python version": "#3498db",
+    "PyTorch": "#e67e22",
+    "xformers": "#1abc9c",
+    "torchvision": "#34495e",
+    "numpy": "#2ecc71",
+    "Pillow": "#e84393",
+    "OpenCV": "#c5a01c",
+    "transformers": "#6c5ce7",
+};
+
+const iconFor = (k) => ICONS[k] || "ℹ️";
+const colorFor = (k) => COLORS[k] || "#95a5a6";
+
 app.registerExtension({
     name: "FL.SystemCheck",
     async nodeCreated(node) {
-        if (node.comfyClass === "FL_SystemCheck") {
-            node.color = "#2a363b";
-            node.bgcolor = "#4F0074";
-            node.systemInfo = null;
-            node.animationOffset = 0;
+        if (node.comfyClass !== "FL_SystemCheck") return;
 
-            // Add button widget
-            const widget = node.addWidget("button", "Run System Check", null, () => {
-                runSystemCheck(node);
-            });
-            widget.serialize = false;
+        node.color = "#2a363b";
+        node.bgcolor = "#4F0074";
 
-            // Override the default drawing behavior
-            node.onDrawForeground = function(ctx) {
-                if (this.systemInfo) {
-                    drawSystemInfo(ctx, this);
-                }
-            };
+        // Contenedor del DOM widget donde se pinta la info
+        const container = document.createElement("div");
+        container.style.cssText =
+            "display:flex;flex-direction:column;gap:6px;padding:6px;box-sizing:border-box;" +
+            "width:100%;height:100%;overflow:auto;font-family:Arial,sans-serif;font-size:12px;color:#fff;";
 
-            // Start animation loop
-            animateNode(node);
-        }
+        const placeholder = document.createElement("div");
+        placeholder.textContent = 'Pulsa "Run System Check".';
+        placeholder.style.opacity = "0.6";
+        container.appendChild(placeholder);
+
+        // Boton
+        node.addWidget("button", "Run System Check", null, () => runSystemCheck(node, container));
+
+        // DOM widget (esto es lo que el frontend nuevo SI renderiza)
+        node.addDOMWidget("fl_system_info", "div", container, { serialize: false });
+
+        // Tamano inicial decente
+        node.size = [360, 340];
     },
 });
 
-function animateNode(node) {
-    node.animationOffset += 0.005; // Adjust speed as needed
-    if (node.animationOffset > 1) node.animationOffset -= 1;
-    node.setDirtyCanvas(true);
-    requestAnimationFrame(() => animateNode(node));
-}
+async function runSystemCheck(node, container) {
+    container.innerHTML = "";
+    const loading = document.createElement("div");
+    loading.textContent = "Comprobando…";
+    loading.style.opacity = "0.7";
+    container.appendChild(loading);
 
-async function runSystemCheck(node) {
     try {
-        const response = await api.fetchApi('/fl_system_info');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        node.systemInfo = await response.json();
-        // Remove ENV variables
-        delete node.systemInfo["Env: PYTHONPATH"];
-        delete node.systemInfo["Env: CUDA_HOME"];
-        delete node.systemInfo["Env: LD_LIBRARY_PATH"];
-        node.setDirtyCanvas(true);
-    } catch (error) {
-        console.error("Error fetching system info:", error);
-        node.systemInfo = { "Error": "Failed to fetch system information. Check console for details." };
-        node.setDirtyCanvas(true);
+        const response = await api.fetchApi("/fl_system_info");
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const info = await response.json();
+        ["Env: PYTHONPATH", "Env: CUDA_HOME", "Env: LD_LIBRARY_PATH"].forEach((k) => delete info[k]);
+        renderInfo(container, info);
+        node.setDirtyCanvas(true, true);
+    } catch (e) {
+        container.innerHTML = "";
+        const err = document.createElement("div");
+        err.style.color = "#ff6b6b";
+        err.textContent = "Error: " + e.message + " (mira la consola).";
+        container.appendChild(err);
+        console.error("[FL System Check]", e);
     }
 }
 
-function drawSystemInfo(ctx, node) {
-    const margin = 15;
-    const componentHeight = 30;
-    const componentSpacing = 10;
-    let y = 60; // Start below the node title and button
+function renderInfo(container, info) {
+    container.innerHTML = "";
+    for (const [key, value] of Object.entries(info)) {
+        const row = document.createElement("div");
+        row.style.cssText =
+            "display:flex;align-items:center;gap:8px;border-radius:5px;padding:5px 8px;" +
+            "background:" + colorFor(key) + ";";
 
-    ctx.save();
-    ctx.font = "12px Arial";
+        const icon = document.createElement("span");
+        icon.textContent = iconFor(key);
 
-    const components = Object.entries(node.systemInfo).map(([key, value]) => ({
-        key,
-        value,
-        icon: getIconForKey(key),
-        color: getColorForKey(key)
-    }));
+        const label = document.createElement("span");
+        label.textContent = key;
+        label.style.fontWeight = "bold";
 
-    // Calculate max width
-    let maxWidth = 0;
-    components.forEach(comp => {
-        ctx.font = "bold 12px Arial";
-        const labelWidth = ctx.measureText(comp.key).width;
-        ctx.font = "12px Arial";
-        const valueWidth = ctx.measureText(comp.value).width;
-        const componentWidth = labelWidth + valueWidth + 80; // 80 for padding and icon
-        maxWidth = Math.max(maxWidth, componentWidth);
-    });
+        const val = document.createElement("span");
+        val.textContent = value;
+        val.style.cssText = "margin-left:auto;text-align:right;word-break:break-word;";
 
-    // Draw components
-    components.forEach((comp, index) => {
-        const staggeredOffset = (node.animationOffset + index * 0.1) % 1; // Stagger the animation
-        drawComponent(ctx, comp.key, comp.value, y, maxWidth, componentHeight, comp.color, comp.icon, staggeredOffset);
-        y += componentHeight + componentSpacing;
-    });
-
-    // Adjust node size
-    node.size[0] = maxWidth + 2 * margin;
-    node.size[1] = y + margin;
-
-    ctx.restore();
-}
-
-function drawComponent(ctx, label, value, y, width, height, color, icon, animationOffset) {
-    const radius = 5;
-    const iconWidth = 30;
-    const padding = 5;
-
-    // Draw component background
-    ctx.fillStyle = color;
-    roundRect(ctx, 15, y, width, height, radius, true, false);
-
-    // Draw icon background
-    ctx.fillStyle = lightenColor(color, 20);
-    roundRect(ctx, 15, y, iconWidth, height, radius, true, false);
-
-    // Draw icon (centered)
-    ctx.font = "16px Arial";
-    ctx.fillStyle = "#ffffff";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(icon, 15 + iconWidth / 2, y + height / 2);
-
-    // Reset text alignment for label and value
-    ctx.textAlign = "left";
-    ctx.textBaseline = "alphabetic";
-
-    // Draw label and value
-    ctx.font = "bold 12px Arial";
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(label, 55, y + height / 2 + 5);
-
-    ctx.font = "12px Arial";
-    const valueWidth = ctx.measureText(value).width;
-    ctx.fillText(value, width - valueWidth - padding, y + height / 2 + 5);
-
-    // Draw animation
-    drawFluidAnimation(ctx, 15, y, width, height, lightenColor(color, 10), animationOffset);
-}
-
-function drawFluidAnimation(ctx, x, y, width, height, color, offset) {
-    ctx.save();
-    ctx.globalCompositeOperation = 'overlay';
-    ctx.globalAlpha = 0.3;
-
-    const gradient = ctx.createLinearGradient(x, y, x + width, y);
-    gradient.addColorStop(0, 'rgba(255,255,255,0)');
-    gradient.addColorStop(0.5, color);
-    gradient.addColorStop(1, 'rgba(255,255,255,0)');
-
-    ctx.fillStyle = gradient;
-
-    // Create a wavy path
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-
-    const waveHeight = height * 0.4;
-    const waveCount = 3;
-    for (let i = 0; i <= width; i++) {
-        const dx = i / width;
-        const offsetY = Math.sin((dx + offset) * Math.PI * 2 * waveCount) * waveHeight;
-        ctx.lineTo(x + i, y + height / 2 + offsetY);
+        row.append(icon, label, val);
+        container.appendChild(row);
     }
-
-    ctx.lineTo(x + width, y + height);
-    ctx.lineTo(x, y + height);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.restore();
-}
-
-function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.arcTo(x + width, y, x + width, y + height, radius);
-    ctx.arcTo(x + width, y + height, x, y + height, radius);
-    ctx.arcTo(x, y + height, x, y, radius);
-    ctx.arcTo(x, y, x + width, y, radius);
-    ctx.closePath();
-    if (fill) {
-        ctx.fill();
-    }
-    if (stroke) {
-        ctx.stroke();
-    }
-}
-
-function lightenColor(color, percent) {
-    const num = parseInt(color.replace("#", ""), 16),
-          amt = Math.round(2.55 * percent),
-          R = (num >> 16) + amt,
-          G = (num >> 8 & 0x00FF) + amt,
-          B = (num & 0x0000FF) + amt;
-    return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
-        (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
-        (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
-}
-
-function getIconForKey(key) {
-    const iconMap = {
-        "Operating System": "🖥️",
-        "CPU": "⚙️",
-        "RAM": "🧠",
-        "GPU": "🎮",
-        "CUDA version": "🚀",
-        "Python version": "🐍",
-        "PyTorch": "🔥",
-        "xformers": "⚡",
-        "torchvision": "👁️",
-        "numpy": "🔢",
-        "Pillow": "🖼️",
-        "OpenCV": "📷",
-        "transformers": "🤖"
-    };
-    return iconMap[key] || "ℹ️";
-}
-
-function getColorForKey(key) {
-    const colorMap = {
-        "Operating System": "#4a90e2",
-        "CPU": "#50c878",
-        "RAM": "#9b59b6",
-        "GPU": "#e74c3c",
-        "CUDA version": "#f39c12",
-        "Python version": "#3498db",
-        "PyTorch": "#e67e22",
-        "xformers": "#1abc9c",
-        "torchvision": "#34495e",
-        "numpy": "#2ecc71",
-        "Pillow": "#e84393",
-        "OpenCV": "#c5a01c",
-        "transformers": "#6c5ce7"
-    };
-    return colorMap[key] || "#95a5a6";
 }
