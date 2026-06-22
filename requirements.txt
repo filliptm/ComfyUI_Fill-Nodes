@@ -20,7 +20,7 @@ kornia
 opencv-python
 gdown
 open_clip_torch
-google-genai
+google-genai>=1.66.0,<2.0.0
 google-cloud-storage
 fal-client
 runwayml

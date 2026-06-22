@@ -27,8 +27,8 @@ class FL_ImagePicker:
     a modal UI for the user to select which images to keep from a batch.
     """
 
-    RETURN_TYPES = ("IMAGE", "STRING")
-    RETURN_NAMES = ("selected_images", "selection_info")
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING")
+    RETURN_NAMES = ("selected_images", "selection_info", "selected_indexes")
     FUNCTION = "select_images"
     CATEGORY = "🏵️Fill Nodes/Image"
 
@@ -69,7 +69,7 @@ class FL_ImagePicker:
         batch_size = images.shape[0]
 
         if batch_size == 0:
-            return (images, "No images in batch")
+            return (images, "No images in batch", "")
 
         # Generate a session ID for this selection
         session_id = f"{unique_id}_{uuid.uuid4().hex[:8]}"
@@ -157,16 +157,18 @@ class FL_ImagePicker:
         if selection is None or len(selection) == 0:
             # No selection - return all
             print(f"[FL_ImagePicker] No images selected. Returning all {batch_size} images.")
-            return (images, f"No selection: returned all {batch_size} images")
+            selected_indexes = ",".join(str(i) for i in range(batch_size))
+            return (images, f"No selection: returned all {batch_size} images", selected_indexes)
 
         # Filter to selected indices
         selected_indices = sorted(selection)
         selected_images = images[selected_indices]
 
         info = f"Selected {len(selected_indices)} of {batch_size} images: indices {selected_indices}"
+        selected_indexes = ",".join(str(i) for i in selected_indices)
         print(f"[FL_ImagePicker] {info}")
 
-        return (selected_images, info)
+        return (selected_images, info, selected_indexes)
 
 
 # API endpoint to receive selection from frontend
