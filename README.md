@@ -1,5 +1,5 @@
 # 🏵️ Fill-Nodes
-#Fix image and workflow drag-and-drop on newer ComfyUI frontend#
+
 If you enjoy this project, consider supporting me on Patreon!
 <p align="left">
   <a href="https://www.patreon.com/c/Machinedelusions">
@@ -572,17 +572,5 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 | `FL_KartelJobOutput` | POSTs an image batch back to a Kartel callback URL as multipart PNGs with a JSON metadata field (job_id, user_id, user_email, app_name). Skips the POST silently when no callback URL is provided or the input is a 1×1 placeholder. |
 
 </details>
-### Drag and Drop Support
 
-Fill Nodes includes a compatibility fix for drag-and-drop behavior on newer ComfyUI frontend versions.
-
-Supported drop actions:
-
-- Drop an image directly onto a `LoadImage` or `LoadImageMask` node
-- Drop an image onto empty canvas space to create a new `LoadImage` node
-- Drop JSON workflow files onto empty canvas space
-- Drop PNG/WebP/AVIF images with embedded workflow metadata
-- Drop MP4/MOV/M4V files with embedded workflow metadata
-
-The workflow loader also cleans up some stale preview references, such as temporary rgthree comparison images and duplicated media subfolder paths, before loading the graph.
 ---
