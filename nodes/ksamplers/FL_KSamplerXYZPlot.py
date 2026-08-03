@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 from ..utils import tensor_to_pil, pil_to_tensor
 
 from ._vae_helpers import safe_vae_decode
+from ._latent_helpers import primary_tensor, slice_batch
 
 class FL_KSamplerXYZPlot:
     # Positioning and style parameters
@@ -122,10 +123,10 @@ class FL_KSamplerXYZPlot:
                 if latent_image is None:
                     raise ValueError("Latent input is selected, but no latent image is provided.")
                 input_list = []
-                for i in range(latent_image["samples"].shape[0]):
+                for i in range(primary_tensor(latent_image["samples"]).shape[0]):
                     item = {}
                     for k, v in latent_image.items():
-                        item[k] = v[i:i+1] if isinstance(v, torch.Tensor) else v
+                        item[k] = slice_batch(v, i)
                     input_list.append(item)
             elif input_type == "image":
                 if image is None:

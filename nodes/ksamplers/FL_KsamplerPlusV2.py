@@ -10,6 +10,7 @@ import torch.nn.functional as F
 import latent_preview
 
 from ._vae_helpers import safe_vae_decode
+from ._latent_helpers import primary_only_noise_mask, primary_tensor, replace_primary_tensor
 
 
 class FL_KsamplerPlusV2:
@@ -197,7 +198,21 @@ class FL_KsamplerPlusV2:
             # We no longer force batch_size to 1 for sliced conditioning
             # This allows for more efficient processing
 
-            b, c, h, w = latent_image["samples"].shape
+            latent_samples = latent_image["samples"]
+            primary_samples = primary_tensor(latent_samples)
+            if latent_samples.is_nested:
+                batch_size = 1
+
+            latent_shape = primary_samples.shape
+            if len(latent_shape) == 5:
+                b, c, f, h, w = latent_shape
+            elif len(latent_shape) == 4:
+                b, c, h, w = latent_shape
+            else:
+                raise ValueError(f"Unexpected latent tensor shape: {latent_shape}. Expected 4D or 5D tensor.")
+
+            noise_mask = latent_image.get("noise_mask", None)
+            primary_noise_mask = primary_tensor(noise_mask) if noise_mask is not None else None
             base_slice_height = h // y_slices
             base_slice_width = w // x_slices
             overlap_height = int(base_slice_height * overlap)
@@ -213,7 +228,14 @@ class FL_KsamplerPlusV2:
                 x_start = max(0, x * base_slice_width - overlap_width)
                 x_end = min(w, (x + 1) * base_slice_width + overlap_width)
 
-                section = latent_image["samples"][:, :, y_start:y_end, x_start:x_end].to(device=device)
+                section = primary_samples[..., y_start:y_end, x_start:x_end].to(device=device)
+
+                sliced_noise_mask = None
+                if primary_noise_mask is not None:
+                    if primary_noise_mask.shape[-1] > 1 and primary_noise_mask.shape[-2] > 1:
+                        sliced_noise_mask = primary_noise_mask[..., y_start:y_end, x_start:x_end]
+                    else:
+                        sliced_noise_mask = primary_noise_mask
 
                 if use_sliced_conditioning:
                     region = (x_start * 8, y_start * 8, x_end * 8, y_end * 8)
@@ -231,7 +253,7 @@ class FL_KsamplerPlusV2:
                     cropped_positive = positive
                     cropped_negative = negative
 
-                return section, y_start, y_end, x_start, x_end, cropped_positive, cropped_negative
+                return section, y_start, y_end, x_start, x_end, cropped_positive, cropped_negative, sliced_noise_mask
 
             total_slices = x_slices * y_slices
             all_slices = [(y, x) for y in range(y_slices) for x in range(x_slices)]
@@ -240,7 +262,7 @@ class FL_KsamplerPlusV2:
                 batch_slices = all_slices[i:min(i + batch_size, total_slices)]
                 batch_sections = [process_slice(y, x) for y, x in batch_slices]
 
-                batch_latents = torch.cat([section for section, _, _, _, _, _, _ in batch_sections], dim=0)
+                batch_latents = torch.cat([section for section, _, _, _, _, _, _, _ in batch_sections], dim=0)
 
                 if use_sliced_conditioning:
                     # Handle multiple slices in a batch with sliced conditioning
@@ -259,19 +281,25 @@ class FL_KsamplerPlusV2:
                     batch_positive = positive * len(batch_sections)
                     batch_negative = negative * len(batch_sections)
 
+                tile_samples = replace_primary_tensor(latent_samples.to(device=device), batch_latents)
+                tile_latent = {"samples": tile_samples}
+                sliced_noise_mask = batch_sections[0][7]
+                if sliced_noise_mask is not None or latent_samples.is_nested:
+                    tile_latent["noise_mask"] = primary_only_noise_mask(tile_samples, sliced_noise_mask)
+
                 processed_batch = common_ksampler(model, seed + i, steps, cfg, sampler_name, scheduler,
                                                   batch_positive, batch_negative,
-                                                  {"samples": batch_latents}, denoise=denoise)[0]
+                                                  tile_latent, denoise=denoise)[0]
 
-                processed_sections = torch.split(processed_batch["samples"], b, dim=0)
+                processed_samples = primary_tensor(processed_batch["samples"])
+                processed_sections = torch.split(processed_samples, b, dim=0)
 
                 # Initialize samples tensor if it hasn't been initialized yet
                 if samples is None:
-                    processed_channels = processed_sections[0].shape[1]
-                    samples = torch.zeros((b, processed_channels, h, w), device=device)
+                    samples = torch.zeros_like(primary_samples, device=device)
 
-                for (_, y_start, y_end, x_start, x_end, _, _), processed_section in zip(batch_sections,
-                                                                                        processed_sections):
+                for (_, y_start, y_end, x_start, x_end, _, _, _), processed_section in zip(batch_sections,
+                                                                                           processed_sections):
                     is_top = y_start == 0
                     is_left = x_start == 0
                     is_bottom = y_end == h
@@ -286,23 +314,26 @@ class FL_KsamplerPlusV2:
                     processed_section = processed_section.to(device=device)
                     blend_mask = blend_mask.to(device=device)
 
-                    samples[:, :, y_start:y_end, x_start:x_end] = (
-                            samples[:, :, y_start:y_end, x_start:x_end] * (1 - blend_mask) +
+                    samples[..., y_start:y_end, x_start:x_end] = (
+                            samples[..., y_start:y_end, x_start:x_end] * (1 - blend_mask) +
                             processed_section * blend_mask
                     )
 
                 if device.type == 'cuda':
                     torch.cuda.empty_cache()
 
+            if latent_samples.is_nested:
+                samples = samples.to(device=primary_samples.device, dtype=primary_samples.dtype)
+            output_samples = replace_primary_tensor(latent_samples, samples)
             output_image = None
             if vae is not None:
-                output_image = safe_vae_decode(vae, {"samples": samples}, node_name="FL_KsamplerPlusV2")
+                output_image = safe_vae_decode(vae, {"samples": output_samples}, node_name="FL_KsamplerPlusV2")
 
             # Prepare debug info if debug mode is enabled
             debug_info = ""
             if debug_mode:
                 debug_info = "KSamplerPlus V2 Debug Info:\n"
-                debug_info += f"- Input shape: {latent_image['samples'].shape}\n"
+                debug_info += f"- Input shape: {primary_samples.shape}\n"
                 debug_info += f"- Slices: {x_slices}x{y_slices} with {overlap*100:.1f}% overlap\n"
                 debug_info += f"- Conditioning strength: {conditioning_strength}\n"
                 debug_info += f"- Batch size: {batch_size}\n"
@@ -321,7 +352,7 @@ class FL_KsamplerPlusV2:
                     if "control" in cond_dict:
                         debug_info += "- ControlNet detected and processed\n"
 
-            return (model, positive, negative, {"samples": samples}, vae, output_image, debug_info)
+            return (model, positive, negative, {"samples": output_samples}, vae, output_image, debug_info)
 
         except Exception as e:
             logging.error(f"Error in FL_KsamplerPlusV2: {str(e)}")

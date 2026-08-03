@@ -11,6 +11,7 @@ import torch.nn.functional as F
 import latent_preview
 
 from ._vae_helpers import safe_vae_decode
+from ._latent_helpers import primary_only_noise_mask, primary_tensor, replace_primary_tensor
 
 
 class FL_KsamplerPlus:
@@ -170,7 +171,12 @@ class FL_KsamplerPlus:
                 batch_size = 1
 
             # Handle variable tensor dimensions (4D or 5D)
-            latent_shape = latent_image["samples"].shape
+            latent_samples = latent_image["samples"]
+            primary_samples = primary_tensor(latent_samples)
+            if latent_samples.is_nested:
+                batch_size = 1
+
+            latent_shape = primary_samples.shape
             is_video = len(latent_shape) == 5
 
             if is_video:
@@ -185,6 +191,7 @@ class FL_KsamplerPlus:
 
             # Extract noise_mask for 5D video latents (used by LTX2 guide frames)
             noise_mask = latent_image.get("noise_mask", None)
+            primary_noise_mask = primary_tensor(noise_mask) if noise_mask is not None else None
 
             # Get VAE scale factors for adjusting keyframe_idxs coordinates per tile
             vae_scale_factors = None
@@ -209,19 +216,19 @@ class FL_KsamplerPlus:
 
                 # Handle both 4D and 5D tensor slicing
                 if is_video:
-                    section = latent_image["samples"][:, :, :, y_start:y_end, x_start:x_end].to(device=device)
+                    section = primary_samples[:, :, :, y_start:y_end, x_start:x_end].to(device=device)
                 else:
-                    section = latent_image["samples"][:, :, y_start:y_end, x_start:x_end].to(device=device)
+                    section = primary_samples[:, :, y_start:y_end, x_start:x_end].to(device=device)
 
                 # Slice noise_mask for 5D video latents (preserves guide frame info)
                 sliced_noise_mask = None
-                if noise_mask is not None and is_video:
-                    if noise_mask.shape[-1] > 1 and noise_mask.shape[-2] > 1:
+                if primary_noise_mask is not None and is_video:
+                    if primary_noise_mask.shape[-1] > 1 and primary_noise_mask.shape[-2] > 1:
                         # Spatially varying mask — slice to match tile
-                        sliced_noise_mask = noise_mask[:, :, :, y_start:y_end, x_start:x_end]
+                        sliced_noise_mask = primary_noise_mask[:, :, :, y_start:y_end, x_start:x_end]
                     else:
                         # Spatially uniform (e.g., [B,1,T,1,1]) — pass as-is
-                        sliced_noise_mask = noise_mask
+                        sliced_noise_mask = primary_noise_mask
 
                 if use_sliced_conditioning:
                     region = (x_start * 8, y_start * 8, x_end * 8, y_end * 8)
@@ -266,21 +273,23 @@ class FL_KsamplerPlus:
                         batch_negative, y_start, x_start, tile_h, tile_w, vae_scale_factors)
 
                 # Build proper latent dict preserving noise_mask
-                tile_latent = {"samples": batch_latents}
+                tile_samples = replace_primary_tensor(latent_samples.to(device=device), batch_latents)
+                tile_latent = {"samples": tile_samples}
                 sliced_noise_mask = batch_sections[0][7]
-                if sliced_noise_mask is not None:
-                    tile_latent["noise_mask"] = sliced_noise_mask
+                if sliced_noise_mask is not None or latent_samples.is_nested:
+                    tile_latent["noise_mask"] = primary_only_noise_mask(tile_samples, sliced_noise_mask)
 
                 processed_batch = common_ksampler(model, seed + i, steps, cfg, sampler_name, scheduler,
                                                   batch_positive, batch_negative,
                                                   tile_latent, denoise=denoise)[0]
 
-                processed_sections = torch.split(processed_batch["samples"], b, dim=0)
+                processed_samples = primary_tensor(processed_batch["samples"])
+                processed_sections = torch.split(processed_samples, b, dim=0)
 
                 # Initialize samples tensor if it hasn't been initialized yet
                 if samples is None:
                     if is_video:
-                        samples = torch.zeros_like(latent_image["samples"], device=device)
+                        samples = torch.zeros_like(primary_samples, device=device)
                     else:
                         processed_channels = processed_sections[0].shape[1]
                         samples = torch.zeros((b, processed_channels, h, w), device=device)
@@ -316,11 +325,14 @@ class FL_KsamplerPlus:
                 if device.type == 'cuda':
                     torch.cuda.empty_cache()
 
+            if latent_samples.is_nested:
+                samples = samples.to(device=primary_samples.device, dtype=primary_samples.dtype)
+            output_samples = replace_primary_tensor(latent_samples, samples)
             output_image = None
             if vae is not None:
-                output_image = safe_vae_decode(vae, {"samples": samples}, node_name="FL_KsamplerPlus")
+                output_image = safe_vae_decode(vae, {"samples": output_samples}, node_name="FL_KsamplerPlus")
 
-            return (model, positive, negative, {"samples": samples}, vae, output_image)
+            return (model, positive, negative, {"samples": output_samples}, vae, output_image)
 
         except Exception as e:
             logging.error(f"Error in FL_KsamplerPlus: {str(e)}")

@@ -21,6 +21,8 @@ import torch
 
 from nodes import VAEDecode
 
+from ._latent_helpers import primary_tensor
+
 
 _logger = logging.getLogger("fl_fill_nodes")
 
@@ -42,10 +44,17 @@ def safe_vae_decode(vae, latent_dict, *, node_name="FL Ksampler"):
     external VAE Decode.
     """
     samples = latent_dict.get("samples") if isinstance(latent_dict, dict) else latent_dict
-    if samples is None or not hasattr(samples, "shape") or samples.dim() < 2:
+    if samples is None:
         return _placeholder_image(samples)
 
-    actual_c = int(samples.shape[1])
+    try:
+        decode_samples = primary_tensor(samples)
+    except TypeError:
+        return _placeholder_image(samples)
+    if decode_samples.ndim < 2:
+        return _placeholder_image(decode_samples)
+
+    actual_c = int(decode_samples.shape[1])
     expected_c = getattr(vae, "latent_channels", None)
     if isinstance(expected_c, int) and expected_c > 0 and expected_c != actual_c:
         _logger.warning(
@@ -54,6 +63,6 @@ def safe_vae_decode(vae, latent_dict, *, node_name="FL Ksampler"):
             "Wire the LATENT output to an external VAE Decode node and ignore this node's IMAGE output.",
             node_name, actual_c, expected_c,
         )
-        return _placeholder_image(samples)
+        return _placeholder_image(decode_samples)
 
     return VAEDecode().decode(vae, latent_dict)[0]

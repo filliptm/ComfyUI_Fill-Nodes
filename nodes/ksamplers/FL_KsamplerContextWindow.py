@@ -4,6 +4,7 @@ import time
 import torch
 
 import comfy.context_windows
+import comfy.nested_tensor
 import comfy.samplers
 from comfy_execution.utils import get_executing_context
 from nodes import VAEDecode, VAEEncode, common_ksampler
@@ -220,16 +221,20 @@ class FL_KsamplerContextWindow:
                 raise ValueError("FL_KsamplerContextWindow: latent_image must contain samples.")
 
             samples = latent_image["samples"]
-            if not isinstance(samples, torch.Tensor):
-                raise ValueError("FL_KsamplerContextWindow: nested tensor latents are not supported.")
+            if isinstance(samples, comfy.nested_tensor.NestedTensor):
+                primary_samples = samples.unbind()[0]
+            elif isinstance(samples, torch.Tensor):
+                primary_samples = samples
+            else:
+                raise ValueError("FL_KsamplerContextWindow: latent samples must be a tensor or nested tensor.")
 
-            if temporal_dim >= samples.ndim:
+            if temporal_dim >= primary_samples.ndim:
                 raise ValueError(
                     "FL_KsamplerContextWindow: temporal_dim is outside the latent sample shape. "
-                    f"Got temporal_dim={temporal_dim}, shape={tuple(samples.shape)}."
+                    f"Got temporal_dim={temporal_dim}, shape={tuple(primary_samples.shape)}."
                 )
 
-            if samples.ndim == 4 and temporal_dim != 0:
+            if primary_samples.ndim == 4 and temporal_dim != 0:
                 raise ValueError(
                     "FL_KsamplerContextWindow: expected a 5D video latent [B, C, T, H, W]. "
                     "For 4D latents, set temporal_dim=0 only if you intentionally want to window over batch."
@@ -281,7 +286,7 @@ class FL_KsamplerContextWindow:
                 output_image = safe_vae_decode(vae, sampled, node_name="FL_KsamplerContextWindow")
 
             debug_info = self._debug_info(
-                samples=samples,
+                samples=primary_samples,
                 temporal_dim=temporal_dim,
                 context_length=context_length,
                 context_overlap=context_overlap,

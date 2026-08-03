@@ -26,6 +26,7 @@ import comfy.model_management
 import latent_preview
 
 from .FL_KsamplerSEG_common import unwrap_regions, latent_bbox_from_image_bbox
+from ._latent_helpers import primary_only_noise_mask, primary_tensor, replace_primary_tensor
 
 
 CASCADE_START_CORNERS = ["top_left", "top_right", "bottom_left", "bottom_right", "center"]
@@ -66,12 +67,9 @@ class FL_KsamplerSEG:
         regions = unwrap_regions(regions)
 
         latent_samples = latent_image["samples"]
-        if latent_samples.is_nested:
-            raise NotImplementedError(
-                "FL_KsamplerSEG: nested-tensor latents not supported yet."
-            )
+        primary_samples = primary_tensor(latent_samples)
 
-        is_zero = bool(torch.count_nonzero(latent_samples) == 0)
+        is_zero = bool(torch.count_nonzero(primary_samples) == 0)
         if is_zero and denoise < 0.99:
             raise ValueError(
                 "FL_KsamplerSEG: per-region refinement requires denoise=1.0 with "
@@ -80,8 +78,8 @@ class FL_KsamplerSEG:
             )
 
         H, W = regions["image_size"]
-        latent_h = latent_samples.shape[-2]
-        latent_w = latent_samples.shape[-1]
+        latent_h = primary_samples.shape[-2]
+        latent_w = primary_samples.shape[-1]
 
         # Auto-detect the actual spatial downscale from the model. Different
         # models use different ratios -- SD/SDXL=8, Flux=8, LTX-Video=32,
@@ -98,7 +96,7 @@ class FL_KsamplerSEG:
             )
 
         # One-line diagnostic so users can confirm the right downscale was picked.
-        print(f"[FL_KsamplerSEG] latent={tuple(latent_samples.shape)}  "
+        print(f"[FL_KsamplerSEG] latent={tuple(primary_samples.shape)}  "
               f"regions={H}x{W}  downscale={downscale}")
 
         device = model.load_device
@@ -146,15 +144,17 @@ class FL_KsamplerSEG:
             return (latent_image,)
 
         # Run the cascade.
-        canvas = latent_full.clone()
+        canvas = primary_tensor(latent_full).clone()
         # Pre-compute the broadcast shape for masks. For a 4D latent (B,C,H,W)
         # the mask broadcasts as (1,1,H,W). For a 5D video latent (B,C,T,H,W)
         # it must broadcast as (1,1,1,H,W) -- one extra leading dim per
         # non-spatial axis. PyTorch won't auto-align mismatched-rank tensors.
-        latent_ndim = latent_full.ndim
+        latent_ndim = canvas.ndim
         for spec in region_specs:
             samples = self._sample_one_region_full(
-                model=model, source_latent=canvas, spec=spec,
+                model=model,
+                source_latent=replace_primary_tensor(latent_full, canvas),
+                spec=spec,
                 steps=steps, cfg=cfg, sampler_name=sampler_name,
                 scheduler=scheduler, denoise=denoise,
                 latent_ndim=latent_ndim,
@@ -167,7 +167,7 @@ class FL_KsamplerSEG:
             existing = canvas[..., by0:by1, bx0:bx1]
             canvas[..., by0:by1, bx0:bx1] = samples_dev * comp_b + existing * (1.0 - comp_b)
 
-        out = canvas.to(
+        out = replace_primary_tensor(latent_full, canvas).to(
             device=comfy.model_management.intermediate_device(),
             dtype=comfy.model_management.intermediate_dtype(),
         )
@@ -242,7 +242,9 @@ class FL_KsamplerSEG:
         """Run a complete sampler call (all steps) for one region, sourcing the
         crop from `source_latent` (the in-progress canvas)."""
         by0, bx0, by1, bx1 = spec["latent_bbox"]
-        latent_crop = source_latent[..., by0:by1, bx0:bx1].contiguous()
+        source_primary = primary_tensor(source_latent)
+        primary_crop = source_primary[..., by0:by1, bx0:bx1].contiguous()
+        latent_crop = replace_primary_tensor(source_latent, primary_crop)
 
         noise = comfy.sample.prepare_noise(latent_crop.cpu(), spec["seed"])
 
@@ -252,7 +254,8 @@ class FL_KsamplerSEG:
             latent_ndim = source_latent.ndim
         noise_mask = self._reshape_mask_for_broadcast(
             spec["write_lat"], latent_ndim,
-        ).to(dtype=latent_crop.dtype)
+        ).to(dtype=primary_crop.dtype)
+        noise_mask = primary_only_noise_mask(latent_crop, noise_mask)
 
         callback = latent_preview.prepare_callback(model, steps)
 
@@ -269,7 +272,7 @@ class FL_KsamplerSEG:
             )
             raise
 
-        return samples
+        return primary_tensor(samples)
 
     @staticmethod
     def _cascade_order(*, regions, write_areas, start_corner):
