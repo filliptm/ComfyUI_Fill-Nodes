@@ -10,6 +10,7 @@ from ..nodes.audio.audio_separation import (
     separate_audio_file,
     separation_manifest,
 )
+from ..nodes.audio.audio_files import audio_library_entries
 from ..nodes.audio.audio_timeline import analyze_audio_file
 
 
@@ -85,6 +86,12 @@ async def analyze_audio_timeline(request):
         return web.json_response(analysis)
     except (TypeError, ValueError) as error:
         return web.json_response({"error": str(error)}, status=400)
+
+
+@PromptServer.instance.routes.get("/fl/audio-prompt-timeline/files")
+async def audio_timeline_files(_request):
+    files = await asyncio.to_thread(audio_library_entries)
+    return web.json_response({"files": files})
 
 
 @PromptServer.instance.routes.post("/fl/audio-prompt-timeline/separate")

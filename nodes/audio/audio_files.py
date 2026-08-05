@@ -7,9 +7,36 @@ from comfy_extras.nodes_audio import load
 
 
 def available_audio_files():
-    input_dir = folder_paths.get_input_directory()
+    input_dir = Path(folder_paths.get_input_directory()).resolve()
     os.makedirs(input_dir, exist_ok=True)
-    return sorted(folder_paths.filter_files_content_types(os.listdir(input_dir), ["audio", "video"]))
+    files, _ = folder_paths.recursive_search(str(input_dir))
+    media_files = folder_paths.filter_files_content_types(files, ["audio", "video"])
+    result = []
+    for filename in media_files:
+        path = (input_dir / filename).resolve()
+        try:
+            path.relative_to(input_dir)
+        except ValueError:
+            continue
+        if path.is_file():
+            result.append(Path(filename).as_posix())
+    return sorted(result, key=str.casefold)
+
+
+def audio_library_entries():
+    input_dir = Path(folder_paths.get_input_directory()).resolve()
+    entries = []
+    for filename in available_audio_files():
+        path = (input_dir / filename).resolve()
+        stat = path.stat()
+        relative = Path(filename)
+        entries.append({
+            "path": relative.as_posix(),
+            "folder": relative.parent.as_posix() if relative.parent != Path(".") else "",
+            "size": stat.st_size,
+            "modified": stat.st_mtime,
+        })
+    return entries
 
 
 def resolve_audio_path(filename):

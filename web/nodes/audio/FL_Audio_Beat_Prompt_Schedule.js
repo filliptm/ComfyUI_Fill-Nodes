@@ -5,11 +5,13 @@ const STYLE_ID = "fl-beat-prompt-sequencer-styles";
 const INSTANCES = new Map();
 const HEADER_RE = /^\s*\[\s*([0-9]+(?:\.[0-9]+)?)\s*-\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\|\s*(.*?))?\s*\]\s*$/;
 const EPSILON = 1e-6;
-const FORMAT_VERSION = 6;
-const MIN_NODE_WIDTH = 680;
-const MIN_NODE_HEIGHT = 1100;
+const FORMAT_VERSION = 7;
+const COMPATIBLE_FORMAT_VERSIONS = new Set([6, FORMAT_VERSION]);
+const COMPACT_NODE_WIDTH = 380;
+const MEDIA_FILE_RE = /\.(?:aac|aiff?|flac|m4a|mka|mkv|mov|mp3|mp4|oga|ogg|opus|wav|webm|wma)$/i;
 const TIMELINE_LEFT = 42;
 const TIMELINE_RIGHT = 12;
+let activeModal = null;
 const GRID_DENSITY_LABELS = {
   every_2_beats: "Every 2 beats",
   every_beat: "Every beat",
@@ -24,7 +26,7 @@ const MAGNET_LABELS = {
 const STYLES = `
   .flbps-root {
     height: 100%;
-    min-height: 650px;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -225,6 +227,158 @@ const STYLES = `
     font-size: 9px;
   }
   .flbps-error.open { display: block; }
+  .flbps-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5vh 2.5vw;
+    background: rgba(0, 0, 0, .84);
+    backdrop-filter: blur(4px);
+    animation: flbps-fade-in .15s ease-out;
+  }
+  .flbps-modal-shell {
+    width: 95vw;
+    height: 94vh;
+    max-width: 1900px;
+    max-height: 1400px;
+    min-width: 760px;
+    min-height: 600px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: #e4e4e7;
+    background: #111114;
+    border: 1px solid #3f3f46;
+    border-radius: 12px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, .72);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    animation: flbps-modal-in .18s ease-out;
+  }
+  .flbps-modal-header {
+    flex: 0 0 auto;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px 9px 16px;
+    background: #1b1b20;
+    border-bottom: 1px solid #303036;
+  }
+  .flbps-modal-heading { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .flbps-modal-title { color: #fafafa; font-size: 14px; font-weight: 700; }
+  .flbps-modal-subtitle {
+    max-width: 62vw;
+    overflow: hidden;
+    color: #a1a1aa;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .flbps-modal-main { flex: 1 1 auto; min-height: 0; display: flex; }
+  .flbps-library {
+    width: 310px;
+    flex: 0 0 310px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 11px;
+    overflow: hidden;
+    background: #17171b;
+    border-right: 1px solid #303036;
+  }
+  .flbps-library-section { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; }
+  .flbps-library-label {
+    color: #8b8b95;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .flbps-drop-zone {
+    min-height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    color: #a1a1aa;
+    background: #202027;
+    border: 1px dashed #52525b;
+    border-radius: 7px;
+    font-size: 10px;
+    line-height: 1.4;
+    text-align: center;
+    cursor: pointer;
+  }
+  .flbps-drop-zone.dragging { color: #cffafe; background: #164e63; border-color: #22d3ee; }
+  .flbps-library-actions, .flbps-library-tabs { display: flex; gap: 6px; }
+  .flbps-library-actions .flbps-button, .flbps-library-tabs .flbps-button { flex: 1; }
+  .flbps-library-search, .flbps-library-folder, .flbps-setting input, .flbps-setting select {
+    width: 100%;
+    height: 28px;
+    padding: 4px 7px;
+    color: #f4f4f5;
+    background: #252529;
+    border: 1px solid #3f3f46;
+    border-radius: 5px;
+    outline: none;
+    font: inherit;
+    font-size: 10px;
+  }
+  .flbps-library-search:focus, .flbps-library-folder:focus,
+  .flbps-setting input:focus, .flbps-setting select:focus { border-color: #22d3ee; }
+  .flbps-library-results {
+    flex: 1 1 180px;
+    min-height: 120px;
+    overflow: auto;
+    background: #121216;
+    border: 1px solid #2f2f35;
+    border-radius: 6px;
+  }
+  .flbps-file-row {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 7px 8px;
+    color: #d4d4d8;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid #25252a;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .flbps-file-row:hover { background: #27272e; }
+  .flbps-file-row.selected { color: #cffafe; background: #164e63; }
+  .flbps-file-name { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+  .flbps-file-folder { overflow: hidden; color: #71717a; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+  .flbps-library-message { color: #8b8b95; font-size: 9px; line-height: 1.35; }
+  .flbps-settings {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+  }
+  .flbps-setting { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .flbps-setting label { color: #8b8b95; font-size: 8px; }
+  .flbps-setting.checkbox { flex-direction: row; align-items: center; padding-top: 15px; }
+  .flbps-setting.checkbox input { width: auto; height: auto; }
+  .flbps-editor-host { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 8px; }
+  .flbps-modal-close { min-width: 66px; }
+  @keyframes flbps-fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes flbps-modal-in {
+    from { opacity: 0; transform: scale(.975) translateY(-8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @media (max-width: 980px) {
+    .flbps-modal-overlay { padding: 0; }
+    .flbps-modal-shell { width: 100vw; height: 100vh; min-width: 0; min-height: 0; border-radius: 0; }
+    .flbps-library { width: 250px; flex-basis: 250px; }
+  }
 `;
 
 function injectStyles() {
@@ -250,16 +404,6 @@ function hideWidget(widget) {
   if (widget.element) widget.element.style.display = "none";
 }
 
-function enforceMinimumNodeSize(node) {
-  node.min_size = [
-    Math.max(node.min_size?.[0] || 0, MIN_NODE_WIDTH),
-    Math.max(node.min_size?.[1] || 0, MIN_NODE_HEIGHT),
-  ];
-  const width = Math.max(node.size[0], MIN_NODE_WIDTH);
-  const height = Math.max(node.size[1], MIN_NODE_HEIGHT);
-  if (width !== node.size[0] || height !== node.size[1]) node.setSize([width, height]);
-}
-
 function finiteNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -274,6 +418,31 @@ function formatClock(seconds) {
   const minutes = Math.floor(value / 60);
   const remainder = value - minutes * 60;
   return `${String(minutes).padStart(2, "0")}:${remainder.toFixed(3).padStart(6, "0")}`;
+}
+
+function filenameFromPath(value) {
+  const parts = String(value || "").replace(/\\/g, "/").split("/");
+  return parts[parts.length - 1] || "";
+}
+
+function executionPayload(message) {
+  const values = message?.fl_prompt_sequencer ?? message?.ui?.fl_prompt_sequencer;
+  return Array.isArray(values) ? values[0] : values;
+}
+
+function isSupportedMediaFile(file) {
+  return Boolean(
+    file &&
+    ((file.type || "").startsWith("audio/") ||
+      (file.type || "").startsWith("video/") ||
+      MEDIA_FILE_RE.test(file.name || "")),
+  );
+}
+
+function setWidgetValue(widget, value) {
+  if (!widget) return;
+  widget.value = value;
+  widget.callback?.call(widget, value);
 }
 
 function parseOptions(raw, defaultFadeIn, defaultFadeOut, lineNumber) {
@@ -463,10 +632,11 @@ function audioViewURL(value) {
 }
 
 class BeatPromptSequencer {
-  constructor({ node, container, widgets }) {
+  constructor({ node, container, widgets, onStateChange = null }) {
     this.node = node;
     this.container = container;
     this.widgets = widgets;
+    this.onStateChange = onStateChange;
     this.clips = [];
     this.selectedIndex = -1;
     this.playheadFrame = null;
@@ -484,20 +654,22 @@ class BeatPromptSequencer {
     this.sourceAudioDuration = 0;
     this.audioElement = null;
     this.audioURL = "";
+    this.playbackFrameRequest = null;
     this.analysisTimer = null;
     this.analysisRequest = 0;
     this.loadingAudio = false;
-    this.separationJobId = null;
+    this.separationJobId = node._flAudioSeparationJobId || null;
     this.separationTimer = null;
 
     const saved = node.properties?.flBeatPromptSequencer || {};
-    this.beatData = saved.formatVersion === FORMAT_VERSION ? saved.beatData || null : null;
+    const savedCompatible = COMPATIBLE_FORMAT_VERSIONS.has(finiteNumber(saved.formatVersion));
+    this.beatData = savedCompatible ? saved.beatData || null : null;
     if (this.beatData) {
       this.beatData.waveformPreview = normalizeWaveformPreview(this.beatData.waveformPreview);
     }
     this.dataFresh = false;
-    this.viewStart = saved.formatVersion === FORMAT_VERSION ? finiteNumber(saved.viewStart, 0) : 0;
-    this.viewEnd = saved.formatVersion === FORMAT_VERSION ? finiteNumber(saved.viewEnd, 0) : 0;
+    this.viewStart = savedCompatible ? finiteNumber(saved.viewStart, 0) : 0;
+    this.viewEnd = savedCompatible ? finiteNumber(saved.viewEnd, 0) : 0;
     this.snapMode = ["beat", "detected", "onset", "frame", "off"].includes(saved.snapMode) ? saved.snapMode : "beat";
     this.magnetMode = saved.magnetMode in MAGNET_LABELS ? saved.magnetMode : "detected";
     this.waveformVisible = saved.waveformVisible !== false;
@@ -506,6 +678,10 @@ class BeatPromptSequencer {
     injectStyles();
     this.build();
     this.bindWidgetCallbacks();
+    if (this.separationJobId) {
+      this.root.querySelector('[data-action="separate"]').textContent = "Cancel separation";
+      this.pollSeparation();
+    }
     this.applyBeatOffset();
     this.loadTimeline();
     this.refreshBeatStatus();
@@ -809,6 +985,7 @@ class BeatPromptSequencer {
 
   markDirty() {
     this.node.graph?.change?.();
+    this.onStateChange?.();
   }
 
   syncBeatOffsetControls() {
@@ -1043,21 +1220,32 @@ class BeatPromptSequencer {
       this.sourceAudioDuration = buffer.duration;
       this.sourceWaveformPreview = waveformPreviewFromBuffer(buffer);
       const availableFrames = Math.max(1, Math.floor(buffer.duration * this.fps()) - this.trimStartFrame());
+      let settingsChanged = false;
       if (this.trimStartFrame() >= Math.floor(buffer.duration * this.fps())) {
         this.widgets.trimStartFrame.value = 0;
+        settingsChanged = true;
       }
       if (!this.configuredFrameCount() || this.configuredFrameCount() > availableFrames) {
         this.widgets.sequenceDuration.value = Math.max(
           1,
           Math.floor((buffer.duration - this.cropStartSeconds()) * this.fps()),
         );
+        settingsChanged = true;
       }
+      if (settingsChanged) this.markDirty();
       this.audioURL = url;
       this.audioElement = new Audio(url);
       this.audioElement.preload = "auto";
       this.audioElement.addEventListener("timeupdate", () => this.updatePlaybackPosition());
-      this.audioElement.addEventListener("pause", () => this.updatePlayButton());
-      this.audioElement.addEventListener("play", () => this.updatePlayButton());
+      this.audioElement.addEventListener("pause", () => {
+        this.stopPlaybackLoop();
+        this.updatePlaybackPosition();
+        this.updatePlayButton();
+      });
+      this.audioElement.addEventListener("play", () => {
+        this.updatePlayButton();
+        this.startPlaybackLoop();
+      });
       this.audioElement.addEventListener("ended", () => this.stopPlayback());
       this.refreshBrowserCrop();
       this.invalidateAnalysis();
@@ -1170,9 +1358,27 @@ class BeatPromptSequencer {
       this.stopPlayback();
       return;
     }
-    this.playheadFrame = clamp(Math.round(relative * this.fps()), 0, this.sequenceFrameCount());
+    this.playheadFrame = clamp(relative * this.fps(), 0, this.sequenceFrameCount());
     this.updateTransportTime();
     this.scheduleDraw();
+  }
+
+  startPlaybackLoop() {
+    this.stopPlaybackLoop();
+    const tick = () => {
+      this.playbackFrameRequest = null;
+      if (!this.audioElement || this.audioElement.paused) return;
+      this.updatePlaybackPosition();
+      this.playbackFrameRequest = requestAnimationFrame(tick);
+    };
+    this.playbackFrameRequest = requestAnimationFrame(tick);
+  }
+
+  stopPlaybackLoop() {
+    if (this.playbackFrameRequest != null) {
+      cancelAnimationFrame(this.playbackFrameRequest);
+      this.playbackFrameRequest = null;
+    }
   }
 
   async togglePlayback() {
@@ -1194,6 +1400,7 @@ class BeatPromptSequencer {
   }
 
   stopPlayback() {
+    this.stopPlaybackLoop();
     if (this.audioElement) {
       this.audioElement.pause();
       this.audioElement.currentTime = this.cropStartSeconds();
@@ -1237,6 +1444,7 @@ class BeatPromptSequencer {
         throw new Error(payload.error || `Stem separation failed (${response.status}).`);
       }
       this.separationJobId = job.job_id;
+      this.node._flAudioSeparationJobId = this.separationJobId;
       this.root.querySelector('[data-action="separate"]').textContent = "Cancel separation";
       this.setStatus(job.message || "Stem separation running…");
       this.pollSeparation();
@@ -1261,6 +1469,7 @@ class BeatPromptSequencer {
       }
       if (payload.status === "error" || payload.status === "cancelled") {
         this.separationJobId = null;
+        this.node._flAudioSeparationJobId = null;
         this.root.querySelector('[data-action="separate"]').textContent = "Separate stems";
         if (payload.status === "error") this.showError(payload.message || "Stem separation failed.");
         else this.setStatus("Stem separation cancelled", "cached");
@@ -1269,6 +1478,7 @@ class BeatPromptSequencer {
       this.separationTimer = setTimeout(() => this.pollSeparation(), 750);
     } catch (error) {
       this.separationJobId = null;
+      this.node._flAudioSeparationJobId = null;
       this.root.querySelector('[data-action="separate"]').textContent = "Separate stems";
       this.showError(error.message);
     }
@@ -1277,6 +1487,7 @@ class BeatPromptSequencer {
   finishSeparation(payload) {
     clearTimeout(this.separationTimer);
     this.separationJobId = null;
+    this.node._flAudioSeparationJobId = null;
     this.root.querySelector('[data-action="separate"]').textContent = "Separate stems";
     this.setStatus(payload.message || "Stem separation complete", "fresh");
     if (this.widgets.analysisSource) this.widgets.analysisSource.value = "drums";
@@ -1398,8 +1609,7 @@ class BeatPromptSequencer {
   }
 
   updateFromExecution(message) {
-    const values = message?.fl_prompt_sequencer ?? message?.ui?.fl_prompt_sequencer;
-    const payload = Array.isArray(values) ? values[0] : values;
+    const payload = executionPayload(message);
     if (!payload || !Array.isArray(payload.beat_times)) return;
     this.applyAnalysis(payload, true);
 
@@ -2650,6 +2860,7 @@ class BeatPromptSequencer {
   dispose() {
     if (this.resizeObserver) this.resizeObserver.disconnect();
     if (this.pendingFrame) cancelAnimationFrame(this.pendingFrame);
+    this.stopPlaybackLoop();
     clearTimeout(this.analysisTimer);
     clearTimeout(this.separationTimer);
     if (this.audioElement) this.audioElement.pause();
@@ -2657,6 +2868,450 @@ class BeatPromptSequencer {
     for (const restore of this.callbackRestorers) restore();
     this.callbackRestorers = [];
     this.root.remove();
+  }
+}
+
+function compactStatusText(widgets, editor = null, payload = null) {
+  const audio = filenameFromPath(widgets.audioFile?.value) || "No audio selected";
+  const frames = Math.max(0, Math.round(finiteNumber(widgets.sequenceDuration?.value)));
+  let promptCount = editor?.clips?.length;
+  if (!Number.isFinite(promptCount)) {
+    try {
+      promptCount = parseTimeline(
+        widgets.timeline?.value || "",
+        finiteNumber(widgets.defaultFadeIn?.value),
+        finiteNumber(widgets.defaultFadeOut?.value),
+      ).length;
+    } catch {
+      promptCount = 0;
+    }
+  }
+  const bpm = finiteNumber(
+    editor?.beatData?.gridBpm,
+    finiteNumber(payload?.grid_bpm, payload?.bpm),
+  );
+  return `${audio} · ${promptCount} prompt${promptCount === 1 ? "" : "s"} · ` +
+    `${frames || "auto"} frames${bpm > 0 ? ` · ${bpm.toFixed(2)} BPM` : ""}`;
+}
+
+function updateCompactStatus(node, widgets, statusWidget, editor = null, payload = null) {
+  statusWidget.value = compactStatusText(widgets, editor, payload);
+  app.graph?.setDirtyCanvas?.(true, false);
+}
+
+function compactNode(node, force) {
+  node.min_size = [320, 120];
+  requestAnimationFrame(() => {
+    const computed = node.computeSize();
+    const width = force
+      ? COMPACT_NODE_WIDTH
+      : Math.max(320, Math.min(node.size[0], 520));
+    const height = Math.max(120, computed[1]);
+    if (force || node.size[1] > height + 40 || node.size[0] > 520) {
+      node.setSize([width, height]);
+    }
+  });
+}
+
+class BeatPromptSequencerModal {
+  constructor(node, widgets, statusWidget) {
+    this.node = node;
+    this.widgets = widgets;
+    this.statusWidget = statusWidget;
+    this.editor = null;
+    this.libraryEntries = [];
+    this.localEntries = [];
+    this.libraryMode = "library";
+    this.widgetRestorers = [];
+    this.previousBodyOverflow = "";
+    this.closed = false;
+    this.build();
+  }
+
+  build() {
+    this.overlay = document.createElement("div");
+    this.overlay.className = "flbps-modal-overlay";
+    this.overlay.setAttribute("role", "dialog");
+    this.overlay.setAttribute("aria-modal", "true");
+    this.overlay.innerHTML = `
+      <div class="flbps-modal-shell">
+        <div class="flbps-modal-header">
+          <div class="flbps-modal-heading">
+            <div class="flbps-modal-title">FL Audio Beat Prompt Sequencer</div>
+            <div class="flbps-modal-subtitle" data-role="modal-subtitle"></div>
+          </div>
+          <span class="flbps-spacer"></span>
+          <button class="flbps-button primary flbps-modal-close" data-action="modal-close">Done</button>
+        </div>
+        <div class="flbps-modal-main">
+          <aside class="flbps-library">
+            <div class="flbps-library-section">
+              <div class="flbps-library-label">Audio source</div>
+              <div class="flbps-drop-zone" data-role="drop-zone">
+                Drop an audio or video file here<br>or click to choose one
+              </div>
+              <div class="flbps-library-actions">
+                <button class="flbps-button" data-action="choose-file" title="Upload one audio or video file into ComfyUI input">Choose file</button>
+                <button class="flbps-button" data-action="choose-folder" title="Search a local folder; only the file you select is uploaded">Choose folder</button>
+              </div>
+              <div class="flbps-library-message" data-role="library-message"></div>
+            </div>
+            <div class="flbps-library-section">
+              <div class="flbps-library-tabs">
+                <button class="flbps-button active" data-source="library">Comfy input</button>
+                <button class="flbps-button" data-source="local">Local folder</button>
+              </div>
+              <input class="flbps-library-search" data-role="library-search" type="search" placeholder="Search audio files or folders">
+              <select class="flbps-library-folder" data-role="library-folder" aria-label="Filter audio folder"></select>
+            </div>
+            <div class="flbps-library-results" data-role="library-results"></div>
+            <div class="flbps-library-section">
+              <div class="flbps-library-actions">
+                <button class="flbps-button" data-action="refresh-library">Refresh input</button>
+              </div>
+            </div>
+            <div class="flbps-library-section">
+              <div class="flbps-library-label">Sequence settings</div>
+              <div class="flbps-settings">
+                <div class="flbps-setting" title="Frames per second used by the timeline and rendered video"><label>FPS</label><input data-setting="fps" type="number" min="1" max="240" step="0.001"></div>
+                <div class="flbps-setting" title="Maximum sequence length in frames; zero uses the remaining audio"><label>Length frames</label><input data-setting="length" type="number" min="0" max="864000" step="1"></div>
+                <div class="flbps-setting" title="Default number of frames used to fade a prompt in"><label>Default fade in</label><input data-setting="fade-in" type="number" min="0" max="864000" step="1"></div>
+                <div class="flbps-setting" title="Default number of frames used to fade a prompt out"><label>Default fade out</label><input data-setting="fade-out" type="number" min="0" max="864000" step="1"></div>
+                <div class="flbps-setting" title="Shape used for prompt fade-ins and fade-outs"><label>Curve</label><select data-setting="curve"><option value="linear">Linear</option><option value="cosine">Cosine</option></select></div>
+                <div class="flbps-setting" title="Choose how the audio tempo is estimated"><label>BPM method</label><select data-setting="bpm-method"><option value="beat_intervals">Beat intervals</option><option value="onset_strength">Onset strength</option></select></div>
+                <div class="flbps-setting" title="Analyze the full mix or a previously separated stem"><label>Analysis source</label><select data-setting="analysis-source"><option value="mix">Mix</option><option value="drums">Drums</option><option value="vocals">Vocals</option><option value="bass">Bass</option><option value="other">Other</option></select></div>
+                <div class="flbps-setting checkbox" title="Use every other detected beat and report half the detected BPM"><input data-setting="half-time" type="checkbox"><label>Half-time</label></div>
+              </div>
+            </div>
+          </aside>
+          <main class="flbps-editor-host" data-role="editor-host"></main>
+        </div>
+      </div>
+    `;
+    this.shell = this.overlay.querySelector(".flbps-modal-shell");
+    this.subtitle = this.overlay.querySelector('[data-role="modal-subtitle"]');
+    this.library = this.overlay.querySelector(".flbps-library");
+    this.results = this.overlay.querySelector('[data-role="library-results"]');
+    this.searchInput = this.overlay.querySelector('[data-role="library-search"]');
+    this.folderSelect = this.overlay.querySelector('[data-role="library-folder"]');
+    this.libraryMessage = this.overlay.querySelector('[data-role="library-message"]');
+    this.dropZone = this.overlay.querySelector('[data-role="drop-zone"]');
+    this.editorHost = this.overlay.querySelector('[data-role="editor-host"]');
+
+    this.fileInput = document.createElement("input");
+    this.fileInput.type = "file";
+    this.fileInput.accept = "audio/*,video/*,.aac,.aiff,.flac,.m4a,.mka,.mkv,.mov,.mp3,.mp4,.oga,.ogg,.opus,.wav,.webm,.wma";
+    this.fileInput.hidden = true;
+    this.folderInput = document.createElement("input");
+    this.folderInput.type = "file";
+    this.folderInput.multiple = true;
+    this.folderInput.webkitdirectory = true;
+    this.folderInput.hidden = true;
+    this.library.append(this.fileInput, this.folderInput);
+
+    this.overlay.querySelector('[data-action="modal-close"]').addEventListener("click", () => this.close());
+    this.overlay.addEventListener("pointerdown", (event) => {
+      if (event.target === this.overlay) this.close();
+    });
+    for (const type of ["pointerdown", "pointermove", "pointerup", "wheel"]) {
+      this.shell.addEventListener(type, (event) => event.stopPropagation(), { passive: type === "wheel" });
+    }
+    this.keyHandler = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.close();
+      }
+    };
+    this.overlay.addEventListener("keydown", this.keyHandler);
+
+    this.dropZone.addEventListener("click", () => this.chooseFile());
+    this.overlay.querySelector('[data-action="choose-file"]').addEventListener("click", () => this.chooseFile());
+    this.overlay.querySelector('[data-action="choose-folder"]').addEventListener("click", () => this.chooseFolder());
+    this.overlay.querySelector('[data-action="refresh-library"]').addEventListener("click", () => this.refreshLibrary());
+    this.fileInput.addEventListener("change", () => {
+      const file = this.fileInput.files?.[0];
+      if (file) this.uploadFile(file);
+    });
+    this.folderInput.addEventListener("change", () => this.loadLocalFolder());
+    this.searchInput.addEventListener("input", () => this.renderFiles());
+    this.folderSelect.addEventListener("change", () => this.renderFiles(false));
+    for (const button of this.overlay.querySelectorAll("[data-source]")) {
+      button.addEventListener("click", () => this.setLibraryMode(button.dataset.source));
+    }
+    this.library.addEventListener("dragover", (event) => {
+      if (!event.dataTransfer?.types?.includes("Files")) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      this.dropZone.classList.add("dragging");
+    });
+    this.library.addEventListener("dragleave", (event) => {
+      if (!this.library.contains(event.relatedTarget)) this.dropZone.classList.remove("dragging");
+    });
+    this.library.addEventListener("drop", (event) => {
+      event.preventDefault();
+      this.dropZone.classList.remove("dragging");
+      const file = [...(event.dataTransfer?.files || [])].find(isSupportedMediaFile);
+      if (file) this.uploadFile(file);
+      else this.setLibraryMessage("Drop a supported audio file or a video containing audio.", true);
+    });
+  }
+
+  show() {
+    if (activeModal && activeModal !== this) activeModal.close();
+    activeModal = this;
+    this.previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.body.appendChild(this.overlay);
+    this.editor = new BeatPromptSequencer({
+      node: this.node,
+      container: this.editorHost,
+      widgets: this.widgets,
+      onStateChange: () => this.handleEditorState(),
+    });
+    INSTANCES.set(this.node.id, this.editor);
+    this.bindSettings();
+    this.syncSettings();
+    const pending = this.node._flSequencerExecutionMessage;
+    if (pending) {
+      this.editor.updateFromExecution(pending);
+      this.node._flSequencerExecutionMessage = null;
+    }
+    this.refreshLibrary();
+    requestAnimationFrame(() => {
+      this.shell.tabIndex = -1;
+      this.shell.focus({ preventScroll: true });
+      this.editor.scheduleDraw();
+    });
+  }
+
+  bindSettings() {
+    this.settingSpecs = {
+      fps: { widget: this.widgets.fps, parse: (value) => clamp(finiteNumber(value, 24), 1, 240) },
+      length: { widget: this.widgets.sequenceDuration, parse: (value) => clamp(Math.round(finiteNumber(value)), 0, 864000) },
+      "fade-in": { widget: this.widgets.defaultFadeIn, parse: (value) => clamp(Math.round(finiteNumber(value)), 0, 864000) },
+      "fade-out": { widget: this.widgets.defaultFadeOut, parse: (value) => clamp(Math.round(finiteNumber(value)), 0, 864000) },
+      curve: { widget: this.widgets.curve, parse: String },
+      "bpm-method": { widget: this.widgets.bpmMethod, parse: String },
+      "analysis-source": { widget: this.widgets.analysisSource, parse: String },
+      "half-time": { widget: this.widgets.halfTime, parse: Boolean },
+    };
+    for (const [name, spec] of Object.entries(this.settingSpecs)) {
+      const control = this.overlay.querySelector(`[data-setting="${name}"]`);
+      control.addEventListener("change", () => {
+        const raw = control.type === "checkbox" ? control.checked : control.value;
+        setWidgetValue(spec.widget, spec.parse(raw));
+      });
+    }
+    const syncedWidgets = [
+      ...Object.values(this.settingSpecs).map((spec) => spec.widget),
+      this.widgets.audioFile,
+    ].filter(Boolean);
+    for (const widget of syncedWidgets) {
+      const original = widget.callback;
+      const wrapped = (value) => {
+        const result = original?.call(widget, value);
+        this.syncSettings();
+        if (widget === this.widgets.audioFile) this.renderFiles();
+        return result;
+      };
+      widget.callback = wrapped;
+      this.widgetRestorers.push(() => {
+        if (widget.callback === wrapped) widget.callback = original;
+      });
+    }
+  }
+
+  syncSettings() {
+    for (const [name, spec] of Object.entries(this.settingSpecs || {})) {
+      const control = this.overlay.querySelector(`[data-setting="${name}"]`);
+      if (!control) continue;
+      if (control.type === "checkbox") control.checked = Boolean(spec.widget?.value);
+      else control.value = String(spec.widget?.value ?? "");
+    }
+    const audio = String(this.widgets.audioFile?.value || "");
+    this.subtitle.textContent = audio
+      ? `${audio} · edits save directly to the node`
+      : "Choose audio from Comfy input, drag a file, or browse a local folder";
+    updateCompactStatus(this.node, this.widgets, this.statusWidget, this.editor);
+  }
+
+  handleEditorState() {
+    this.syncSettings();
+  }
+
+  chooseFile() {
+    this.fileInput.value = "";
+    this.fileInput.click();
+  }
+
+  chooseFolder() {
+    this.folderInput.value = "";
+    this.folderInput.click();
+  }
+
+  loadLocalFolder() {
+    this.localEntries = [...(this.folderInput.files || [])]
+      .filter(isSupportedMediaFile)
+      .map((file) => {
+        const path = (file.webkitRelativePath || file.name).replace(/\\/g, "/");
+        const slash = path.lastIndexOf("/");
+        return {
+          path,
+          folder: slash >= 0 ? path.slice(0, slash) : "",
+          size: file.size,
+          file,
+        };
+      })
+      .sort((left, right) => left.path.localeCompare(right.path, undefined, { sensitivity: "base" }));
+    this.setLibraryMode("local");
+    this.setLibraryMessage(
+      this.localEntries.length
+        ? `${this.localEntries.length} supported files found. Only the file you select will upload.`
+        : "No supported audio or video files were found in that folder.",
+      !this.localEntries.length,
+    );
+  }
+
+  setLibraryMode(mode) {
+    this.libraryMode = mode === "local" ? "local" : "library";
+    for (const button of this.overlay.querySelectorAll("[data-source]")) {
+      button.classList.toggle("active", button.dataset.source === this.libraryMode);
+    }
+    this.renderFiles(true);
+  }
+
+  setLibraryMessage(message, error = false) {
+    this.libraryMessage.textContent = message;
+    this.libraryMessage.style.color = error ? "#fca5a5" : "#8b8b95";
+  }
+
+  async refreshLibrary() {
+    this.setLibraryMessage("Refreshing ComfyUI input audio…");
+    try {
+      const response = await api.fetchApi("/fl/audio-prompt-timeline/files");
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || `Audio library refresh failed (${response.status}).`);
+      this.libraryEntries = Array.isArray(payload.files) ? payload.files : [];
+      const values = this.widgets.audioFile?.options?.values;
+      if (Array.isArray(values)) {
+        for (const entry of this.libraryEntries) {
+          if (!values.includes(entry.path)) values.push(entry.path);
+        }
+      }
+      this.setLibraryMessage(`${this.libraryEntries.length} files available in ComfyUI input.`);
+      this.renderFiles(true);
+    } catch (error) {
+      this.setLibraryMessage(error.message, true);
+    }
+  }
+
+  renderFiles(resetFolder = false) {
+    const entries = this.libraryMode === "local" ? this.localEntries : this.libraryEntries;
+    const folders = [...new Set(entries.map((entry) => entry.folder || ""))]
+      .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
+    const previousFolder = resetFolder ? "" : this.folderSelect.value;
+    this.folderSelect.replaceChildren();
+    const allOption = document.createElement("option");
+    allOption.value = "";
+    allOption.textContent = "All folders";
+    this.folderSelect.appendChild(allOption);
+    for (const folder of folders) {
+      const option = document.createElement("option");
+      option.value = folder;
+      option.textContent = folder || "Input root";
+      this.folderSelect.appendChild(option);
+    }
+    if (folders.includes(previousFolder)) this.folderSelect.value = previousFolder;
+
+    const search = this.searchInput.value.trim().toLocaleLowerCase();
+    const folder = this.folderSelect.value;
+    const filtered = entries.filter((entry) => {
+      if (folder && entry.folder !== folder) return false;
+      return !search || entry.path.toLocaleLowerCase().includes(search);
+    });
+    this.results.replaceChildren();
+    const selected = String(this.widgets.audioFile?.value || "").replace(/\\/g, "/");
+    for (const entry of filtered.slice(0, 500)) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "flbps-file-row";
+      if (this.libraryMode === "library" && entry.path === selected) row.classList.add("selected");
+      const name = document.createElement("span");
+      name.className = "flbps-file-name";
+      name.textContent = filenameFromPath(entry.path);
+      const folderLabel = document.createElement("span");
+      folderLabel.className = "flbps-file-folder";
+      folderLabel.textContent = entry.folder || (this.libraryMode === "library" ? "ComfyUI/input" : "Selected folder");
+      row.append(name, folderLabel);
+      row.addEventListener("click", () => {
+        if (this.libraryMode === "local") this.uploadFile(entry.file);
+        else this.selectAudioPath(entry.path);
+      });
+      this.results.appendChild(row);
+    }
+    if (!filtered.length) {
+      const empty = document.createElement("div");
+      empty.className = "flbps-library-message";
+      empty.style.padding = "10px";
+      empty.textContent = this.libraryMode === "local"
+        ? "Choose a folder, then search its audio files here."
+        : "No ComfyUI input files match this search.";
+      this.results.appendChild(empty);
+    } else if (filtered.length > 500) {
+      const more = document.createElement("div");
+      more.className = "flbps-library-message";
+      more.style.padding = "8px";
+      more.textContent = `Showing the first 500 of ${filtered.length} matches. Refine the search to narrow the list.`;
+      this.results.appendChild(more);
+    }
+  }
+
+  selectAudioPath(path) {
+    const values = this.widgets.audioFile?.options?.values;
+    if (Array.isArray(values) && !values.includes(path)) values.push(path);
+    setWidgetValue(this.widgets.audioFile, path);
+    this.node.graph?.change?.();
+    this.setLibraryMessage(`Loaded ${filenameFromPath(path)}.`);
+    this.renderFiles();
+  }
+
+  async uploadFile(file) {
+    if (!isSupportedMediaFile(file)) {
+      this.setLibraryMessage("Choose a supported audio file or video containing audio.", true);
+      return;
+    }
+    this.setLibraryMessage(`Uploading ${file.name}…`);
+    try {
+      const body = new FormData();
+      body.append("image", file);
+      body.append("type", "input");
+      const response = await api.fetchApi("/upload/image", { method: "POST", body });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || `Upload failed (${response.status}).`);
+      const path = [payload.subfolder, payload.name].filter(Boolean).join("/").replace(/\\/g, "/");
+      this.selectAudioPath(path);
+      await this.refreshLibrary();
+    } catch (error) {
+      this.setLibraryMessage(error.message, true);
+    }
+  }
+
+  close() {
+    if (this.closed) return;
+    this.closed = true;
+    for (const restore of this.widgetRestorers.reverse()) restore();
+    this.widgetRestorers = [];
+    if (this.editor) {
+      this.editor.saveViewState();
+      this.editor.dispose();
+      INSTANCES.delete(this.node.id);
+      this.editor = null;
+    }
+    this.overlay.removeEventListener("keydown", this.keyHandler);
+    this.overlay.remove();
+    document.body.style.overflow = this.previousBodyOverflow;
+    if (activeModal === this) activeModal = null;
+    updateCompactStatus(this.node, this.widgets, this.statusWidget);
   }
 }
 
@@ -2683,50 +3338,46 @@ app.registerExtension({
       analysisSource: findWidget(node, "analysis_source"),
       beatGridDensity: findWidget(node, "beat_grid_density"),
     };
-    const hiddenWidgets = [
-      widgets.timeline,
-      widgets.timeUnit,
-      widgets.trimStartFrame,
-      widgets.beatOffset,
-      widgets.beatGridDensity,
-    ];
+    const hiddenWidgets = Object.values(widgets).filter(Boolean);
     for (const widget of hiddenWidgets) hideWidget(widget);
 
-    const container = document.createElement("div");
-    container.style.width = "100%";
-    container.style.height = "100%";
-    container.style.minHeight = "650px";
-
-    const domWidget = node.addDOMWidget(
-      "beat_prompt_sequencer",
-      "fl-beat-prompt-sequencer",
-      container,
-      {
-        getMinHeight: () => 760,
-        hideOnZoom: false,
-        serialize: false,
-      },
-    );
-
-    enforceMinimumNodeSize(node);
-    requestAnimationFrame(() => enforceMinimumNodeSize(node));
-
-    setTimeout(() => {
-      const editor = new BeatPromptSequencer({ node, container, widgets });
-      INSTANCES.set(node.id, editor);
-    }, 50);
+    const previousFormat = finiteNumber(node.properties?.flBeatPromptSequencer?.formatVersion);
+    node.properties = node.properties || {};
+    const savedSequencer = {
+      ...(node.properties.flBeatPromptSequencer || {}),
+      formatVersion: FORMAT_VERSION,
+    };
+    if (!COMPATIBLE_FORMAT_VERSIONS.has(previousFormat)) {
+      savedSequencer.beatData = null;
+      savedSequencer.viewStart = 0;
+      savedSequencer.viewEnd = 0;
+    }
+    node.properties.flBeatPromptSequencer = savedSequencer;
+    const openWidget = node.addWidget("button", "Open Audio Prompt Sequencer", null, () => {
+      const modal = new BeatPromptSequencerModal(node, widgets, statusWidget);
+      modal.show();
+    }, { serialize: false });
+    openWidget.serialize = false;
+    const statusWidget = node.addWidget("text", "Timeline status", "", null, { serialize: false });
+    statusWidget.disabled = true;
+    statusWidget.serialize = false;
+    updateCompactStatus(node, widgets, statusWidget);
+    compactNode(node, previousFormat !== FORMAT_VERSION);
 
     const originalOnExecuted = node.onExecuted;
     node.onExecuted = function (message) {
       originalOnExecuted?.apply(this, arguments);
-      INSTANCES.get(node.id)?.updateFromExecution(message);
+      const editor = INSTANCES.get(node.id);
+      if (editor) editor.updateFromExecution(message);
+      else this._flSequencerExecutionMessage = message;
+      updateCompactStatus(this, widgets, statusWidget, editor, executionPayload(message));
     };
 
     const originalOnConfigure = node.onConfigure;
     node.onConfigure = function (...args) {
       const result = originalOnConfigure?.apply(this, args);
       for (const widget of hiddenWidgets) hideWidget(widget);
-      requestAnimationFrame(() => enforceMinimumNodeSize(this));
+      compactNode(this, false);
       const editor = INSTANCES.get(node.id);
       if (editor) {
         editor.applyBeatOffset();
@@ -2746,12 +3397,10 @@ app.registerExtension({
       return result;
     };
 
-    domWidget.onRemove = () => {
-      const editor = INSTANCES.get(node.id);
-      if (editor) {
-        editor.dispose();
-        INSTANCES.delete(node.id);
-      }
+    const originalOnRemoved = node.onRemoved;
+    node.onRemoved = function () {
+      if (activeModal?.node === this) activeModal.close();
+      return originalOnRemoved?.apply(this, arguments);
     };
   },
 });
