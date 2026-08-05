@@ -5,8 +5,8 @@ const STYLE_ID = "fl-beat-prompt-sequencer-styles";
 const INSTANCES = new Map();
 const HEADER_RE = /^\s*\[\s*([0-9]+(?:\.[0-9]+)?)\s*-\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\|\s*(.*?))?\s*\]\s*$/;
 const EPSILON = 1e-6;
-const FORMAT_VERSION = 8;
-const COMPATIBLE_FORMAT_VERSIONS = new Set([6, 7, FORMAT_VERSION]);
+const FORMAT_VERSION = 9;
+const COMPATIBLE_FORMAT_VERSIONS = new Set([6, 7, 8, FORMAT_VERSION]);
 const COMPACT_NODE_WIDTH = 380;
 const MEDIA_FILE_RE = /\.(?:aac|aiff?|flac|m4a|mka|mkv|mov|mp3|mp4|oga|ogg|opus|wav|webm|wma)$/i;
 const TIMELINE_LEFT = 16;
@@ -17,12 +17,6 @@ const GRID_DENSITY_LABELS = {
   every_beat: "Every beat",
   half_beat: "Half-beat",
 };
-const MAGNET_LABELS = {
-  detected: "Detected beats",
-  onset: "Onsets",
-  off: "Off",
-};
-
 const STYLES = `
   .flbps-root {
     height: 100%;
@@ -711,7 +705,6 @@ class BeatPromptSequencer {
     this.selectedIndex = -1;
     this.playheadFrame = null;
     this.snapGuideFrame = null;
-    this.beatAlignmentGuide = null;
     this.drag = null;
     this.clipRects = [];
     this.pendingFrame = null;
@@ -741,7 +734,6 @@ class BeatPromptSequencer {
     this.viewStart = savedCompatible ? finiteNumber(saved.viewStart, 0) : 0;
     this.viewEnd = savedCompatible ? finiteNumber(saved.viewEnd, 0) : 0;
     this.snapMode = ["beat", "detected", "onset", "frame", "off"].includes(saved.snapMode) ? saved.snapMode : "beat";
-    this.magnetMode = saved.magnetMode in MAGNET_LABELS ? saved.magnetMode : "detected";
     this.waveformVisible = saved.waveformVisible !== false;
     this.autoAnalyze = saved.autoAnalyze !== false;
 
@@ -822,14 +814,6 @@ class BeatPromptSequencer {
               <option value="half_beat">Half-beat</option>
             </select>
           </label>
-          <label class="flbps-control" title="Choose which stationary audio references attract the cyan grid while dragging. Hold Shift to bypass.">
-            Magnet
-            <select data-role="grid-magnet">
-              <option value="detected">Detected beats</option>
-              <option value="onset">Onsets</option>
-              <option value="off">Off</option>
-            </select>
-          </label>
         </div>
         <span class="flbps-toolbar-divider"></span>
         <div class="flbps-control-group">
@@ -886,7 +870,7 @@ class BeatPromptSequencer {
         </div>
       </div>
       <div class="flbps-footer">
-        <span>drag cyan ruler markers to shift the beat grid · Shift bypasses magnet/snap · wheel zoom</span>
+        <span>Space play/pause · middle-drag to pan while zoomed · wheel zoom · Shift+wheel pan · Shift bypasses snapping</span>
       </div>
     `;
     this.container.appendChild(this.root);
@@ -904,7 +888,6 @@ class BeatPromptSequencer {
     this.controls = {
       snap: this.root.querySelector('[data-role="snap"]'),
       beatGridDensity: this.root.querySelector('[data-role="beat-grid-density"]'),
-      gridMagnet: this.root.querySelector('[data-role="grid-magnet"]'),
       autoAnalyze: this.root.querySelector('[data-role="auto-analyze"]'),
       beatOffset: this.root.querySelector('[data-role="beat-offset"]'),
       beatOffsetNumber: this.root.querySelector('[data-role="beat-offset-number"]'),
@@ -924,7 +907,6 @@ class BeatPromptSequencer {
 
     this.controls.snap.value = this.snapMode;
     this.controls.beatGridDensity.value = this.beatGridDensity();
-    this.controls.gridMagnet.value = this.magnetMode;
     this.controls.autoAnalyze.checked = this.autoAnalyze;
     this.syncBeatOffsetControls();
     this.waveformButton = this.root.querySelector('[data-action="waveform"]');
@@ -937,12 +919,6 @@ class BeatPromptSequencer {
     this.controls.beatGridDensity.addEventListener("change", () => {
       this.setBeatGridDensity(this.controls.beatGridDensity.value);
     });
-    this.controls.gridMagnet.addEventListener("change", () => {
-      this.magnetMode = this.controls.gridMagnet.value;
-      this.saveViewState();
-      this.scheduleDraw();
-    });
-
     this.root.querySelector('[data-action="zoom-out"]').addEventListener("click", () => this.zoom(1.5));
     this.root.querySelector('[data-action="zoom-in"]').addEventListener("click", () => this.zoom(0.65));
     this.root.querySelector('[data-action="fit"]').addEventListener("click", () => this.zoomToFit());
@@ -1006,6 +982,9 @@ class BeatPromptSequencer {
     this.canvas.addEventListener("pointerup", (event) => this.onPointerUp(event));
     this.canvas.addEventListener("pointercancel", (event) => this.onPointerUp(event));
     this.canvas.addEventListener("dblclick", (event) => this.addClipAtPointer(event));
+    this.canvas.addEventListener("auxclick", (event) => {
+      if (event.button === 1) event.preventDefault();
+    });
     this.canvas.addEventListener("wheel", (event) => this.onWheel(event), { passive: false });
     this.root.addEventListener("keydown", (event) => this.onKeyDown(event));
 
@@ -1186,14 +1165,15 @@ class BeatPromptSequencer {
   saveViewState() {
     this.node.properties = this.node.properties || {};
     const savedBeatData = this.beatData ? { ...this.beatData, waveformPreview: null } : null;
+    const previous = { ...(this.node.properties.flBeatPromptSequencer || {}) };
+    delete previous.magnetMode;
     this.node.properties.flBeatPromptSequencer = {
-      ...(this.node.properties.flBeatPromptSequencer || {}),
+      ...previous,
       formatVersion: FORMAT_VERSION,
       beatData: savedBeatData,
       viewStart: this.viewStart,
       viewEnd: this.viewEnd,
       snapMode: this.snapMode,
-      magnetMode: this.magnetMode,
       waveformVisible: this.waveformVisible,
       autoAnalyze: this.autoAnalyze,
     };
@@ -2091,30 +2071,6 @@ class BeatPromptSequencer {
     return null;
   }
 
-  hitTestBeatMarker(x, y) {
-    const right = this.canvas.clientWidth - TIMELINE_RIGHT;
-    const layout = this.timelineLayout();
-    if (!this.beatData?.baseBeatTimes?.length ||
-        x < TIMELINE_LEFT ||
-        x > right ||
-        y < layout.rulerTop ||
-        y > layout.rulerBottom) {
-      return null;
-    }
-    let nearest = null;
-    const frames = this.beatFrames();
-    for (let index = 0; index < frames.length; index++) {
-      const frame = frames[index];
-      if (frame < this.viewStart || frame > this.viewEnd) continue;
-      const markerX = this.frameToX(frame, this.canvas.clientWidth);
-      const distance = Math.abs(x - markerX);
-      if (distance <= 7 && (!nearest || distance < nearest.distance)) {
-        nearest = { index, frame, x: markerX, distance };
-      }
-    }
-    return nearest;
-  }
-
   updateTrimDrag(x) {
     const frame = this.sourceFrameAtX(x);
     const original = this.drag.original;
@@ -2134,21 +2090,24 @@ class BeatPromptSequencer {
   onPointerDown(event) {
     this.root.focus({ preventScroll: true });
     const { x, y } = this.eventPosition(event);
-    const beatMarker = this.hitTestBeatMarker(x, y);
-    if (beatMarker) {
+    if (event.button === 1) {
+      const duration = this.sequenceFrameCount();
+      const range = this.viewEnd - this.viewStart;
+      event.preventDefault();
+      if (range >= duration - EPSILON) return;
       this.drag = {
-        type: "beat-grid",
-        markerIndex: beatMarker.index,
+        type: "timeline-pan",
         pointerStartX: x,
         pointerStartY: y,
-        originalOffset: this.beatOffsetMs(),
+        originalViewStart: this.viewStart,
+        originalViewEnd: this.viewEnd,
         active: false,
       };
       this.canvas.setPointerCapture(event.pointerId);
       this.canvas.style.cursor = "grabbing";
-      event.preventDefault();
       return;
     }
+    if (event.button !== 0) return;
     const trimHit = this.hitTestTrim(x, y);
     if (trimHit) {
       this.drag = {
@@ -2208,6 +2167,22 @@ class BeatPromptSequencer {
     this.viewEnd = Math.min(duration, this.viewStart + range);
   }
 
+  updateTimelinePan(x) {
+    const right = Math.max(TIMELINE_LEFT + 1, this.canvas.clientWidth - TIMELINE_RIGHT);
+    const pixels = right - TIMELINE_LEFT;
+    const range = this.drag.originalViewEnd - this.drag.originalViewStart;
+    const frameDelta = (x - this.drag.pointerStartX) / pixels * range;
+    const duration = this.sequenceFrameCount();
+    this.viewStart = clamp(
+      this.drag.originalViewStart - frameDelta,
+      0,
+      Math.max(0, duration - range),
+    );
+    this.viewEnd = Math.min(duration, this.viewStart + range);
+    this.viewStart = Math.max(0, this.viewEnd - range);
+    this.scheduleDraw();
+  }
+
   updateDrag(x, shiftKey) {
     const clip = this.selectedClip();
     if (!this.drag || !clip) return;
@@ -2252,68 +2227,21 @@ class BeatPromptSequencer {
     this.scheduleDraw();
   }
 
-  magnetizedBeatOffset(offsetMs, bypass) {
-    this.beatAlignmentGuide = null;
-    if (bypass || this.magnetMode === "off") return offsetMs;
-    const references = this.magnetMode === "onset"
-      ? this.beatData?.onsetTimes || []
-      : this.beatData?.baseDetectedBeatTimes || [];
-    const gridTimes = this.gridBeatTimes(offsetMs);
-    if (!references.length || !gridTimes.length) return offsetMs;
-
-    const rect = this.canvas.getBoundingClientRect();
-    const screenScale = this.canvas.clientWidth / Math.max(1, rect.width);
-    const threshold = 8 * screenScale;
-    let match = null;
-    for (const beatTime of gridTimes) {
-      const beatFrame = beatTime * this.fps();
-      if (beatFrame < this.viewStart || beatFrame > this.viewEnd) continue;
-      const beatX = this.frameToX(beatFrame, this.canvas.clientWidth);
-      for (const referenceTime of references) {
-        const referenceFrame = finiteNumber(referenceTime) * this.fps();
-        if (referenceFrame < this.viewStart || referenceFrame > this.viewEnd) continue;
-        const distance = Math.abs(
-          this.frameToX(referenceFrame, this.canvas.clientWidth) - beatX,
-        );
-        if (distance <= threshold && (!match || distance < match.distance)) {
-          match = { beatTime, referenceTime, referenceFrame, distance };
-        }
-      }
-    }
-    if (!match) return offsetMs;
-    this.beatAlignmentGuide = {
-      frame: match.referenceFrame,
-      label: this.magnetMode === "onset" ? "Onset aligned" : "Detected beat aligned",
-    };
-    return offsetMs + (match.referenceTime - match.beatTime) * 1000;
-  }
-
-  updateBeatGridDrag(x, shiftKey) {
-    const right = Math.max(TIMELINE_LEFT + 1, this.canvas.clientWidth - TIMELINE_RIGHT);
-    const pixels = right - TIMELINE_LEFT;
-    const frames = (x - this.drag.pointerStartX) / pixels * (this.viewEnd - this.viewStart);
-    const offset = clamp(
-      this.drag.originalOffset + frames / this.fps() * 1000,
-      -1000,
-      1000,
-    );
-    this.setBeatOffset(this.magnetizedBeatOffset(offset, shiftKey));
-  }
-
   onPointerMove(event) {
     const { x, y } = this.eventPosition(event);
-    this.hover = { x, y };
-    if (this.drag?.type === "beat-grid") {
+    if (this.drag?.type === "timeline-pan") {
+      this.hover = null;
       if (!this.drag.active) {
         const distance = Math.hypot(x - this.drag.pointerStartX, y - this.drag.pointerStartY);
-        if (distance < 3) return;
+        if (distance < 2) return;
         this.drag.active = true;
       }
       this.canvas.style.cursor = "grabbing";
-      this.updateBeatGridDrag(x, event.shiftKey);
+      this.updateTimelinePan(x);
       event.preventDefault();
       return;
     }
+    this.hover = { x, y };
     if (this.drag?.type === "trim-start" || this.drag?.type === "trim-end") {
       if (!this.drag.active) {
         const distance = Math.hypot(x - this.drag.pointerStartX, y - this.drag.pointerStartY);
@@ -2326,12 +2254,9 @@ class BeatPromptSequencer {
       return;
     }
     if (!this.drag || !this.selectedClip()) {
-      const gridHit = this.hitTestBeatMarker(x, y);
       const trimHit = this.hitTestTrim(x, y);
       const hit = this.hitTest(x, y);
-      this.canvas.style.cursor = gridHit
-        ? "grab"
-        : trimHit
+      this.canvas.style.cursor = trimHit
         ? "ew-resize"
         : hit
         ? hit.type === "move" ? "grab" : "ew-resize"
@@ -2355,18 +2280,17 @@ class BeatPromptSequencer {
   onPointerUp(event) {
     if (!this.drag) return;
     const trimChanged = this.drag.type === "trim-start" || this.drag.type === "trim-end";
-    const gridChanged = this.drag.type === "beat-grid";
+    const viewChanged = this.drag.type === "timeline-pan";
     const changed = this.drag.active;
     this.drag = null;
     this.snapGuideFrame = null;
-    this.beatAlignmentGuide = null;
     this.canvas.style.cursor = "default";
     if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
     if (changed) {
       if (trimChanged) {
         this.zoomToFit(false);
         this.scheduleAnalysis(0);
-      } else if (gridChanged) {
+      } else if (viewChanged) {
         this.saveViewState();
       } else {
         this.serialize();
@@ -2686,27 +2610,23 @@ class BeatPromptSequencer {
     const right = width - TIMELINE_RIGHT;
     const families = [
       {
-        type: "detected",
         label: "Detected",
         frames: this.detectedBeatFrames(),
         color: "#e879f9",
         startY: bottom - 10,
-        active: this.magnetMode === "detected",
       },
       {
-        type: "onset",
         label: "Onset",
         frames: this.onsetFrames(),
         color: "#f59e0b",
         startY: bottom - 5,
-        active: this.magnetMode === "onset",
       },
     ];
     let hovered = null;
     for (const family of families) {
       ctx.strokeStyle = family.color;
-      ctx.lineWidth = family.active ? 1.5 : 1;
-      ctx.globalAlpha = family.active ? 0.82 : 0.28;
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.48;
       for (const frame of family.frames) {
         if (frame < this.viewStart || frame > this.viewEnd) continue;
         const x = this.frameToX(frame, width);
@@ -2729,7 +2649,7 @@ class BeatPromptSequencer {
     ctx.globalAlpha = 1;
     ctx.lineWidth = 1;
 
-    if (hovered && !this.hitTestBeatMarker(this.hover.x, this.hover.y)) {
+    if (hovered) {
       const text = `${hovered.label} · F${hovered.frame} · ${formatClock(hovered.frame / this.fps())}`;
       ctx.font = "9px Inter, sans-serif";
       const boxWidth = ctx.measureText(text).width + 12;
@@ -2744,14 +2664,11 @@ class BeatPromptSequencer {
   }
 
   drawBeatGrid(ctx, width, rulerBottom, contentTop, contentBottom) {
-    const right = width - TIMELINE_RIGHT;
     const frames = this.beatFrames();
     const visibleFrames = frames.filter((frame) => frame >= this.viewStart && frame <= this.viewEnd);
     const markerSpacing = visibleFrames.length > 1
       ? Math.abs(this.frameToX(visibleFrames[1], width) - this.frameToX(visibleFrames[0], width))
       : Infinity;
-    const hovered = this.hover ? this.hitTestBeatMarker(this.hover.x, this.hover.y) : null;
-    const dragging = this.drag?.type === "beat-grid";
     const groupStride = this.beatGridDensity() === "half_beat"
       ? 8
       : this.beatGridDensity() === "every_2_beats"
@@ -2763,23 +2680,22 @@ class BeatPromptSequencer {
       if (frame < this.viewStart || frame > this.viewEnd) continue;
       const x = this.frameToX(frame, width);
       const accent = index % groupStride === 0;
-      const focused = hovered?.index === index || (dragging && this.drag.markerIndex === index);
       ctx.strokeStyle = "#22d3ee";
-      ctx.lineWidth = focused ? 2 : accent ? 1.25 : 1;
-      ctx.globalAlpha = focused ? 0.72 : accent ? (dragging ? 0.38 : 0.28) : (dragging ? 0.22 : 0.14);
+      ctx.lineWidth = accent ? 1.25 : 1;
+      ctx.globalAlpha = accent ? 0.28 : 0.14;
       ctx.beginPath();
       ctx.moveTo(x + 0.5, contentTop);
       ctx.lineTo(x + 0.5, contentBottom);
       ctx.stroke();
 
-      ctx.globalAlpha = focused ? 1 : accent ? 0.9 : 0.72;
+      ctx.globalAlpha = accent ? 0.9 : 0.72;
       ctx.fillStyle = "#67e8f9";
       ctx.beginPath();
-      ctx.arc(x, rulerBottom - 4, focused ? 4 : accent ? 3 : 2.25, 0, Math.PI * 2);
+      ctx.arc(x, rulerBottom - 4, accent ? 3 : 2.25, 0, Math.PI * 2);
       ctx.fill();
 
       if (accent || markerSpacing >= 38) {
-        ctx.fillStyle = focused ? "#ecfeff" : "#8ddde8";
+        ctx.fillStyle = "#8ddde8";
         ctx.font = "7px Inter, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "bottom";
@@ -2788,19 +2704,6 @@ class BeatPromptSequencer {
     }
     ctx.globalAlpha = 1;
     ctx.lineWidth = 1;
-
-    if (hovered) {
-      const text = `Beat ${hovered.index + 1} · F${hovered.frame} · ${formatClock(hovered.frame / this.fps())} · drag to align`;
-      ctx.font = "9px Inter, sans-serif";
-      const boxWidth = ctx.measureText(text).width + 12;
-      const boxX = clamp(hovered.x - boxWidth / 2, TIMELINE_LEFT, right - boxWidth);
-      ctx.fillStyle = "rgba(8,51,68,.96)";
-      ctx.fillRect(boxX, contentTop + 5, boxWidth, 18);
-      ctx.fillStyle = "#cffafe";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      ctx.fillText(text, boxX + 6, contentTop + 14);
-    }
   }
 
   drawPromptClips(ctx, width, top, bottom) {
@@ -2917,31 +2820,6 @@ class BeatPromptSequencer {
   }
 
   drawGuidesAndPlayhead(ctx, width, layout) {
-    const right = width - TIMELINE_RIGHT;
-    const contentTop = this.waveformVisible ? layout.waveformTop : layout.trackTop;
-
-    if (this.beatAlignmentGuide &&
-        this.beatAlignmentGuide.frame >= this.viewStart &&
-        this.beatAlignmentGuide.frame <= this.viewEnd) {
-      const x = this.frameToX(this.beatAlignmentGuide.frame, width);
-      ctx.strokeStyle = "#f0abfc";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(x + 0.5, layout.rulerBottom);
-      ctx.lineTo(x + 0.5, layout.trackBottom);
-      ctx.stroke();
-      ctx.fillStyle = "#701a75";
-      ctx.font = "8px Inter, sans-serif";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      const labelWidth = ctx.measureText(this.beatAlignmentGuide.label).width + 10;
-      const labelX = clamp(x + 5, TIMELINE_LEFT, right - labelWidth);
-      ctx.fillRect(labelX, contentTop + 4, labelWidth, 16);
-      ctx.fillStyle = "#fae8ff";
-      ctx.fillText(this.beatAlignmentGuide.label, labelX + 5, contentTop + 12);
-      ctx.lineWidth = 1;
-    }
-
     if (this.snapGuideFrame != null &&
         this.snapGuideFrame >= this.viewStart &&
         this.snapGuideFrame <= this.viewEnd) {
@@ -3190,6 +3068,14 @@ class BeatPromptSequencerModal {
       if (event.key === "Escape") {
         event.preventDefault();
         this.close();
+      } else if ((event.code === "Space" || event.key === " ") &&
+          !(event.target instanceof HTMLInputElement) &&
+          !(event.target instanceof HTMLTextAreaElement) &&
+          !(event.target instanceof HTMLSelectElement) &&
+          !(event.target instanceof HTMLButtonElement) &&
+          !event.target?.isContentEditable) {
+        event.preventDefault();
+        if (!event.repeat) this.editor?.togglePlayback();
       }
     };
     this.overlay.addEventListener("keydown", this.keyHandler);
@@ -3535,6 +3421,7 @@ app.registerExtension({
       ...(node.properties.flBeatPromptSequencer || {}),
       formatVersion: FORMAT_VERSION,
     };
+    delete savedSequencer.magnetMode;
     if (!COMPATIBLE_FORMAT_VERSIONS.has(previousFormat)) {
       savedSequencer.beatData = null;
       savedSequencer.viewStart = 0;
