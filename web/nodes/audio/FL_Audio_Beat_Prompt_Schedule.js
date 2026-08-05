@@ -11,6 +11,7 @@ const COMPACT_NODE_WIDTH = 380;
 const MEDIA_FILE_RE = /\.(?:aac|aiff?|flac|m4a|mka|mkv|mov|mp3|mp4|oga|ogg|opus|wav|webm|wma)$/i;
 const TIMELINE_LEFT = 16;
 const TIMELINE_RIGHT = 12;
+const DEFAULT_CLIP_GRID_INTERVALS = 4;
 let activeModal = null;
 const GRID_DENSITY_LABELS = {
   every_2_beats: "Every 2 beats",
@@ -870,7 +871,7 @@ class BeatPromptSequencer {
         </div>
       </div>
       <div class="flbps-footer">
-        <span>Space play/pause · middle-drag to pan while zoomed · wheel zoom · Shift+wheel pan · Shift bypasses snapping</span>
+        <span>double-click adds a four-grid prompt · Space play/pause · middle-drag to pan while zoomed · wheel zoom · Shift+wheel pan</span>
       </div>
     `;
     this.container.appendChild(this.root);
@@ -1901,18 +1902,56 @@ class BeatPromptSequencer {
     return Math.max(1, Math.round(this.fps() * 2));
   }
 
-  addClip(startOverride = null) {
+  gridClipRangeAt(frame) {
+    const markers = [...new Set(this.beatFrames())].sort((left, right) => left - right);
+    const intervalFrames = this.gridIntervalSeconds() * this.fps();
+    if (!markers.length || !(intervalFrames > EPSILON)) return undefined;
+    const maximum = this.maximumFrame();
+    const candidates = [];
+    for (let index = 0; index < markers.length; index++) {
+      const start = markers[index];
+      const end = index + DEFAULT_CLIP_GRID_INTERVALS < markers.length
+        ? markers[index + DEFAULT_CLIP_GRID_INTERVALS]
+        : Math.round(start + intervalFrames * DEFAULT_CLIP_GRID_INTERVALS);
+      if (end > start && (!Number.isFinite(maximum) || end <= maximum)) {
+        candidates.push({ start, end });
+      }
+    }
+    if (!candidates.length) return null;
+    let nearest = candidates[0];
+    for (let index = 1; index < candidates.length; index++) {
+      if (Math.abs(candidates[index].start - frame) < Math.abs(nearest.start - frame)) {
+        nearest = candidates[index];
+      }
+    }
+    return nearest;
+  }
+
+  addClip(startOverride = null, endOverride = null) {
     if (this.migrationPending) return;
     const previousEnd = this.clips.length ? this.clips[this.clips.length - 1].end : 0;
-    const start = startOverride == null ? previousEnd : this.snapFrame(startOverride);
-    let end = start + this.defaultClipLength();
+    const exactRange = endOverride != null;
+    const start = startOverride == null
+      ? previousEnd
+      : exactRange
+      ? Math.max(0, Math.round(startOverride))
+      : this.snapFrame(startOverride);
+    let end = exactRange ? Math.round(endOverride) : start + this.defaultClipLength();
+    if (!(end > start)) {
+      this.showError("The new prompt must end after it starts.");
+      return;
+    }
     const maximum = this.maximumFrame();
     if (Number.isFinite(maximum)) {
       if (start >= maximum) {
         this.showError("There is no room for another prompt inside the configured frame length.");
         return;
       }
-      end = Math.min(end, maximum);
+      if (exactRange && end > maximum) {
+        this.showError("There is not enough room for a four-grid prompt inside the configured frame length.");
+        return;
+      }
+      if (!exactRange) end = Math.min(end, maximum);
     }
     const duration = end - start;
     const fadeIn = Math.min(Math.round(this.defaultFadeIn()), duration);
@@ -1939,7 +1978,14 @@ class BeatPromptSequencer {
     const { y } = this.eventPosition(event);
     const layout = this.timelineLayout();
     if (y < layout.trackTop || y > layout.trackBottom) return;
-    this.addClip(this.frameAtEvent(event));
+    const frame = this.frameAtEvent(event);
+    const range = this.gridClipRangeAt(frame);
+    if (range === null) {
+      this.showError("There is not enough room for a four-grid prompt inside the configured frame length.");
+      return;
+    }
+    if (range) this.addClip(range.start, range.end);
+    else this.addClip(frame);
   }
 
   deleteClip() {
