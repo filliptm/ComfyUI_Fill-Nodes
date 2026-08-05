@@ -39,6 +39,8 @@ from .nodes.api_tools.FL_API_ImageSaver import FL_API_ImageSaver
 
 # AUDIO NODES
 from .nodes.audio.FL_Audio_BPM_Analyzer import FL_Audio_BPM_Analyzer
+from .nodes.audio.FL_Audio_Beat_Prompt_Schedule import FL_Audio_Beat_Prompt_Schedule
+from .nodes.audio.FL_Audio_Prompt_Envelope import FL_Audio_Beat_Prompt_Envelope, FL_Audio_Envelope_Prompt
 from .nodes.audio.FL_Audio_Beat_Visualizer import FL_Audio_Beat_Visualizer
 from .nodes.audio.FL_Audio_Crop import FL_Audio_Crop
 from .nodes.audio.FL_Audio_Drum_Detector import FL_Audio_Drum_Detector
@@ -177,6 +179,7 @@ from .nodes.pdf.FL_TextToPDF import FL_TextToPDF
 
 # PROMPTING NODES
 from .nodes.prompting.FL_MadLibGenerator import FL_MadLibGenerator
+from .nodes.prompting.FL_MiniMaxH3PromptTimeline import FL_MiniMaxH3ApplyTimeline, FL_MiniMaxH3PromptTimeline
 from .nodes.prompting.FL_Prompt import FL_PromptBasic
 from .nodes.prompting.FL_PromptMulti import FL_PromptMulti
 from .nodes.prompting.FL_PromptSelector import FL_PromptSelector
@@ -280,6 +283,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_DepthBlur": FL_DepthBlur,
     "FL_RandomNumber": FL_RandomNumber,
     "FL_PromptSelector": FL_PromptSelector,
+    "FL_MiniMaxH3PromptTimeline": FL_MiniMaxH3PromptTimeline,
+    "FL_MiniMaxH3ApplyTimeline": FL_MiniMaxH3ApplyTimeline,
     "FL_Shadertoy": FL_Shadertoy,
     "FL_PixelArtShader": FL_PixelArtShader,
     "FL_InfiniteZoom": FL_InfiniteZoom,
@@ -431,6 +436,9 @@ NODE_CLASS_MAPPINGS = {
     "FL_LTXVMaskedICLoRAGuide": FL_LTXVMaskedICLoRAGuide,
     "FL_SaveRGBAAnimatedWebP": FL_SaveRGBAAnimatedWebP,
     "FL_Audio_BPM_Analyzer": FL_Audio_BPM_Analyzer,
+    "FL_Audio_Beat_Prompt_Schedule": FL_Audio_Beat_Prompt_Schedule,
+    "FL_Audio_Beat_Prompt_Envelope": FL_Audio_Beat_Prompt_Envelope,
+    "FL_Audio_Envelope_Prompt": FL_Audio_Envelope_Prompt,
     "FL_Audio_Beat_Visualizer": FL_Audio_Beat_Visualizer,
     "FL_Audio_Crop": FL_Audio_Crop,
     "FL_Audio_Drum_Detector": FL_Audio_Drum_Detector,
@@ -482,6 +490,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_RandomNumber": "FL Random Number",
     "FL_PromptSelector": "FL Prompt Selector",
     "FL_PromptSelectorBasic": "FL Prompt Selector Basic",
+    "FL_MiniMaxH3PromptTimeline": "FL MiniMax H3 Prompt Timeline",
+    "FL_MiniMaxH3ApplyTimeline": "FL MiniMax H3 Apply Timeline",
     "FL_Shadertoy": "FL Shadertoy",
     "FL_PixelArtShader": "FL Pixel Art",
     "FL_InfiniteZoom": "FL Infinite Zoom",
@@ -635,6 +645,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_LTXVMaskedICLoRAGuide": "FL LTXV Masked IC-LoRA Guide",
     "FL_SaveRGBAAnimatedWebP": "FL Save RGBA Animated WebP",
     "FL_Audio_BPM_Analyzer": "FL Audio BPM Analyzer",
+    "FL_Audio_Beat_Prompt_Schedule": "FL Audio Beat Prompt Schedule",
+    "FL_Audio_Beat_Prompt_Envelope": "FL Audio Beat Prompt Envelope",
+    "FL_Audio_Envelope_Prompt": "FL Audio Envelope Prompt",
     "FL_Audio_Beat_Visualizer": "FL Audio Beat Visualizer",
     "FL_Audio_Crop": "FL Audio Crop",
     "FL_Audio_Drum_Detector": "FL Audio Drum Detector",

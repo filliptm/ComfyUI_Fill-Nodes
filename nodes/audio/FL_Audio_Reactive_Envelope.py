@@ -1,8 +1,7 @@
 # FL_Audio_Reactive_Envelope: Generate per-frame envelopes from drum detections
-import torch
-import numpy as np
 import json
-from typing import Tuple, Dict, Any
+import math
+from typing import Tuple
 
 
 class FL_Audio_Reactive_Envelope:
@@ -151,65 +150,31 @@ class FL_Audio_Reactive_Envelope:
         Returns:
             Tuple of (kick_envelope_json, snare_envelope_json, hihat_envelope_json) as JSON strings
         """
-        print(f"\n{'='*60}")
-        print(f"[FL Audio Reactive Envelope] DEBUG: Function called")
-        print(f"[FL Audio Reactive Envelope] DEBUG: FPS = {fps}")
-        print(f"{'='*60}\n")
+        drum_data = json.loads(drum_times_json)
+        kick_times = drum_data["kick_times"]
+        snare_times = drum_data["snare_times"]
+        hihat_times = drum_data["hihat_times"]
+        duration = drum_data["duration"]
+        total_frames = math.ceil(duration * fps)
 
-        try:
-            # Parse drum times JSON
-            drum_data = json.loads(drum_times_json)
-            kick_times = drum_data['kick_times']
-            snare_times = drum_data['snare_times']
-            hihat_times = drum_data['hihat_times']
-            duration = drum_data['duration']
+        kick_envelope = self._generate_envelope(
+            kick_times, total_frames, fps,
+            kick_attack_frames, kick_decay_frames, kick_sustain_level, kick_release_frames
+        )
+        snare_envelope = self._generate_envelope(
+            snare_times, total_frames, fps,
+            snare_attack_frames, snare_decay_frames, snare_sustain_level, snare_release_frames
+        )
+        hihat_envelope = self._generate_envelope(
+            hihat_times, total_frames, fps,
+            hihat_attack_frames, hihat_decay_frames, hihat_sustain_level, hihat_release_frames
+        )
 
-            total_frames = int(duration * fps)
-
-            print(f"[FL Audio Reactive Envelope] DEBUG: Duration = {duration:.2f}s")
-            print(f"[FL Audio Reactive Envelope] DEBUG: Total frames = {total_frames}")
-            print(f"[FL Audio Reactive Envelope] DEBUG: Kicks = {len(kick_times)}")
-            print(f"[FL Audio Reactive Envelope] DEBUG: Snares = {len(snare_times)}")
-            print(f"[FL Audio Reactive Envelope] DEBUG: Hi-hats = {len(hihat_times)}")
-
-            # Generate envelopes
-            kick_envelope = self._generate_envelope(
-                kick_times, total_frames, fps,
-                kick_attack_frames, kick_decay_frames, kick_sustain_level, kick_release_frames
-            )
-
-            snare_envelope = self._generate_envelope(
-                snare_times, total_frames, fps,
-                snare_attack_frames, snare_decay_frames, snare_sustain_level, snare_release_frames
-            )
-
-            hihat_envelope = self._generate_envelope(
-                hihat_times, total_frames, fps,
-                hihat_attack_frames, hihat_decay_frames, hihat_sustain_level, hihat_release_frames
-            )
-
-            print(f"\n{'='*60}")
-            print(f"[FL Audio Reactive Envelope] Envelope generation complete!")
-            print(f"[FL Audio Reactive Envelope] Kick envelope: {len(kick_envelope)} frames")
-            print(f"[FL Audio Reactive Envelope] Snare envelope: {len(snare_envelope)} frames")
-            print(f"[FL Audio Reactive Envelope] Hi-hat envelope: {len(hihat_envelope)} frames")
-            print(f"{'='*60}\n")
-
-            # Convert to JSON strings
-            kick_json = json.dumps({"envelope": kick_envelope, "total_frames": len(kick_envelope)})
-            snare_json = json.dumps({"envelope": snare_envelope, "total_frames": len(snare_envelope)})
-            hihat_json = json.dumps({"envelope": hihat_envelope, "total_frames": len(hihat_envelope)})
-
-            return (kick_json, snare_json, hihat_json)
-
-        except Exception as e:
-            error_msg = f"Error: {str(e)}"
-            print(f"\n{'='*60}")
-            print(f"[FL Audio Reactive Envelope] ERROR: {error_msg}")
-            import traceback
-            traceback.print_exc()
-            print(f"{'='*60}\n")
-            return ("{}", "{}", "{}")
+        metadata = {"fps": fps, "duration": duration}
+        kick_json = json.dumps({"envelope": kick_envelope, "total_frames": len(kick_envelope), **metadata})
+        snare_json = json.dumps({"envelope": snare_envelope, "total_frames": len(snare_envelope), **metadata})
+        hihat_json = json.dumps({"envelope": hihat_envelope, "total_frames": len(hihat_envelope), **metadata})
+        return (kick_json, snare_json, hihat_json)
 
     def _generate_envelope(
         self,
@@ -236,7 +201,7 @@ class FL_Audio_Reactive_Envelope:
                 if frame_idx >= total_frames:
                     break
                 # Linear attack to 1.0
-                envelope[frame_idx] = max(envelope[frame_idx], i / max(attack_frames, 1))
+                envelope[frame_idx] = max(envelope[frame_idx], (i + 1) / attack_frames)
 
             # Decay phase
             for i in range(decay_frames):

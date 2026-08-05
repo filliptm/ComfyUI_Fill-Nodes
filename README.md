@@ -324,10 +324,13 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 | Node | Description |
 |------|-------------|
 | `FL_Audio_BPM_Analyzer` | Analyzes audio using librosa to detect BPM and beat positions, with options for two BPM calculation methods (beat_intervals or onset_strength), beat offset adjustment, and automatic beat filling to cover the entire audio duration. Outputs beat positions as JSON with visualization. |
+| `FL_Audio_Beat_Prompt_Envelope` | Turns exact detected beats into attack/hold/release prompt-mask pulses for compatible FL diffusion video nodes. Supports beat stride, phase, response curve, and on-beat dominance above normal conditioning weight. |
+| `FL_Audio_Beat_Prompt_Schedule` | Interactive prompt sequencer using the BPM analyzer's exact detected beat times. Supports draggable prompt clips, fades, beat/frame snapping, beats/seconds/frames syntax, editable sequence duration, and resolved duration/frame outputs. |
 | `FL_Audio_Beat_Visualizer` | Generates video frames that visualize beat patterns by either alternating between black/white on beat changes or cycling through provided images, with configurable frame dimensions and starting color. |
 | `FL_AudioFrameCalculator` | Given an AUDIO and a target FPS, returns the integer frame count needed to cover the audio's duration (`ceil(duration * fps)`). Useful upstream of video-generation nodes that need an exact frame budget. |
 | `FL_Audio_Crop` | Crops audio waveforms to specified start and end times using MM:SS or seconds format, with automatic clamping to valid audio boundaries. |
 | `FL_Audio_Drum_Detector` | Detects kicks, snares, and hi-hats from audio using librosa onset detection with frequency band analysis (kicks: 30-300Hz, snares: 150-400Hz + 4-10kHz noise, hi-hats: 6kHz+) and adjustable sensitivity thresholds. |
+| `FL_Audio_Envelope_Prompt` | Maps an existing FL audio envelope to diffusion prompt-mask strength, with threshold, response curve, inversion, and floor/peak controls. |
 | `FL_Audio_Envelope_Visualizer` | Visualizes audio envelopes as grayscale video frames where pixel intensity corresponds to envelope values, with configurable intensity multiplier and optional color inversion. |
 | `FL_Audio_Music_Video_Sequencer` | Generates complete music video shot sequences from beat positions using pattern-based orchestration (A/B/C/D patterns with configurable beat counts), creating drift-free frame boundaries and detailed metadata for each shot including time, beat, and sample boundaries. |
 | `FL_Audio_Reactive_Brightness` | Multiplies frame pixel values by brightness factors calculated from audio envelopes, with configurable base brightness, intensity scaling, optional inversion, and output clamping. |
@@ -372,10 +375,44 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 | Node | Description |
 |------|-------------|
 | `FL_MadLibGenerator` | Generates text by replacing up to 5 different delimiter patterns in a template with randomly selected words from corresponding word lists. Uses per-list seeding with MD5 hashing to ensure reproducible but independent randomization for each delimiter. |
+| `FL_MiniMaxH3ApplyTimeline` | Rebuilds temporal conditioning masks from an `FL_H3_TIMELINE` for a spatially resized MiniMax H3 video/audio latent while preserving its original temporal shape. |
+| `FL_MiniMaxH3PromptTimeline` | Creates native MiniMax H3 video/audio latents with strict seconds, frame, or beat-based prompt scheduling. Outputs masked conditioning for the initial latent, a fast semantic conditioning for refinement passes, and a reusable timeline object. |
 | `FL_PromptBasic` | Concatenates three text strings (prepend, prompt, append) without adding any spaces, preserving user-specified formatting for prompt construction. |
 | `FL_PromptMulti` | Processes multi-line positive and negative prompts into parallel lists, automatically balancing counts by repeating the last prompt or using empty strings. Generates indexed names with configurable prefix and outputs as lists for batch processing. |
 | `FL_PromptSelector` | Selects a single prompt line by index from a multi-line prompt string, optionally prepending and appending text with automatic space insertion. |
 | `FL_PromptSelectorBasic` | Selects a single line from a multi-line prompt string by index, wrapping the index with modulo so it always loops within bounds. No prepend/append. |
+
+`FL_MiniMaxH3PromptTimeline` uses bracketed, ordered time ranges:
+
+```text
+[00:00.000 - 00:02.000]
+Wide portrait. The subject looks toward camera.
+
+[00:02.000 - 00:04.000]
+Cut to profile as the subject walks toward the doorway.
+```
+
+Connect `scheduled` to the first sampler for strict latent-time control. Connect `semantic` to a low-denoise upscale pass for normal single-prompt sampling. To enforce the strict schedule again after spatial VAE re-encoding, connect the timeline and resized AV latent to `FL_MiniMaxH3ApplyTimeline`. The Apply node requires the same video and audio duration but supports different spatial dimensions.
+
+For audio-reactive timing, connect `beat_positions` from `FL_Audio_BPM_Analyzer` to `FL_Audio_Beat_Prompt_Schedule`, then connect its `prompt_schedule` output to the H3 timeline node:
+
+```text
+[0 - 48 | fade_in=6 | fade_out=6]
+The subject slowly turns toward camera.
+
+[48 - 96 | fade_in=6 | fade_out=6]
+The camera pushes forward on the beat.
+```
+
+Frame ranges are zero-based and range ends are exclusive. Detected beats appear in their own marker lane and can be used as the editor's snap target without changing the stored frame timing. A connected prompt schedule overrides the manual timeline. Exact repeated prompts share one conditioning mask, so reuse prompts for recurring sections such as choruses.
+
+The prompt schedule node includes a frame-native on-node sequencer. Run the BPM analyzer and schedule once to load an aligned waveform and the exact beat map, then drag or resize prompt clips, adjust their fades, split and duplicate sections, and choose Beat, Frame, or Off snapping. The waveform, beat markers, playhead, and prompt clips share one frame axis at every zoom level. FPS and length are normal node widgets; length is always a frame count, and zero follows the full analyzed audio. Older beat- and second-based schedules convert to integer frames once their exact timing is available. The `duration_seconds` and `total_frames` outputs can drive downstream video-length controls.
+
+For visible beat-by-beat diffusion changes, connect the BPM analyzer to `FL_Audio_Beat_Prompt_Envelope`, then connect its `prompt_envelope` output to one of the H3 timeline node's optional prompt-envelope sockets. A peak strength above `1` changes the temporal mask weighting and lets the reactive prompt dominate on hits without multiplying its embeddings. The default peak of `3`, hold of `0.25` beats, and release of `0.5` beats are intended as a clearly visible starting point.
+
+`FL_Audio_Envelope_Prompt` accepts kick, snare, or hi-hat JSON from `FL_Audio_Reactive_Envelope`. Add multiple prompt-envelope sockets to give different drum elements different actions. Repeated hits using the same reactive prompt share one encoded conditioning. The same envelope JSON can also drive the existing image-space audio effects after decoding.
+
+Strict scheduling evaluates H3 once per unique active prompt on every sampling step. Start with a few broad sections, and disable cross-step caching or model compilation while validating a masked workflow. The semantic output keeps normal single-prompt sampling cost.
 
 ### 📷 Screenshots & Examples
 

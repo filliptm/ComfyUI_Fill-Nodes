@@ -1,7 +1,42 @@
 # FL_Audio_BPM_Analyzer: Analyze audio and detect all beats
-import torch
-import numpy as np
+import json
+import math
 from typing import Tuple, Dict, Any
+
+import numpy as np
+import torch
+
+
+_WAVEFORM_BUCKETS_PER_SECOND = 60
+_MAX_WAVEFORM_BUCKETS = 4096
+_WAVEFORM_SCALE = 32767
+
+
+def _waveform_preview(waveform, sample_rate):
+    sample_count = len(waveform)
+    duration = sample_count / sample_rate
+    bucket_count = min(
+        sample_count,
+        _MAX_WAVEFORM_BUCKETS,
+        max(1, math.ceil(duration * _WAVEFORM_BUCKETS_PER_SECOND)),
+    )
+    starts = np.linspace(0, sample_count, bucket_count + 1, dtype=np.int64)[:-1]
+    minimums = np.minimum.reduceat(waveform, starts)
+    maximums = np.maximum.reduceat(waveform, starts)
+    peak = max(float(np.abs(minimums).max()), float(np.abs(maximums).max()))
+    if peak > 0:
+        minimums = minimums / peak
+        maximums = maximums / peak
+
+    peaks = np.empty(bucket_count * 2, dtype=np.int16)
+    peaks[0::2] = np.rint(minimums * _WAVEFORM_SCALE).astype(np.int16)
+    peaks[1::2] = np.rint(maximums * _WAVEFORM_SCALE).astype(np.int16)
+    return {
+        "version": 1,
+        "duration": float(duration),
+        "scale": _WAVEFORM_SCALE,
+        "peaks": peaks.tolist(),
+    }
 
 
 class FL_Audio_BPM_Analyzer:
@@ -237,7 +272,6 @@ class FL_Audio_BPM_Analyzer:
                 beat_times = np.clip(beat_times, 0, audio_duration)
 
             # Format beat positions as JSON
-            import json
             beat_positions_dict = {
                 "bpm": float(bpm),
                 "bpm_source": bpm_source,
@@ -245,7 +279,8 @@ class FL_Audio_BPM_Analyzer:
                 "beat_frames": beat_frames.tolist(),
                 "num_beats": len(beat_times),
                 "sample_rate": int(sample_rate),
-                "audio_duration": float(len(waveform_np) / sample_rate)
+                "audio_duration": float(len(waveform_np) / sample_rate),
+                "waveform_preview": _waveform_preview(waveform_np, sample_rate),
             }
 
             beat_positions_json = json.dumps(beat_positions_dict, indent=2)
