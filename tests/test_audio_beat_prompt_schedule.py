@@ -274,6 +274,7 @@ class BeatPromptScheduleTests(unittest.TestCase):
                 "half_time",
                 "beat_offset_ms",
                 "analysis_source",
+                "beat_grid_density",
             ],
         )
         self.assertEqual(
@@ -372,6 +373,27 @@ class BeatPromptScheduleTests(unittest.TestCase):
         self.assertEqual(payload["base_beat_times"], [0.1, 0.6, 1.2, 1.9])
         self.assertEqual(payload["beat_times"], [0.2, 0.7, 1.3, 2.0])
         self.assertEqual(payload["beat_offset_ms"], 100)
+
+    def test_scheduler_density_controls_external_grid_and_output(self):
+        output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
+            beat_positions=beat_json(),
+            timeline="[0 - 24]\nCamera pulse.",
+            default_fade_in=0.0,
+            default_fade_out=0.0,
+            curve="linear",
+            fps=24.0,
+            sequence_duration=24,
+            beat_grid_density="every_2_beats",
+        )
+
+        effective = json.loads(output.result[5])
+        payload = output.ui["fl_prompt_sequencer"][0]
+        self.assertEqual(effective["beat_times"], [0.1, 1.2])
+        self.assertEqual(effective["base_beat_times"], [0.1, 0.6, 1.2, 1.9])
+        self.assertEqual(effective["beat_grid_density"], "every_2_beats")
+        self.assertEqual(effective["grid_bpm"], 60.0)
+        self.assertEqual(payload["beat_times"], [0.1, 1.2])
+        self.assertEqual(payload["beat_grid_density"], "every_2_beats")
 
 
 if __name__ == "__main__":

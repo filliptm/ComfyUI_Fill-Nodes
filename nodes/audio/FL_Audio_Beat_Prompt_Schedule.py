@@ -84,6 +84,8 @@ def _load_beat_data(beat_positions):
         base_detected_beat_times = []
     return {
         "bpm": bpm,
+        "grid_bpm": data.get("grid_bpm", bpm),
+        "beat_grid_density": data.get("beat_grid_density", "every_beat"),
         "beat_times": beat_times,
         "base_beat_times": base_beat_times,
         "audio_duration": duration,
@@ -498,6 +500,16 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
                         "available after separation finishes."
                     ),
                 ),
+                io.Combo.Input(
+                    "beat_grid_density",
+                    display_name="beat grid density",
+                    options=["every_2_beats", "every_beat", "half_beat"],
+                    default="every_beat",
+                    tooltip=(
+                        "Backing value for the sequencer's Grid control. Every beat uses the "
+                        "detected tempo; half-beat adds subdivisions."
+                    ),
+                ),
             ],
             outputs=[
                 FLPromptSchedule.Output(
@@ -548,6 +560,7 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
         half_time=False,
         beat_offset_ms=0,
         analysis_source="mix",
+        beat_grid_density="every_beat",
     ):
         internal_analysis = None
         cropped_audio = None
@@ -561,11 +574,17 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
                 half_time,
                 beat_offset_ms,
                 analysis_source,
+                beat_grid_density,
             )
         if beat_positions:
             beat_payload = _parse_beat_payload(beat_positions)
             _load_beat_data(beat_payload)
-            beat_payload = apply_beat_offset(beat_payload, fps, beat_offset_ms)
+            beat_payload = apply_beat_offset(
+                beat_payload,
+                fps,
+                beat_offset_ms,
+                beat_grid_density,
+            )
             beat_positions = json.dumps(beat_payload, separators=(",", ":"))
             beat_data = _load_beat_data(beat_payload)
             if internal_analysis is not None:
@@ -626,6 +645,8 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
         }
         ui_payload = {
             "bpm": beat_data["bpm"],
+            "grid_bpm": beat_data["grid_bpm"],
+            "beat_grid_density": beat_data["beat_grid_density"],
             "beat_times": beat_times,
             "base_beat_times": beat_data["base_beat_times"],
             "detected_beat_times": (

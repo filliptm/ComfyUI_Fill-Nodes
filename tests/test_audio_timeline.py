@@ -53,6 +53,51 @@ class AudioTimelineTests(unittest.TestCase):
         self.assertEqual(shifted["beat_times"], [0.0, 0.6000000000000001])
         self.assertEqual(shifted["base_beat_times"], [0.0, 0.1, 0.8])
 
+    def test_beat_grid_density_uses_native_beats_as_its_source(self):
+        analysis = {
+            "bpm": 120.0,
+            "audio_duration": 2.0,
+            "beat_times": [0.0, 0.5, 1.0, 1.5],
+            "detected_beat_times": [0.05, 0.55],
+        }
+
+        every_two = timeline.apply_beat_offset(
+            analysis,
+            fps=24.0,
+            beat_grid_density="every_2_beats",
+        )
+        every_beat = timeline.apply_beat_offset(
+            every_two,
+            fps=24.0,
+            beat_grid_density="every_beat",
+        )
+        subdivisions = timeline.apply_beat_offset(
+            analysis,
+            fps=24.0,
+            beat_offset_ms=100,
+            beat_grid_density="half_beat",
+        )
+
+        self.assertEqual(every_two["beat_times"], [0.0, 1.0])
+        self.assertEqual(every_two["grid_bpm"], 60.0)
+        self.assertEqual(every_beat["beat_times"], [0.0, 0.5, 1.0, 1.5])
+        self.assertEqual(every_beat["grid_bpm"], 120.0)
+        self.assertEqual(
+            subdivisions["beat_times"],
+            [0.1, 0.35, 0.6, 0.85, 1.1, 1.35, 1.6],
+        )
+        self.assertEqual(subdivisions["detected_beat_times"], [0.15000000000000002, 0.65])
+        self.assertEqual(subdivisions["grid_bpm"], 240.0)
+        self.assertEqual(subdivisions["beat_grid_density"], "half_beat")
+
+    def test_unknown_beat_grid_density_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "Unknown beat grid density"):
+            timeline.apply_beat_offset(
+                {"audio_duration": 1.0, "beat_times": [0.0]},
+                fps=24.0,
+                beat_grid_density="bars",
+            )
+
     def test_crop_uses_video_frames_for_sample_boundaries(self):
         audio = {
             "waveform": torch.arange(0, 96000, dtype=torch.float32).reshape(1, 1, -1),
@@ -159,6 +204,38 @@ class AudioTimelineTests(unittest.TestCase):
         self.assertEqual(first["beat_times"], [0.1, 0.6])
         self.assertEqual(shifted["beat_times"], [0.2, 0.7])
         self.assertEqual(first["cache_key"], shifted["cache_key"])
+
+    def test_density_changes_reuse_the_base_analysis_cache(self):
+        master = {"waveform": torch.ones(1, 1, 48000), "sample_rate": 48000}
+        analysis = {
+            "bpm": 120.0,
+            "beat_times": [0.0, 0.5, 1.0],
+            "detected_beat_times": [],
+            "onset_times": [],
+            "audio_duration": 1.0,
+            "waveform_preview": {"version": 1, "duration": 1.0, "scale": 32767, "peaks": [0, 1]},
+            "drum_times": {},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            cache_path = pathlib.Path(directory) / "analysis.json"
+            with (
+                mock.patch.object(timeline, "resolve_audio_path", return_value=pathlib.Path("song.wav")),
+                mock.patch.object(timeline, "load_audio_file", return_value=(pathlib.Path("song.wav"), master)),
+                mock.patch.object(timeline, "analysis_cache_key", return_value="key"),
+                mock.patch.object(timeline, "_cache_path", return_value=cache_path),
+                mock.patch.object(timeline, "analyze_audio", return_value=analysis) as analyze,
+            ):
+                every_beat, _ = timeline.analyze_audio_file("song.wav", fps=24.0)
+                every_two, _ = timeline.analyze_audio_file(
+                    "song.wav",
+                    fps=24.0,
+                    beat_grid_density="every_2_beats",
+                )
+
+        self.assertEqual(analyze.call_count, 1)
+        self.assertEqual(every_beat["beat_times"], [0.0, 0.5, 1.0])
+        self.assertEqual(every_two["beat_times"], [0.0, 1.0])
+        self.assertEqual(every_beat["cache_key"], every_two["cache_key"])
 
 
 if __name__ == "__main__":

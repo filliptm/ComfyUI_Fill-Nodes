@@ -202,11 +202,13 @@ def _detect_drums(waveform, sample_rate, onset_frames, onset_times):
     }
 
 
-def apply_beat_offset(analysis, fps, beat_offset_ms=0):
+def apply_beat_offset(analysis, fps, beat_offset_ms=0, beat_grid_density="every_beat"):
     if not math.isfinite(fps) or fps <= 0:
         raise ValueError("FPS must be greater than zero.")
     if not math.isfinite(beat_offset_ms):
         raise ValueError("Beat offset must be a finite number.")
+    if beat_grid_density not in {"every_2_beats", "every_beat", "half_beat"}:
+        raise ValueError(f"Unknown beat grid density: {beat_grid_density}")
 
     duration = float(analysis["audio_duration"])
     offset = beat_offset_ms / 1000.0
@@ -215,6 +217,20 @@ def apply_beat_offset(analysis, fps, beat_offset_ms=0):
         "base_detected_beat_times",
         analysis.get("detected_beat_times", []),
     )
+
+    if beat_grid_density == "every_2_beats":
+        grid_beat_times = base_beat_times[::2]
+        grid_bpm_scale = 0.5
+    elif beat_grid_density == "half_beat":
+        grid_beat_times = []
+        for index, beat_time in enumerate(base_beat_times):
+            grid_beat_times.append(beat_time)
+            if index + 1 < len(base_beat_times):
+                grid_beat_times.append((beat_time + base_beat_times[index + 1]) / 2.0)
+        grid_bpm_scale = 2.0
+    else:
+        grid_beat_times = base_beat_times
+        grid_bpm_scale = 1.0
 
     def shifted(values):
         if not values:
@@ -225,7 +241,7 @@ def apply_beat_offset(analysis, fps, beat_offset_ms=0):
     result = dict(analysis)
     result["base_beat_times"] = list(base_beat_times)
     result["base_detected_beat_times"] = list(base_detected_beat_times)
-    result["beat_times"] = shifted(base_beat_times)
+    result["beat_times"] = shifted(grid_beat_times)
     result["detected_beat_times"] = shifted(base_detected_beat_times)
     result["beat_frames"] = [round(value * fps) for value in result["beat_times"]]
     result["detected_beat_frames"] = [
@@ -233,10 +249,19 @@ def apply_beat_offset(analysis, fps, beat_offset_ms=0):
     ]
     result["num_beats"] = len(result["beat_times"])
     result["beat_offset_ms"] = int(round(beat_offset_ms))
+    result["beat_grid_density"] = beat_grid_density
+    result["grid_bpm"] = float(result.get("bpm", 0.0)) * grid_bpm_scale
     return result
 
 
-def analyze_audio(audio, fps, bpm_method="beat_intervals", half_time=False, beat_offset_ms=0):
+def analyze_audio(
+    audio,
+    fps,
+    bpm_method="beat_intervals",
+    half_time=False,
+    beat_offset_ms=0,
+    beat_grid_density="every_beat",
+):
     if bpm_method not in {"beat_intervals", "onset_strength"}:
         raise ValueError(f"Unknown BPM method: {bpm_method}")
     waveform = mono_numpy(audio)
@@ -300,7 +325,7 @@ def analyze_audio(audio, fps, bpm_method="beat_intervals", half_time=False, beat
         "drum_times": drum_times,
         "waveform_preview": waveform_preview(waveform, sample_rate),
     }
-    return apply_beat_offset(analysis, fps, beat_offset_ms)
+    return apply_beat_offset(analysis, fps, beat_offset_ms, beat_grid_density)
 
 
 def analysis_cache_key(path, fps, trim_start_frame, length_frames, bpm_method, half_time, analysis_source):
@@ -333,6 +358,7 @@ def analyze_audio_file(
     half_time=False,
     beat_offset_ms=0,
     analysis_source="mix",
+    beat_grid_density="every_beat",
 ):
     path = resolve_audio_path(filename)
     _, master_audio = load_audio_file(filename)
@@ -370,4 +396,9 @@ def analyze_audio_file(
         temporary_path = cache_path.with_suffix(".tmp")
         temporary_path.write_text(json.dumps(analysis, separators=(",", ":")), encoding="utf-8")
         temporary_path.replace(cache_path)
-    return apply_beat_offset(analysis, fps, beat_offset_ms), cropped_audio
+    return apply_beat_offset(
+        analysis,
+        fps,
+        beat_offset_ms,
+        beat_grid_density,
+    ), cropped_audio
