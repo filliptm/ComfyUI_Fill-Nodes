@@ -5,8 +5,8 @@ const STYLE_ID = "fl-beat-prompt-sequencer-styles";
 const INSTANCES = new Map();
 const HEADER_RE = /^\s*\[\s*([0-9]+(?:\.[0-9]+)?)\s*-\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\|\s*(.*?))?\s*\]\s*$/;
 const EPSILON = 1e-6;
-const FORMAT_VERSION = 10;
-const COMPATIBLE_FORMAT_VERSIONS = new Set([6, 7, 8, 9, FORMAT_VERSION]);
+const FORMAT_VERSION = 11;
+const COMPATIBLE_FORMAT_VERSIONS = new Set([6, 7, 8, 9, 10, FORMAT_VERSION]);
 const COMPACT_NODE_WIDTH = 380;
 const MEDIA_FILE_RE = /\.(?:aac|aiff?|flac|m4a|mka|mkv|mov|mp3|mp4|oga|ogg|opus|wav|webm|wma)$/i;
 const TIMELINE_LEFT = 16;
@@ -187,7 +187,7 @@ const STYLES = `
   .flbps-inspector.disabled { opacity: 0.45; pointer-events: none; }
   .flbps-inspector-grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 6px;
     margin-bottom: 7px;
   }
@@ -242,6 +242,39 @@ const STYLES = `
     font-size: 9px;
   }
   .flbps-error.open { display: block; }
+  .flbps-context-menu {
+    position: fixed;
+    z-index: 10020;
+    min-width: 220px;
+    padding: 5px;
+    color: #e4e4e7;
+    background: #202127;
+    border: 1px solid #555b68;
+    border-radius: 7px;
+    box-shadow: 0 14px 38px rgba(0, 0, 0, .58);
+    font: 10px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .flbps-context-title {
+    padding: 5px 7px 6px;
+    color: #8ddde8;
+    border-bottom: 1px solid #363a43;
+    font: 9px "Cascadia Mono", Consolas, monospace;
+  }
+  .flbps-context-menu button {
+    width: 100%;
+    display: block;
+    padding: 7px;
+    color: #e4e4e7;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .flbps-context-menu button:hover { color: #fff; background: #343844; }
+  .flbps-context-menu button:disabled { color: #646975; cursor: default; }
+  .flbps-context-menu button:disabled:hover { background: transparent; }
   .flbps-modal-overlay {
     position: fixed;
     inset: 0;
@@ -514,25 +547,70 @@ function parseOptions(raw, defaultFadeIn, defaultFadeOut, lineNumber) {
   const values = {
     fadeIn: finiteNumber(defaultFadeIn),
     fadeOut: finiteNumber(defaultFadeOut),
+    crossfade: 0,
   };
   if (!raw) return values;
   for (const part of raw.split("|")) {
     const separator = part.indexOf("=");
     if (separator < 0) {
-      throw new Error(`Line ${lineNumber}: options must use fade_in=value or fade_out=value.`);
+      throw new Error(
+        `Line ${lineNumber}: options must use fade_in=value, fade_out=value, or crossfade=value.`,
+      );
     }
     const name = part.slice(0, separator).trim();
     const value = Number(part.slice(separator + 1).trim());
-    if (name !== "fade_in" && name !== "fade_out") {
+    if (name !== "fade_in" && name !== "fade_out" && name !== "crossfade") {
       throw new Error(`Line ${lineNumber}: unknown option '${name}'.`);
     }
     if (!Number.isFinite(value) || value < 0) {
       throw new Error(`Line ${lineNumber}: ${name} must be zero or greater.`);
     }
     if (name === "fade_in") values.fadeIn = value;
-    else values.fadeOut = value;
+    else if (name === "fade_out") values.fadeOut = value;
+    else values.crossfade = value;
   }
   return values;
+}
+
+function validateCrossfades(clips) {
+  for (let index = 0; index < clips.length; index++) {
+    const clip = clips[index];
+    const previous = clips[index - 1];
+    if (!(clip.crossfade > EPSILON)) continue;
+    if (!previous) throw new Error(`Line ${clip.line}: the first section cannot crossfade.`);
+    if (Math.abs(previous.end - clip.start) > EPSILON) {
+      throw new Error(`Line ${clip.line}: crossfade requires a touching previous section.`);
+    }
+    const maximum = Math.min(previous.end - previous.start, clip.end - clip.start);
+    if (clip.crossfade > maximum + EPSILON) {
+      throw new Error(`Line ${clip.line}: crossfade exceeds the shorter adjacent section.`);
+    }
+    previous.fadeOut = 0;
+    clip.fadeIn = 0;
+  }
+  return clips;
+}
+
+function normalizeCrossfades(clips) {
+  for (let index = 0; index < clips.length; index++) {
+    const clip = clips[index];
+    clip.crossfade = Math.max(0, Math.round(finiteNumber(clip.crossfade)));
+    const previous = clips[index - 1];
+    if (!previous || previous.end !== clip.start) {
+      clip.crossfade = 0;
+      continue;
+    }
+    clip.crossfade = Math.min(
+      clip.crossfade,
+      previous.end - previous.start,
+      clip.end - clip.start,
+    );
+    if (clip.crossfade > 0) {
+      previous.fadeOut = 0;
+      clip.fadeIn = 0;
+    }
+  }
+  return clips;
 }
 
 function parseTimeline(text, defaultFadeIn, defaultFadeOut) {
@@ -567,6 +645,7 @@ function parseTimeline(text, defaultFadeIn, defaultFadeOut) {
         end,
         fadeIn: options.fadeIn,
         fadeOut: options.fadeOut,
+        crossfade: options.crossfade,
       };
       continue;
     }
@@ -586,7 +665,7 @@ function parseTimeline(text, defaultFadeIn, defaultFadeOut) {
       throw new Error(`Line ${clips[index].line}: section overlaps the previous section.`);
     }
   }
-  return clips;
+  return validateCrossfades(clips);
 }
 
 function validateFrameClips(clips) {
@@ -596,6 +675,7 @@ function validateFrameClips(clips) {
       end: clip.end,
       fade_in: clip.fadeIn,
       fade_out: clip.fadeOut,
+      crossfade: clip.crossfade,
     })) {
       if (Math.abs(value - Math.round(value)) > EPSILON) {
         throw new Error(`Line ${clip.line}: ${name} must be a whole frame.`);
@@ -605,14 +685,16 @@ function validateFrameClips(clips) {
     clip.end = Math.round(clip.end);
     clip.fadeIn = Math.round(clip.fadeIn);
     clip.fadeOut = Math.round(clip.fadeOut);
+    clip.crossfade = Math.round(clip.crossfade);
   }
-  return clips;
+  return validateCrossfades(clips);
 }
 
 function serializeTimeline(clips) {
   return clips.map((clip) => (
     `[${Math.round(clip.start)} - ${Math.round(clip.end)} | ` +
-    `fade_in=${Math.round(clip.fadeIn)} | fade_out=${Math.round(clip.fadeOut)}]\n` +
+    `fade_in=${Math.round(clip.fadeIn)} | fade_out=${Math.round(clip.fadeOut)} | ` +
+    `crossfade=${Math.round(clip.crossfade)}]\n` +
     clip.prompt.trim()
   )).join("\n\n");
 }
@@ -707,7 +789,9 @@ class BeatPromptSequencer {
     this.playheadFrame = null;
     this.snapGuideFrame = null;
     this.drag = null;
+    this.resnapPending = false;
     this.clipRects = [];
+    this.crossfadeRects = [];
     this.pendingFrame = null;
     this.resizeObserver = null;
     this.callbackRestorers = [];
@@ -724,6 +808,12 @@ class BeatPromptSequencer {
     this.loadingAudio = false;
     this.separationJobId = node._flAudioSeparationJobId || null;
     this.separationTimer = null;
+    this.contextMenu = null;
+    this.documentPointerHandler = (event) => {
+      if (this.contextMenu && !this.contextMenu.contains(event.target)) {
+        this.closeContextMenu();
+      }
+    };
 
     const saved = node.properties?.flBeatPromptSequencer || {};
     const savedCompatible = COMPATIBLE_FORMAT_VERSIONS.has(finiteNumber(saved.formatVersion));
@@ -746,6 +836,7 @@ class BeatPromptSequencer {
     }
     this.applyBeatOffset();
     this.loadTimeline();
+    this.resnapClipsToGrid();
     this.refreshBeatStatus();
     if (!(this.viewEnd > this.viewStart)) this.zoomToFit(false);
     if (this.widgets.audioFile?.value) this.loadAudioSource();
@@ -783,7 +874,7 @@ class BeatPromptSequencer {
     this.root.tabIndex = 0;
     this.root.innerHTML = `
       <div class="flbps-transport">
-        <button class="flbps-button" data-action="play" title="Play or pause the selected audio crop">Play</button>
+        <button class="flbps-button" data-action="play" title="Play or pause the selected audio crop; playback loops continuously">Play</button>
         <button class="flbps-button" data-action="stop" title="Stop and return to the crop start">Stop</button>
         <span class="flbps-transport-time" data-role="transport-time">00:00.000 / 00:00.000</span>
         <span class="flbps-source-label" data-role="source-label">No audio selected</span>
@@ -797,7 +888,7 @@ class BeatPromptSequencer {
       </div>
       <div class="flbps-toolbar">
         <div class="flbps-control-group">
-          <label class="flbps-control" title="Choose the spacing of the cyan grid used for display, snapping, and beat_positions output.">
+          <label class="flbps-control" title="Choose the spacing of the cyan grid used for display, snapping, and prompt timing.">
             Grid
             <select data-role="beat-grid-density">
               <option value="every_2_beats">Every 2 beats</option>
@@ -846,6 +937,7 @@ class BeatPromptSequencer {
           <div class="flbps-field"><label>Duration</label><input data-field="clip-duration" type="text" readonly></div>
           <div class="flbps-field"><label>Fade in frames</label><input data-field="fade-in" type="number" min="0" step="1"></div>
           <div class="flbps-field"><label>Fade out frames</label><input data-field="fade-out" type="number" min="0" step="1"></div>
+          <div class="flbps-field"><label>Crossfade frames</label><input data-field="crossfade" type="number" min="0" step="1" title="Blend from the touching previous prompt into this prompt"></div>
         </div>
         <div class="flbps-prompt-label">
           <span>Prompt</span><span class="flbps-prompt-meta" data-role="prompt-meta"></span>
@@ -853,7 +945,7 @@ class BeatPromptSequencer {
         <textarea data-field="prompt" placeholder="Describe what should happen during this frame range."></textarea>
       </div>
       <div class="flbps-raw" data-role="raw-panel">
-        <div class="flbps-raw-label">Advanced frame schedule. All positions and fades must be integer frames.</div>
+        <div class="flbps-raw-label">Advanced frame schedule. All positions, fades, and crossfades must be integer frames.</div>
         <textarea data-role="raw-text"></textarea>
         <div class="flbps-raw-actions">
           <button class="flbps-button" data-action="raw-cancel">Close</button>
@@ -861,7 +953,7 @@ class BeatPromptSequencer {
         </div>
       </div>
       <div class="flbps-footer">
-        <span>double-click adds a four-grid prompt · Space play/pause · middle-drag to pan while zoomed · wheel zoom · Shift+wheel pan</span>
+        <span>drag a shared cut to resize both prompts · double-click it for crossfade · right-click a beat for audio In/Out · Space play/pause</span>
       </div>
     `;
     this.container.appendChild(this.root);
@@ -889,6 +981,7 @@ class BeatPromptSequencer {
       duration: this.root.querySelector('[data-field="clip-duration"]'),
       fadeIn: this.root.querySelector('[data-field="fade-in"]'),
       fadeOut: this.root.querySelector('[data-field="fade-out"]'),
+      crossfade: this.root.querySelector('[data-field="crossfade"]'),
       prompt: this.root.querySelector('[data-field="prompt"]'),
     };
     this.editButtons = [
@@ -920,16 +1013,19 @@ class BeatPromptSequencer {
     this.controls.beatOffset.addEventListener("input", () => {
       this.setBeatOffset(this.controls.beatOffset.value);
     });
+    this.controls.beatOffset.addEventListener("change", () => {
+      this.setBeatOffset(this.controls.beatOffset.value, true, true);
+    });
     this.controls.beatOffsetNumber.addEventListener("input", () => {
       if (this.controls.beatOffsetNumber.value !== "") {
         this.setBeatOffset(this.controls.beatOffsetNumber.value);
       }
     });
     this.controls.beatOffsetNumber.addEventListener("change", () => {
-      this.setBeatOffset(this.controls.beatOffsetNumber.value);
+      this.setBeatOffset(this.controls.beatOffsetNumber.value, true, true);
     });
     this.root.querySelector('[data-action="reset-offset"]').addEventListener("click", () => {
-      this.setBeatOffset(0);
+      this.setBeatOffset(0, true, true);
     });
     this.root.querySelector('[data-action="play"]').addEventListener("click", () => this.togglePlayback());
     this.root.querySelector('[data-action="stop"]').addEventListener("click", () => this.stopPlayback());
@@ -943,7 +1039,7 @@ class BeatPromptSequencer {
     this.root.querySelector('[data-action="raw-cancel"]').addEventListener("click", () => this.toggleRaw(false));
     this.root.querySelector('[data-action="raw-apply"]').addEventListener("click", () => this.applyRaw());
 
-    for (const name of ["start", "end", "fadeIn", "fadeOut"]) {
+    for (const name of ["start", "end", "fadeIn", "fadeOut", "crossfade"]) {
       this.fields[name].addEventListener("change", () => this.applyInspectorTiming());
     }
     this.fields.prompt.addEventListener("input", () => {
@@ -965,12 +1061,14 @@ class BeatPromptSequencer {
     });
     this.canvas.addEventListener("pointerup", (event) => this.onPointerUp(event));
     this.canvas.addEventListener("pointercancel", (event) => this.onPointerUp(event));
-    this.canvas.addEventListener("dblclick", (event) => this.addClipAtPointer(event));
+    this.canvas.addEventListener("dblclick", (event) => this.onDoubleClick(event));
+    this.canvas.addEventListener("contextmenu", (event) => this.onContextMenu(event));
     this.canvas.addEventListener("auxclick", (event) => {
       if (event.button === 1) event.preventDefault();
     });
     this.canvas.addEventListener("wheel", (event) => this.onWheel(event), { passive: false });
     this.root.addEventListener("keydown", (event) => this.onKeyDown(event));
+    document.addEventListener("pointerdown", this.documentPointerHandler, true);
 
     this.resizeObserver = new ResizeObserver(() => this.scheduleDraw());
     this.resizeObserver.observe(this.canvas.parentElement);
@@ -989,17 +1087,22 @@ class BeatPromptSequencer {
       });
     };
 
-    bind(this.widgets.timeUnit, () => this.loadTimeline());
+    bind(this.widgets.timeUnit, () => {
+      this.loadTimeline();
+      this.resnapClipsToGrid();
+    });
     bind(this.widgets.fps, () => {
       this.syncInspector();
       this.syncBeatOffsetControls();
       this.refreshBrowserCrop();
+      this.resnapClipsToGrid();
       this.zoomToFit();
       this.markDirty();
       this.scheduleAnalysis();
     });
     bind(this.widgets.sequenceDuration, () => {
       this.refreshBrowserCrop();
+      this.resnapClipsToGrid();
       this.zoomToFit();
       this.markDirty();
       this.scheduleAnalysis();
@@ -1011,7 +1114,7 @@ class BeatPromptSequencer {
     });
     bind(this.widgets.bpmMethod, () => this.scheduleAnalysis());
     bind(this.widgets.halfTime, () => this.scheduleAnalysis());
-    bind(this.widgets.beatOffset, (value) => this.setBeatOffset(value, false));
+    bind(this.widgets.beatOffset, (value) => this.setBeatOffset(value, false, true));
     bind(this.widgets.analysisSource, () => this.scheduleAnalysis());
     bind(this.widgets.beatGridDensity, (value) => this.setBeatGridDensity(value, false));
     bind(this.widgets.defaultFadeIn, () => this.markDirty());
@@ -1127,12 +1230,13 @@ class BeatPromptSequencer {
     this.scheduleDraw();
   }
 
-  setBeatOffset(value, updateWidget = true) {
+  setBeatOffset(value, updateWidget = true, resnap = false) {
     const offset = clamp(Math.round(finiteNumber(value, 0)), -1000, 1000);
     if (this.widgets.beatOffset && (updateWidget || this.widgets.beatOffset.value !== offset)) {
       this.widgets.beatOffset.value = offset;
     }
     this.applyBeatOffset();
+    if (resnap) this.resnapClipsToGrid();
     this.markDirty();
   }
 
@@ -1143,6 +1247,7 @@ class BeatPromptSequencer {
       this.widgets.beatGridDensity.value = density;
     }
     this.applyBeatOffset();
+    this.resnapClipsToGrid();
     this.markDirty();
   }
 
@@ -1276,14 +1381,14 @@ class BeatPromptSequencer {
       this.audioElement.addEventListener("timeupdate", () => this.updatePlaybackPosition());
       this.audioElement.addEventListener("pause", () => {
         this.stopPlaybackLoop();
-        this.updatePlaybackPosition();
+        if (!this.audioElement.ended) this.updatePlaybackPosition();
         this.updatePlayButton();
       });
       this.audioElement.addEventListener("play", () => {
         this.updatePlayButton();
         this.startPlaybackLoop();
       });
-      this.audioElement.addEventListener("ended", () => this.stopPlayback());
+      this.audioElement.addEventListener("ended", () => this.loopPlayback(true));
       this.refreshBrowserCrop();
       this.invalidateAnalysis();
       this.zoomToFit(false);
@@ -1333,6 +1438,7 @@ class BeatPromptSequencer {
       if (request !== this.analysisRequest) return;
       this.applyAnalysis(payload, true);
       if (this.migrationPending) this.loadTimeline();
+      this.resnapClipsToGrid();
       this.clearError();
       this.saveViewState();
     } catch (error) {
@@ -1392,12 +1498,26 @@ class BeatPromptSequencer {
     const relative = this.audioElement.currentTime - this.cropStartSeconds();
     const duration = this.cropDurationSeconds();
     if (relative >= duration - 0.005) {
-      this.stopPlayback();
+      this.loopPlayback();
       return;
     }
     this.playheadFrame = clamp(relative * this.fps(), 0, this.sequenceFrameCount());
     this.updateTransportTime();
     this.scheduleDraw();
+  }
+
+  async loopPlayback(resume = false) {
+    if (!this.audioElement) return;
+    this.audioElement.currentTime = this.cropStartSeconds();
+    this.playheadFrame = 0;
+    this.updateTransportTime();
+    this.scheduleDraw();
+    if (!resume || !this.audioElement.paused) return;
+    try {
+      await this.audioElement.play();
+    } catch (error) {
+      this.showError(`Audio playback failed: ${error.message}`);
+    }
   }
 
   startPlaybackLoop() {
@@ -1558,7 +1678,20 @@ class BeatPromptSequencer {
       const endSeconds = this.sourceToSeconds(clip.end, unit);
       const fadeInSeconds = this.sourceToSeconds(clip.start + clip.fadeIn, unit);
       const fadeOutSeconds = this.sourceToSeconds(clip.end - clip.fadeOut, unit);
-      if ([startSeconds, endSeconds, fadeInSeconds, fadeOutSeconds].some((value) => value == null)) {
+      const crossfadeStartSeconds = clip.crossfade > 0
+        ? this.sourceToSeconds(clip.start - clip.crossfade * 0.5, unit)
+        : startSeconds;
+      const crossfadeEndSeconds = clip.crossfade > 0
+        ? this.sourceToSeconds(clip.start + clip.crossfade * 0.5, unit)
+        : startSeconds;
+      if ([
+        startSeconds,
+        endSeconds,
+        fadeInSeconds,
+        fadeOutSeconds,
+        crossfadeStartSeconds,
+        crossfadeEndSeconds,
+      ].some((value) => value == null)) {
         return null;
       }
       const start = Math.max(0, Math.round(startSeconds * fps));
@@ -1571,6 +1704,7 @@ class BeatPromptSequencer {
         end,
         fadeIn: fadeInEnd - start,
         fadeOut: end - fadeOutStart,
+        crossfade: Math.max(0, Math.round((crossfadeEndSeconds - crossfadeStartSeconds) * fps)),
       };
     });
   }
@@ -1579,7 +1713,7 @@ class BeatPromptSequencer {
     if (clips.some((clip) => !clip)) {
       throw new Error("The legacy schedule could not be converted to frames.");
     }
-    validateFrameClips(clips);
+    validateFrameClips(normalizeCrossfades(clips));
     for (let index = 1; index < clips.length; index++) {
       if (clips[index].start < clips[index - 1].end) {
         throw new Error(`Line ${clips[index].line}: frame conversion makes this section overlap the previous section.`);
@@ -1641,6 +1775,7 @@ class BeatPromptSequencer {
       end: Math.round(finiteNumber(section.end_frame)),
       fadeIn: Math.round(finiteNumber(section.fade_in_frames)),
       fadeOut: Math.round(finiteNumber(section.fade_out_frames)),
+      crossfade: Math.round(finiteNumber(section.crossfade_frames)),
       prompt: String(section.prompt || ""),
     }));
   }
@@ -1660,6 +1795,7 @@ class BeatPromptSequencer {
     } else {
       this.loadTimeline();
     }
+    this.resnapClipsToGrid();
     this.saveViewState();
     this.zoomToFit();
     this.refreshBeatStatus();
@@ -1756,7 +1892,10 @@ class BeatPromptSequencer {
     this.fields.end.value = String(clip.end);
     this.fields.fadeIn.value = String(clip.fadeIn);
     this.fields.fadeOut.value = String(clip.fadeOut);
+    this.fields.crossfade.value = String(clip.crossfade);
     this.fields.prompt.value = clip.prompt;
+    const previous = this.clips[this.selectedIndex - 1];
+    this.fields.crossfade.disabled = !previous || previous.end !== clip.start;
     const frames = clip.end - clip.start;
     this.fields.duration.value = `${frames} frames / ${(frames / this.fps()).toFixed(3)}s`;
     this.promptMetaEl.textContent =
@@ -1769,13 +1908,18 @@ class BeatPromptSequencer {
     if (!clip || this.migrationPending) return;
     const start = Math.max(0, Math.round(finiteNumber(this.fields.start.value, clip.start)));
     const end = Math.round(finiteNumber(this.fields.end.value, clip.end));
-    const fadeIn = Math.max(0, Math.round(finiteNumber(this.fields.fadeIn.value, clip.fadeIn)));
-    const fadeOut = Math.max(0, Math.round(finiteNumber(this.fields.fadeOut.value, clip.fadeOut)));
+    let fadeIn = Math.max(0, Math.round(finiteNumber(this.fields.fadeIn.value, clip.fadeIn)));
+    let fadeOut = Math.max(0, Math.round(finiteNumber(this.fields.fadeOut.value, clip.fadeOut)));
+    const crossfade = Math.max(
+      0,
+      Math.round(finiteNumber(this.fields.crossfade.value, clip.crossfade)),
+    );
     if (!(end > start)) {
       this.showError("The selected prompt must end after it starts.");
       this.syncInspector();
       return;
     }
+    if (crossfade > 0) fadeIn = 0;
     if (fadeIn + fadeOut > end - start) {
       this.showError("Fade in and fade out exceed the selected prompt duration.");
       this.syncInspector();
@@ -1790,7 +1934,22 @@ class BeatPromptSequencer {
       this.syncInspector();
       return;
     }
-    Object.assign(clip, { start, end, fadeIn, fadeOut });
+    if (crossfade > 0) {
+      if (!previous || previous.end !== start) {
+        this.showError("Crossfade requires this prompt to touch the previous prompt.");
+        this.syncInspector();
+        return;
+      }
+      if (crossfade > Math.min(previous.end - previous.start, end - start)) {
+        this.showError("Crossfade exceeds the shorter adjacent prompt.");
+        this.syncInspector();
+        return;
+      }
+      previous.fadeOut = 0;
+      fadeIn = 0;
+    }
+    Object.assign(clip, { start, end, fadeIn, fadeOut, crossfade });
+    normalizeCrossfades(this.clips);
     this.rawInvalid = false;
     this.clearError();
     this.serialize();
@@ -1871,9 +2030,18 @@ class BeatPromptSequencer {
     return nearest;
   }
 
+  editingSnapFrames(minimum = 0, maximum = this.sequenceFrameCount()) {
+    const markers = this.beatFrames()
+      .filter((marker) => marker >= minimum && marker <= maximum);
+    if (!markers.length) return [];
+    markers.push(Math.round(minimum));
+    if (Number.isFinite(maximum)) markers.push(Math.round(maximum));
+    return [...new Set(markers)].sort((left, right) => left - right);
+  }
+
   snapFrame(value, minimum = 0, maximum = Infinity) {
     const frame = clamp(Math.round(value), minimum, maximum);
-    const markers = this.beatFrames().filter((marker) => marker >= minimum && marker <= maximum);
+    const markers = this.editingSnapFrames(minimum, maximum);
     if (!markers.length) return frame;
     let nearest = markers[0];
     for (let index = 1; index < markers.length; index++) {
@@ -1882,12 +2050,170 @@ class BeatPromptSequencer {
     return nearest;
   }
 
+  orderedSnapTargets(values, markers) {
+    if (!values.length) return [];
+    if (markers.length < values.length) return null;
+
+    const previousMarkers = Array.from(
+      { length: values.length },
+      () => Array(markers.length).fill(-1),
+    );
+    let costs = markers.map((marker, index) => (
+      index <= markers.length - values.length
+        ? Math.abs(marker - values[0])
+        : Infinity
+    ));
+
+    for (let valueIndex = 1; valueIndex < values.length; valueIndex++) {
+      const nextCosts = Array(markers.length).fill(Infinity);
+      const maximumMarker = markers.length - values.length + valueIndex;
+      let bestCost = Infinity;
+      let bestMarker = -1;
+      for (let markerIndex = 0; markerIndex < markers.length; markerIndex++) {
+        const previousIndex = markerIndex - 1;
+        if (previousIndex >= 0 && costs[previousIndex] < bestCost) {
+          bestCost = costs[previousIndex];
+          bestMarker = previousIndex;
+        }
+        if (markerIndex < valueIndex || markerIndex > maximumMarker || bestMarker < 0) continue;
+        nextCosts[markerIndex] = bestCost + Math.abs(markers[markerIndex] - values[valueIndex]);
+        previousMarkers[valueIndex][markerIndex] = bestMarker;
+      }
+      costs = nextCosts;
+    }
+
+    let markerIndex = -1;
+    let bestCost = Infinity;
+    for (let index = values.length - 1; index < markers.length; index++) {
+      if (costs[index] < bestCost) {
+        bestCost = costs[index];
+        markerIndex = index;
+      }
+    }
+    if (markerIndex < 0) return null;
+
+    const targets = Array(values.length);
+    for (let valueIndex = values.length - 1; valueIndex >= 0; valueIndex--) {
+      targets[valueIndex] = markers[markerIndex];
+      markerIndex = previousMarkers[valueIndex][markerIndex];
+    }
+    return targets;
+  }
+
+  resnapClipsToGrid(markers = null) {
+    if (this.drag) {
+      this.resnapPending = true;
+      return false;
+    }
+    this.resnapPending = false;
+    if (this.rawInvalid || this.migrationPending || !this.clips.length) return false;
+
+    const snapMarkers = markers || this.editingSnapFrames(0, this.sequenceFrameCount());
+    if (!snapMarkers.length) return false;
+
+    const values = [];
+    const startBoundaries = [];
+    const endBoundaries = [];
+    for (let index = 0; index < this.clips.length; index++) {
+      const clip = this.clips[index];
+      const previous = this.clips[index - 1];
+      if (previous && previous.end === clip.start) {
+        startBoundaries.push(endBoundaries[index - 1]);
+      } else {
+        startBoundaries.push(values.length);
+        values.push(clip.start);
+      }
+      endBoundaries.push(values.length);
+      values.push(clip.end);
+    }
+
+    const targets = this.orderedSnapTargets(values, snapMarkers);
+    if (!targets) return false;
+    const before = this.clips.map((clip) => (
+      [clip.start, clip.end, clip.fadeIn, clip.fadeOut, clip.crossfade]
+    ));
+
+    for (let index = 0; index < this.clips.length; index++) {
+      const clip = this.clips[index];
+      clip.start = targets[startBoundaries[index]];
+      clip.end = targets[endBoundaries[index]];
+      const duration = clip.end - clip.start;
+      clip.fadeIn = clamp(Math.round(finiteNumber(clip.fadeIn)), 0, duration);
+      clip.fadeOut = clamp(
+        Math.round(finiteNumber(clip.fadeOut)),
+        0,
+        Math.max(0, duration - clip.fadeIn),
+      );
+    }
+    normalizeCrossfades(this.clips);
+
+    const changed = this.clips.some((clip, index) => (
+      clip.start !== before[index][0] ||
+      clip.end !== before[index][1] ||
+      clip.fadeIn !== before[index][2] ||
+      clip.fadeOut !== before[index][3] ||
+      clip.crossfade !== before[index][4]
+    ));
+    if (!changed) return false;
+
+    this.serialize();
+    this.syncInspector();
+    this.scheduleDraw();
+    return true;
+  }
+
   defaultClipLength() {
     return Math.max(1, Math.round(this.fps() * 2));
   }
 
+  crossfadeBounds(index) {
+    const clip = this.clips[index];
+    if (!clip) return null;
+    const frames = Math.max(0, Math.round(finiteNumber(clip.crossfade)));
+    const before = Math.floor(frames / 2);
+    return {
+      start: clip.start - before,
+      end: clip.start + frames - before,
+      boundary: clip.start,
+      frames,
+    };
+  }
+
+  maximumCrossfade(index) {
+    const clip = this.clips[index];
+    const previous = this.clips[index - 1];
+    if (!clip || !previous || previous.end !== clip.start) return 0;
+    return Math.max(
+      0,
+      Math.min(previous.end - previous.start, clip.end - clip.start),
+    );
+  }
+
+  defaultCrossfade(index) {
+    const maximum = this.maximumCrossfade(index);
+    if (!maximum) return 0;
+    const beatFrames = Math.round(this.baseGridIntervalSeconds() * this.fps());
+    return Math.min(maximum, Math.max(1, beatFrames || Math.round(this.fps() * 0.5)));
+  }
+
+  toggleCrossfade(index) {
+    const clip = this.clips[index];
+    const previous = this.clips[index - 1];
+    if (!clip || !previous || previous.end !== clip.start) return;
+    clip.crossfade = clip.crossfade > 0 ? 0 : this.defaultCrossfade(index);
+    if (clip.crossfade > 0) {
+      previous.fadeOut = 0;
+      clip.fadeIn = 0;
+    }
+    this.select(index);
+    this.clearError();
+    this.serialize();
+    this.syncInspector();
+    this.scheduleDraw();
+  }
+
   gridClipRangeAt(frame) {
-    const markers = [...new Set(this.beatFrames())].sort((left, right) => left - right);
+    const markers = this.editingSnapFrames(0, this.sequenceFrameCount());
     const intervalFrames = this.gridIntervalSeconds() * this.fps();
     if (!markers.length || !(intervalFrames > EPSILON)) return undefined;
     const maximum = this.maximumFrame();
@@ -1940,7 +2266,14 @@ class BeatPromptSequencer {
     const duration = end - start;
     const fadeIn = Math.min(Math.round(this.defaultFadeIn()), duration);
     const fadeOut = Math.min(Math.round(this.defaultFadeOut()), duration - fadeIn);
-    const clip = { start, end, fadeIn, fadeOut, prompt: "Describe this prompt section." };
+    const clip = {
+      start,
+      end,
+      fadeIn,
+      fadeOut,
+      crossfade: 0,
+      prompt: "Describe this prompt section.",
+    };
     let index = this.clips.findIndex((item) => item.start > start);
     if (index < 0) index = this.clips.length;
     const previous = this.clips[index - 1];
@@ -1972,8 +2305,139 @@ class BeatPromptSequencer {
     else this.addClip(frame);
   }
 
+  onDoubleClick(event) {
+    const { x, y } = this.eventPosition(event);
+    const transition = this.crossfadeRects.find((rect) => (
+      y >= rect.y &&
+      y <= rect.y + rect.height &&
+      Math.abs(x - rect.boundaryX) <= 10
+    ));
+    if (transition) {
+      this.toggleCrossfade(transition.index);
+      event.preventDefault();
+      return;
+    }
+    const hit = this.hitTest(x, y);
+    if (hit?.type.startsWith("crossfade")) {
+      this.toggleCrossfade(hit.index);
+      event.preventDefault();
+      return;
+    }
+    this.addClipAtPointer(event);
+  }
+
+  closeContextMenu() {
+    this.contextMenu?.remove();
+    this.contextMenu = null;
+  }
+
+  cropPromptRange(start, end) {
+    const cropped = [];
+    let selectedIndex = -1;
+    for (let index = 0; index < this.clips.length; index++) {
+      const clip = this.clips[index];
+      const visibleStart = Math.max(start, clip.start);
+      const visibleEnd = Math.min(end, clip.end);
+      if (visibleEnd <= visibleStart) continue;
+      const fadeInEnd = clamp(clip.start + clip.fadeIn, visibleStart, visibleEnd);
+      const fadeOutStart = clamp(clip.end - clip.fadeOut, visibleStart, visibleEnd);
+      if (index === this.selectedIndex) selectedIndex = cropped.length;
+      cropped.push({
+        ...clip,
+        start: visibleStart - start,
+        end: visibleEnd - start,
+        fadeIn: fadeInEnd - visibleStart,
+        fadeOut: visibleEnd - fadeOutStart,
+      });
+    }
+    this.clips = normalizeCrossfades(cropped);
+    this.selectedIndex = selectedIndex;
+  }
+
+  applyAudioCrop(start, end) {
+    const duration = this.sequenceFrameCount();
+    const cropStart = clamp(Math.round(start), 0, duration - 1);
+    const cropEnd = clamp(Math.round(end), cropStart + 1, duration);
+    if (cropStart === 0 && cropEnd === duration) return;
+    const croppedMarkers = this.editingSnapFrames(cropStart, cropEnd)
+      .map((marker) => marker - cropStart);
+
+    this.stopPlayback();
+    this.cropPromptRange(cropStart, cropEnd);
+    this.widgets.trimStartFrame.value = this.trimStartFrame() + cropStart;
+    this.widgets.sequenceDuration.value = cropEnd - cropStart;
+    this.resnapClipsToGrid(croppedMarkers);
+    this.playheadFrame = 0;
+    this.refreshBrowserCrop();
+    this.invalidateAnalysis();
+    this.serialize();
+    this.syncInspector();
+    this.zoomToFit(false);
+    this.markDirty();
+    this.scheduleAnalysis(0);
+  }
+
+  setAudioIn(frame) {
+    const duration = this.sequenceFrameCount();
+    if (frame <= 0 || frame >= duration) return;
+    this.applyAudioCrop(frame, duration);
+  }
+
+  setAudioOut(frame) {
+    const duration = this.sequenceFrameCount();
+    if (frame <= 0 || frame >= duration) return;
+    this.applyAudioCrop(0, frame);
+  }
+
+  onContextMenu(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.migrationPending || this.rawInvalid || !this.widgets.audioFile?.value) return;
+    const { x, y } = this.eventPosition(event);
+    const layout = this.timelineLayout();
+    if (y < layout.rulerTop || y > layout.trackBottom ||
+        x < TIMELINE_LEFT || x > this.canvas.clientWidth - TIMELINE_RIGHT) {
+      return;
+    }
+
+    const duration = this.sequenceFrameCount();
+    const frame = this.snapFrame(this.frameAtX(x), 0, duration);
+    this.playheadFrame = frame;
+    if (this.audioElement) {
+      this.audioElement.currentTime = this.cropStartSeconds() + frame / this.fps();
+    }
+    this.updateTransportTime();
+    this.scheduleDraw();
+    this.closeContextMenu();
+
+    const menu = document.createElement("div");
+    menu.className = "flbps-context-menu";
+    menu.addEventListener("contextmenu", (menuEvent) => menuEvent.preventDefault());
+    const sourceFrame = this.trimStartFrame() + frame;
+    menu.innerHTML = `
+      <div class="flbps-context-title">Beat position · F${frame} · ${formatClock(frame / this.fps())} · source F${sourceFrame}</div>
+      <button data-action="set-in"${frame <= 0 || frame >= duration ? " disabled" : ""}>Set audio In here</button>
+      <button data-action="set-out"${frame <= 0 || frame >= duration ? " disabled" : ""}>Set audio Out here</button>
+    `;
+    menu.querySelector('[data-action="set-in"]').addEventListener("click", () => {
+      this.closeContextMenu();
+      this.setAudioIn(frame);
+    });
+    menu.querySelector('[data-action="set-out"]').addEventListener("click", () => {
+      this.closeContextMenu();
+      this.setAudioOut(frame);
+    });
+    document.body.appendChild(menu);
+    this.contextMenu = menu;
+    const rect = menu.getBoundingClientRect();
+    menu.style.left = `${clamp(event.clientX, 6, window.innerWidth - rect.width - 6)}px`;
+    menu.style.top = `${clamp(event.clientY, 6, window.innerHeight - rect.height - 6)}px`;
+  }
+
   deleteClip() {
     if (!this.selectedClip()) return;
+    const next = this.clips[this.selectedIndex + 1];
+    if (next) next.crossfade = 0;
     this.clips.splice(this.selectedIndex, 1);
     this.selectedIndex = Math.min(this.selectedIndex, this.clips.length - 1);
     this.serialize();
@@ -1993,7 +2457,12 @@ class BeatPromptSequencer {
       this.showError("There is not enough room after this prompt to duplicate it.");
       return;
     }
-    this.clips.splice(this.selectedIndex + 1, 0, { ...clip, start, end });
+    this.clips.splice(this.selectedIndex + 1, 0, {
+      ...clip,
+      start,
+      end,
+      crossfade: 0,
+    });
     this.select(this.selectedIndex + 1);
     this.clearError();
     this.serialize();
@@ -2019,6 +2488,7 @@ class BeatPromptSequencer {
       start: split,
       fadeIn: 0,
       fadeOut: Math.min(clip.fadeOut, clip.end - split),
+      crossfade: 0,
     };
     this.clips.splice(this.selectedIndex, 1, first, second);
     this.select(this.selectedIndex + 1);
@@ -2098,6 +2568,7 @@ class BeatPromptSequencer {
     const handles = this.trimHandlePositions();
     if (Math.abs(x - handles.startX) <= 10) return { type: "trim-start", handles };
     if (Math.abs(x - handles.endX) <= 10) return { type: "trim-end", handles };
+    if (x > handles.startX && x < handles.endX) return { type: "trim-move", handles };
     return null;
   }
 
@@ -2108,9 +2579,17 @@ class BeatPromptSequencer {
       const start = clamp(frame, 0, original.end - 1);
       this.widgets.trimStartFrame.value = start;
       this.widgets.sequenceDuration.value = original.end - start;
-    } else {
+    } else if (this.drag.type === "trim-end") {
       const end = clamp(frame, original.start + 1, original.sourceFrames);
       this.widgets.sequenceDuration.value = end - original.start;
+    } else {
+      const duration = original.end - original.start;
+      const delta = frame - this.drag.pointerStartFrame;
+      this.widgets.trimStartFrame.value = clamp(
+        original.start + delta,
+        0,
+        original.sourceFrames - duration,
+      );
     }
     this.refreshBrowserCrop();
     this.invalidateAnalysis();
@@ -2149,6 +2628,8 @@ class BeatPromptSequencer {
           end: trimHit.handles.end,
           sourceFrames: trimHit.handles.sourceFrames,
         },
+        beatFrames: this.beatFrames(),
+        pointerStartFrame: this.sourceFrameAtX(x),
         active: false,
       };
       this.canvas.setPointerCapture(event.pointerId);
@@ -2169,7 +2650,7 @@ class BeatPromptSequencer {
 
     this.select(hit.index);
     const clip = this.selectedClip();
-    const markers = this.beatFrames();
+    const markers = this.editingSnapFrames(0, this.sequenceFrameCount());
     const startIndex = this.nearestBeatIndex(clip.start, markers);
     const endIndex = this.nearestBeatIndex(clip.end, markers);
     this.drag = {
@@ -2181,6 +2662,9 @@ class BeatPromptSequencer {
       pointerY: y,
       gridSpan: startIndex >= 0 && endIndex >= 0 ? Math.max(1, endIndex - startIndex) : null,
       original: { ...clip },
+      originalPrevious: hit.type === "shared-boundary"
+        ? { ...this.clips[hit.index - 1] }
+        : null,
       active: false,
     };
     this.canvas.setPointerCapture(event.pointerId);
@@ -2228,8 +2712,36 @@ class BeatPromptSequencer {
     const maximum = this.maximumFrame();
     let guideFrame = null;
 
-    if (this.drag.type === "move") {
-      const markers = this.beatFrames();
+    if (this.drag.type === "shared-boundary") {
+      const originalPrevious = this.drag.originalPrevious;
+      const boundary = this.snapFrame(
+        original.start + delta,
+        originalPrevious.start + 1,
+        original.end - 1,
+      );
+      previous.end = boundary;
+      clip.start = boundary;
+
+      const previousDuration = previous.end - previous.start;
+      previous.fadeIn = Math.min(originalPrevious.fadeIn, previousDuration);
+      previous.fadeOut = Math.min(
+        originalPrevious.fadeOut,
+        Math.max(0, previousDuration - previous.fadeIn),
+      );
+      const clipDuration = clip.end - clip.start;
+      clip.fadeOut = Math.min(original.fadeOut, clipDuration);
+      clip.fadeIn = Math.min(
+        original.fadeIn,
+        Math.max(0, clipDuration - clip.fadeOut),
+      );
+      clip.crossfade = Math.min(
+        original.crossfade,
+        previousDuration,
+        clipDuration,
+      );
+      guideFrame = boundary;
+    } else if (this.drag.type === "move") {
+      const markers = this.editingSnapFrames(0, this.sequenceFrameCount());
       const span = this.drag.gridSpan;
       if (span && markers.length > span) {
         const proposedStart = original.start + delta;
@@ -2286,10 +2798,31 @@ class BeatPromptSequencer {
       const current = this.snapFrame(currentRaw, clip.start + clip.fadeIn, clip.end);
       clip.fadeOut = clamp(clip.end - current, 0, clip.end - clip.start - clip.fadeIn);
       guideFrame = current;
+    } else if (this.drag.type === "crossfade-start" ||
+        this.drag.type === "crossfade-end" ||
+        this.drag.type === "crossfade-create") {
+      const boundary = original.start;
+      const edge = this.snapFrame(
+        currentRaw,
+        previous?.start || 0,
+        original.end,
+      );
+      const maximumCrossfade = Math.min(
+        previous?.end - previous?.start || 0,
+        original.end - original.start,
+      );
+      clip.crossfade = clamp(2 * Math.abs(edge - boundary), 0, maximumCrossfade);
+      if (clip.crossfade > 0) {
+        previous.fadeOut = 0;
+        clip.fadeIn = 0;
+      }
+      const bounds = this.crossfadeBounds(this.selectedIndex);
+      guideFrame = this.drag.type === "crossfade-start" ? bounds.start : bounds.end;
     }
 
     clip.fadeIn = Math.max(0, Math.round(clip.fadeIn));
     clip.fadeOut = Math.max(0, Math.round(clip.fadeOut));
+    normalizeCrossfades(this.clips);
     this.snapGuideFrame = guideFrame;
     this.syncInspector();
     this.scheduleDraw();
@@ -2310,13 +2843,15 @@ class BeatPromptSequencer {
       return;
     }
     this.hover = { x, y };
-    if (this.drag?.type === "trim-start" || this.drag?.type === "trim-end") {
+    if (this.drag?.type === "trim-start" ||
+        this.drag?.type === "trim-end" ||
+        this.drag?.type === "trim-move") {
       if (!this.drag.active) {
         const distance = Math.hypot(x - this.drag.pointerStartX, y - this.drag.pointerStartY);
         if (distance < 3) return;
         this.drag.active = true;
       }
-      this.canvas.style.cursor = "ew-resize";
+      this.canvas.style.cursor = this.drag.type === "trim-move" ? "grabbing" : "ew-resize";
       this.updateTrimDrag(x);
       event.preventDefault();
       return;
@@ -2325,9 +2860,13 @@ class BeatPromptSequencer {
       const trimHit = this.hitTestTrim(x, y);
       const hit = this.hitTest(x, y);
       this.canvas.style.cursor = trimHit
-        ? "ew-resize"
+        ? trimHit.type === "trim-move" ? "grab" : "ew-resize"
         : hit
-        ? hit.type === "move" ? "grab" : "ew-resize"
+        ? hit.type === "move"
+          ? "grab"
+          : hit.type === "shared-boundary"
+          ? "col-resize"
+          : "ew-resize"
         : "default";
       this.scheduleDraw();
       return;
@@ -2340,14 +2879,21 @@ class BeatPromptSequencer {
       if (Number.isFinite(distance) && distance < 3) return;
       this.drag.active = true;
     }
-    this.canvas.style.cursor = this.drag.type === "move" ? "grabbing" : "ew-resize";
+    this.canvas.style.cursor = this.drag.type === "move"
+      ? "grabbing"
+      : this.drag.type === "shared-boundary"
+      ? "col-resize"
+      : "ew-resize";
     this.updateDrag(x);
     event.preventDefault();
   }
 
   onPointerUp(event) {
     if (!this.drag) return;
-    const trimChanged = this.drag.type === "trim-start" || this.drag.type === "trim-end";
+    const finishedDrag = this.drag;
+    const trimChanged = this.drag.type === "trim-start" ||
+      this.drag.type === "trim-end" ||
+      this.drag.type === "trim-move";
     const viewChanged = this.drag.type === "timeline-pan";
     const changed = this.drag.active;
     this.drag = null;
@@ -2356,16 +2902,27 @@ class BeatPromptSequencer {
     if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
     if (changed) {
       if (trimChanged) {
+        const start = this.trimStartFrame();
+        const duration = this.sequenceFrameCount();
+        const markers = (finishedDrag.beatFrames || [])
+          .map((marker) => finishedDrag.original.start + marker - start)
+          .filter((marker) => marker >= 0 && marker <= duration);
+        if (markers.length) {
+          markers.push(0, duration);
+          this.resnapClipsToGrid([...new Set(markers)].sort((left, right) => left - right));
+        }
         this.zoomToFit(false);
         this.scheduleAnalysis(0);
       } else if (viewChanged) {
         this.saveViewState();
       } else {
+        normalizeCrossfades(this.clips);
         this.serialize();
         this.clearError();
         this.saveViewState();
       }
     }
+    if (this.resnapPending) this.resnapClipsToGrid();
     this.scheduleDraw();
   }
 
@@ -2424,7 +2981,7 @@ class BeatPromptSequencer {
       const previous = this.clips[this.selectedIndex - 1];
       const next = this.clips[this.selectedIndex + 1];
       const maximum = this.maximumFrame();
-      const markers = this.beatFrames();
+      const markers = this.editingSnapFrames(0, this.sequenceFrameCount());
       const startIndex = this.nearestBeatIndex(clip.start, markers);
       const endIndex = this.nearestBeatIndex(clip.end, markers);
       const markerStep = direction * (event.shiftKey ? DEFAULT_CLIP_GRID_INTERVALS : 1);
@@ -2448,6 +3005,27 @@ class BeatPromptSequencer {
   }
 
   hitTest(x, y) {
+    for (let index = this.crossfadeRects.length - 1; index >= 0; index--) {
+      const rect = this.crossfadeRects[index];
+      if (y < rect.y || y > rect.y + Math.min(24, rect.height)) continue;
+      if (rect.frames > 0) {
+        if (Math.abs(x - rect.startX) <= 10) {
+          return { index: rect.index, type: "crossfade-start" };
+        }
+        if (Math.abs(x - rect.endX) <= 10) {
+          return { index: rect.index, type: "crossfade-end" };
+        }
+      } else if (Math.abs(x - rect.boundaryX) <= 10) {
+        return { index: rect.index, type: "crossfade-create" };
+      }
+    }
+    for (let index = this.crossfadeRects.length - 1; index >= 0; index--) {
+      const rect = this.crossfadeRects[index];
+      if (y >= rect.y && y <= rect.y + rect.height &&
+          Math.abs(x - rect.boundaryX) <= 10) {
+        return { index: rect.index, type: "shared-boundary" };
+      }
+    }
     for (let index = this.clipRects.length - 1; index >= 0; index--) {
       const rect = this.clipRects[index];
       if (y < rect.y || y > rect.y + rect.height) continue;
@@ -2788,6 +3366,11 @@ class BeatPromptSequencer {
     const cardY = top + 7;
     const cardHeight = trackHeight - 14;
     const previousHover = this.hover ? this.hitTest(this.hover.x, this.hover.y) : null;
+    const sharedBoundaryIndex = this.drag?.type === "shared-boundary"
+      ? this.selectedIndex
+      : previousHover?.type === "shared-boundary"
+      ? previousHover.index
+      : -1;
 
     ctx.fillStyle = "#15171c";
     ctx.fillRect(TIMELINE_LEFT, top, right - TIMELINE_LEFT, trackHeight);
@@ -2795,6 +3378,7 @@ class BeatPromptSequencer {
     ctx.strokeRect(TIMELINE_LEFT + 0.5, top + 0.5, right - TIMELINE_LEFT - 1, trackHeight - 1);
 
     this.clipRects = [];
+    this.crossfadeRects = [];
     for (let index = 0; index < this.clips.length; index++) {
       const clip = this.clips[index];
       if (clip.end < this.viewStart || clip.start > this.viewEnd) continue;
@@ -2808,16 +3392,31 @@ class BeatPromptSequencer {
       const drawX = x + 1;
       const drawWidth = Math.max(1, cardWidth - 2);
       const selected = index === this.selectedIndex;
-      const hovered = previousHover?.index === index;
+      const shared = index === sharedBoundaryIndex || index === sharedBoundaryIndex - 1;
+      const hovered = previousHover?.index === index || shared;
 
       ctx.save();
-      if (selected) {
-        ctx.shadowColor = "rgba(167,139,250,.28)";
+      if (selected || shared) {
+        ctx.shadowColor = shared ? "rgba(34,211,238,.3)" : "rgba(167,139,250,.28)";
         ctx.shadowBlur = 8;
       }
-      ctx.fillStyle = selected ? "#353149" : hovered ? "#30333f" : "#292c36";
-      ctx.strokeStyle = selected ? "#a78bfa" : hovered ? "#686d7a" : "#454955";
-      ctx.lineWidth = selected ? 2 : 1;
+      ctx.fillStyle = shared
+        ? "#38505c"
+        : selected
+        ? "#4a4263"
+        : hovered
+        ? "#414654"
+        : index % 2
+        ? "#363b47"
+        : "#333844";
+      ctx.strokeStyle = shared
+        ? "#67e8f9"
+        : selected
+        ? "#b8a5ff"
+        : hovered
+        ? "#7b8292"
+        : "#555c6b";
+      ctx.lineWidth = selected || shared ? 2 : 1;
       ctx.beginPath();
       ctx.roundRect(drawX, cardY, drawWidth, cardHeight, 6);
       ctx.fill();
@@ -2828,7 +3427,7 @@ class BeatPromptSequencer {
         const fadeStart = clamp(startX, TIMELINE_LEFT, right);
         const fadeEnd = clamp(fadeInX, TIMELINE_LEFT, right);
         const gradient = ctx.createLinearGradient(fadeStart, 0, fadeEnd, 0);
-        gradient.addColorStop(0, "rgba(12,14,20,.72)");
+        gradient.addColorStop(0, "rgba(12,14,20,.46)");
         gradient.addColorStop(1, "rgba(12,14,20,0)");
         ctx.fillStyle = gradient;
         ctx.fillRect(fadeStart, cardY + 2, Math.max(0, fadeEnd - fadeStart), cardHeight - 4);
@@ -2838,13 +3437,13 @@ class BeatPromptSequencer {
         const fadeEnd = clamp(endX, TIMELINE_LEFT, right);
         const gradient = ctx.createLinearGradient(fadeStart, 0, fadeEnd, 0);
         gradient.addColorStop(0, "rgba(12,14,20,0)");
-        gradient.addColorStop(1, "rgba(12,14,20,.72)");
+        gradient.addColorStop(1, "rgba(12,14,20,.46)");
         ctx.fillStyle = gradient;
         ctx.fillRect(fadeStart, cardY + 2, Math.max(0, fadeEnd - fadeStart), cardHeight - 4);
       }
 
       if (selected || hovered) {
-        ctx.fillStyle = selected ? "#c4b5fd" : "#7b8190";
+        ctx.fillStyle = shared ? "#67e8f9" : selected ? "#c4b5fd" : "#7b8190";
         ctx.fillRect(drawX, cardY + 22, Math.min(3, drawWidth), Math.max(12, cardHeight - 44));
         ctx.fillRect(Math.max(drawX, drawX + drawWidth - 3), cardY + 22, Math.min(3, drawWidth), Math.max(12, cardHeight - 44));
       }
@@ -2873,7 +3472,7 @@ class BeatPromptSequencer {
         ctx.textBaseline = "top";
         const lines = canvasTextLines(ctx, clip.prompt, Math.max(1, drawWidth - 18), 2);
         lines.forEach((line, lineIndex) => ctx.fillText(line, drawX + 9, cardY + 10 + lineIndex * 14));
-        ctx.fillStyle = selected ? "#c4b5fd" : "#9ca3af";
+        ctx.fillStyle = shared ? "#a5f3fc" : selected ? "#c4b5fd" : "#9ca3af";
         ctx.font = "8px Inter, sans-serif";
         ctx.fillText(
           `${clip.start}–${clip.end}f · ${(clip.start / this.fps()).toFixed(2)}–${(clip.end / this.fps()).toFixed(2)}s`,
@@ -2892,6 +3491,112 @@ class BeatPromptSequencer {
         fadeInX,
         fadeOutX,
       });
+    }
+
+    for (let index = 1; index < this.clips.length; index++) {
+      const clip = this.clips[index];
+      const previous = this.clips[index - 1];
+      if (previous.end !== clip.start || clip.start < this.viewStart || clip.start > this.viewEnd) {
+        continue;
+      }
+      const bounds = this.crossfadeBounds(index);
+      const boundaryX = this.frameToX(bounds.boundary, width);
+      const startX = clamp(this.frameToX(bounds.start, width), TIMELINE_LEFT, right);
+      const endX = clamp(this.frameToX(bounds.end, width), TIMELINE_LEFT, right);
+      const related = this.selectedIndex === index || this.selectedIndex === index - 1;
+      const hovered = previousHover?.index === index &&
+        previousHover?.type.startsWith("crossfade");
+      const shared = sharedBoundaryIndex === index;
+      this.crossfadeRects.push({
+        index,
+        x: startX,
+        y: cardY,
+        width: Math.max(1, endX - startX),
+        height: cardHeight,
+        startX,
+        endX,
+        boundaryX,
+        frames: bounds.frames,
+      });
+
+      if (bounds.frames > 0) {
+        const gradient = ctx.createLinearGradient(startX, 0, endX, 0);
+        gradient.addColorStop(0, "rgba(167,139,250,.5)");
+        gradient.addColorStop(0.5, "rgba(125,211,252,.38)");
+        gradient.addColorStop(1, "rgba(34,211,238,.5)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(startX, cardY + 2, Math.max(1, endX - startX), cardHeight - 4);
+
+        ctx.strokeStyle = "rgba(224,231,255,.7)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(startX, cardY + 2);
+        ctx.lineTo(endX, cardY + cardHeight - 2);
+        ctx.moveTo(startX, cardY + cardHeight - 2);
+        ctx.lineTo(endX, cardY + 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#e0f2fe";
+        ctx.globalAlpha = 0.78;
+        ctx.beginPath();
+        ctx.moveTo(boundaryX + 0.5, cardY + 2);
+        ctx.lineTo(boundaryX + 0.5, cardY + cardHeight - 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        if (endX - startX >= 42) {
+          const label = `${bounds.frames}f`;
+          ctx.font = "700 8px Inter, sans-serif";
+          const labelWidth = ctx.measureText(label).width + 10;
+          ctx.fillStyle = "rgba(15,23,42,.9)";
+          ctx.fillRect(
+            clamp(boundaryX - labelWidth / 2, startX, endX - labelWidth),
+            cardY + 5,
+            labelWidth,
+            16,
+          );
+          ctx.fillStyle = "#e0f2fe";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(label, boundaryX, cardY + 13);
+        }
+      } else if (!related && !hovered && !shared) {
+        continue;
+      }
+
+      for (const handleX of bounds.frames > 0 ? [startX, endX] : [boundaryX]) {
+        ctx.fillStyle = hovered ? "#ffffff" : "#bae6fd";
+        ctx.beginPath();
+        ctx.moveTo(handleX, cardY + 2);
+        ctx.lineTo(handleX - 5, cardY + 8);
+        ctx.lineTo(handleX, cardY + 14);
+        ctx.lineTo(handleX + 5, cardY + 8);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      if (shared) {
+        ctx.fillStyle = "#67e8f9";
+        ctx.fillRect(
+          boundaryX - 2,
+          cardY + 18,
+          4,
+          Math.max(8, cardHeight - 36),
+        );
+        const centerY = cardY + cardHeight / 2;
+        ctx.beginPath();
+        ctx.moveTo(boundaryX - 8, centerY);
+        ctx.lineTo(boundaryX - 3, centerY - 5);
+        ctx.lineTo(boundaryX - 3, centerY + 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(boundaryX + 8, centerY);
+        ctx.lineTo(boundaryX + 3, centerY - 5);
+        ctx.lineTo(boundaryX + 3, centerY + 5);
+        ctx.closePath();
+        ctx.fill();
+      }
     }
   }
 
@@ -2977,6 +3682,8 @@ class BeatPromptSequencer {
   }
 
   dispose() {
+    this.closeContextMenu();
+    document.removeEventListener("pointerdown", this.documentPointerHandler, true);
     if (this.resizeObserver) this.resizeObserver.disconnect();
     if (this.pendingFrame) cancelAnimationFrame(this.pendingFrame);
     this.stopPlaybackLoop();
@@ -3534,6 +4241,7 @@ app.registerExtension({
       if (editor) {
         editor.applyBeatOffset();
         editor.loadTimeline();
+        editor.resnapClipsToGrid();
         editor.refreshBeatStatus();
         editor.scheduleDraw();
       }

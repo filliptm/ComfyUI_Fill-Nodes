@@ -151,6 +151,87 @@ class TimelineMaskTests(unittest.TestCase):
             0.5,
         )
 
+    def test_schedule_crossfade_blends_adjacent_prompts_with_unit_coverage(self):
+        sections = [
+            {
+                "start": 0.0,
+                "end": 1.0,
+                "fade_in_end": 0.0,
+                "fade_out_start": 1.0,
+                "crossfade_start": 0.0,
+                "crossfade_end": 0.0,
+                "curve": "cosine",
+                "prompt": "First.",
+            },
+            {
+                "start": 1.0,
+                "end": 2.0,
+                "fade_in_end": 1.0,
+                "fade_out_start": 2.0,
+                "crossfade_start": 0.75,
+                "crossfade_end": 1.25,
+                "curve": "cosine",
+                "prompt": "Second.",
+            },
+        ]
+
+        for seconds in (0.75, 0.875, 1.0, 1.125, 1.249):
+            first, second = timeline._weights_at_time(sections, seconds, "hard", 0.0)
+            self.assertAlmostEqual(first + second, 1.0)
+        self.assertEqual(timeline._weights_at_time(sections, 0.75, "hard", 0.0), [1.0, 0.0])
+        midpoint = timeline._weights_at_time(sections, 1.0, "hard", 0.0)
+        self.assertAlmostEqual(midpoint[0], 0.5)
+        self.assertAlmostEqual(midpoint[1], 0.5)
+
+    def test_schedule_crossfade_can_cover_video_and_audio_tokens(self):
+        sections = [
+            {
+                "start": 0.0,
+                "end": 5 / 24,
+                "fade_in_end": 0.0,
+                "fade_out_start": 5 / 24,
+                "crossfade_start": 0.0,
+                "crossfade_end": 0.0,
+                "curve": "linear",
+                "prompt": "First.",
+            },
+            {
+                "start": 5 / 24,
+                "end": self.duration,
+                "fade_in_end": 5 / 24,
+                "fade_out_start": self.duration,
+                "crossfade_start": 3 / 24,
+                "crossfade_end": 7 / 24,
+                "curve": "linear",
+                "prompt": "Second.",
+            },
+        ]
+
+        video, audio = timeline._temporal_weights(
+            sections,
+            video_t=7,
+            audio_t=37,
+            transition_mode="hard",
+            transition_frames=0,
+            affect_audio="video and audio",
+        )
+
+        for first, second in zip(video[0], video[1]):
+            self.assertAlmostEqual(first + second, 1.0)
+        for first, second in zip(audio[0], audio[1]):
+            self.assertAlmostEqual(first + second, 1.0)
+
+    def test_repeated_prompt_crossfade_keeps_full_group_weight(self):
+        merged = timeline._merge_section_weights(
+            [
+                [1.0, 0.75, 0.5, 0.25, 0.0],
+                [0.0, 0.25, 0.5, 0.75, 1.0],
+            ],
+            [0, 1],
+        )
+
+        self.assertEqual(merged, [1.0] * 5)
+
     def test_prompt_envelope_is_averaged_on_h3_temporal_grid(self):
         envelope = {
             "prompt": "Pulse.",
@@ -348,6 +429,42 @@ class TimelineNodeTests(unittest.TestCase):
 
         self.assertEqual(output[3]["sections"][0]["prompt"], "Beat-timed action.")
         self.assertEqual(output[3]["transition_frames"], 0)
+
+    def test_external_schedule_version_two_keeps_crossfade_boundaries(self):
+        schedule = {
+            "type": "fl_prompt_schedule",
+            "version": 2,
+            "duration": 2.0,
+            "sections": [
+                {
+                    "line": 1,
+                    "start": 0.0,
+                    "end": 1.0,
+                    "fade_in_end": 0.0,
+                    "fade_out_start": 1.0,
+                    "crossfade_start": 0.0,
+                    "crossfade_end": 0.0,
+                    "curve": "cosine",
+                    "prompt": "First.",
+                },
+                {
+                    "line": 3,
+                    "start": 1.0,
+                    "end": 2.0,
+                    "fade_in_end": 1.0,
+                    "fade_out_start": 2.0,
+                    "crossfade_start": 0.75,
+                    "crossfade_end": 1.25,
+                    "curve": "cosine",
+                    "prompt": "Second.",
+                },
+            ],
+        }
+
+        sections = timeline._schedule_sections(schedule)
+
+        self.assertEqual(sections[1]["crossfade_start"], 0.75)
+        self.assertEqual(sections[1]["crossfade_end"], 1.25)
 
     def test_node_accepts_multiple_prompt_envelopes_and_deduplicates_prompts(self):
         class Clip:

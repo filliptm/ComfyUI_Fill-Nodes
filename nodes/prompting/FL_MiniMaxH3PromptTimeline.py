@@ -126,10 +126,15 @@ def _resolve_sections(sections, duration, duration_policy, transition_mode, tran
         end = section["end"] * scale
         fade_in_end = section.get("fade_in_end")
         fade_out_start = section.get("fade_out_start")
+        crossfade_start = section.get("crossfade_start")
+        crossfade_end = section.get("crossfade_end")
         if fade_in_end is not None:
             fade_in_end *= scale
         if fade_out_start is not None:
             fade_out_start *= scale
+        if crossfade_start is not None:
+            crossfade_start *= scale
+            crossfade_end *= scale
         if duration_policy == "clamp":
             start = min(start, duration)
             end = min(end, duration)
@@ -137,12 +142,18 @@ def _resolve_sections(sections, duration, duration_policy, transition_mode, tran
                 fade_in_end = min(fade_in_end, duration)
             if fade_out_start is not None:
                 fade_out_start = min(fade_out_start, duration)
+            if crossfade_start is not None:
+                crossfade_start = min(crossfade_start, duration)
+                crossfade_end = min(crossfade_end, duration)
         if end <= start + _EPS:
             continue
         resolved_section = {**section, "start": start, "end": end}
         if fade_in_end is not None:
             resolved_section["fade_in_end"] = min(max(fade_in_end, start), end)
             resolved_section["fade_out_start"] = min(max(fade_out_start, start), end)
+        if crossfade_start is not None:
+            resolved_section["crossfade_start"] = max(0.0, crossfade_start)
+            resolved_section["crossfade_end"] = min(end, max(crossfade_start, crossfade_end))
         resolved.append(resolved_section)
 
     if transition_mode != "hard" and transition_frames > 0:
@@ -160,8 +171,9 @@ def _resolve_sections(sections, duration, duration_policy, transition_mode, tran
 def _schedule_sections(schedule):
     if not isinstance(schedule, dict) or schedule.get("type") != "fl_prompt_schedule":
         raise TypeError("FL MiniMax H3 Prompt Timeline received an invalid prompt schedule.")
-    if schedule.get("version") != 1:
-        raise ValueError("FL MiniMax H3 Prompt Timeline supports FL prompt schedule version 1.")
+    version = schedule.get("version")
+    if version not in {1, 2}:
+        raise ValueError("FL MiniMax H3 Prompt Timeline supports FL prompt schedule versions 1 and 2.")
 
     values = schedule.get("sections")
     if not isinstance(values, list):
@@ -176,13 +188,22 @@ def _schedule_sections(schedule):
             end = float(value["end"])
             fade_in_end = float(value["fade_in_end"])
             fade_out_start = float(value["fade_out_start"])
+            crossfade_start = float(value.get("crossfade_start", start))
+            crossfade_end = float(value.get("crossfade_end", start))
         except (KeyError, TypeError, ValueError) as error:
             raise ValueError(
                 f"FL prompt schedule section {index + 1} has invalid timing values."
             ) from error
         prompt = value.get("prompt")
         curve = value.get("curve")
-        if not all(math.isfinite(number) for number in (start, end, fade_in_end, fade_out_start)):
+        if not all(math.isfinite(number) for number in (
+            start,
+            end,
+            fade_in_end,
+            fade_out_start,
+            crossfade_start,
+            crossfade_end,
+        )):
             raise ValueError(f"FL prompt schedule section {index + 1} timing must be finite.")
         if not isinstance(prompt, str) or not prompt.strip():
             raise ValueError(f"FL prompt schedule section {index + 1} prompt is empty.")
@@ -196,6 +217,10 @@ def _schedule_sections(schedule):
             raise ValueError(
                 f"FL prompt schedule section {index + 1} has invalid fade boundaries."
             )
+        if not 0 <= crossfade_start <= start + _EPS <= crossfade_end + _EPS <= end + _EPS:
+            raise ValueError(
+                f"FL prompt schedule section {index + 1} has invalid crossfade boundaries."
+            )
         sections.append({
             "line": value.get("line", index + 1),
             "start": start,
@@ -203,8 +228,24 @@ def _schedule_sections(schedule):
             "prompt": prompt.strip(),
             "fade_in_end": fade_in_end,
             "fade_out_start": fade_out_start,
+            "crossfade_start": crossfade_start,
+            "crossfade_end": crossfade_end,
             "curve": curve,
         })
+    for index, section in enumerate(sections):
+        if section["crossfade_end"] <= section["crossfade_start"] + _EPS:
+            continue
+        if index == 0:
+            raise ValueError("FL prompt schedule first section cannot crossfade.")
+        previous = sections[index - 1]
+        if abs(previous["end"] - section["start"]) > _EPS:
+            raise ValueError(
+                f"FL prompt schedule section {index + 1} crossfade requires a touching previous section."
+            )
+        if section["crossfade_start"] < previous["start"] - _EPS:
+            raise ValueError(
+                f"FL prompt schedule section {index + 1} crossfade exceeds the previous section."
+            )
     return sections
 
 
@@ -402,6 +443,17 @@ def _curve(value, transition_mode):
 def _weights_at_time(sections, seconds, transition_mode, transition_seconds):
     weights = [0.0] * len(sections)
     if sections and "fade_in_end" in sections[0]:
+        for index, (first, second) in enumerate(zip(sections, sections[1:])):
+            crossfade_start = second.get("crossfade_start", second["start"])
+            crossfade_end = second.get("crossfade_end", second["start"])
+            if crossfade_start <= seconds < crossfade_end:
+                amount = _curve(
+                    (seconds - crossfade_start) / (crossfade_end - crossfade_start),
+                    second["curve"],
+                )
+                weights[index] = 1.0 - amount
+                weights[index + 1] = amount
+                return weights
         for index, section in enumerate(sections):
             if not section["start"] <= seconds < section["end"]:
                 continue
@@ -556,6 +608,15 @@ def _merge_weights(weights, indices):
     ]
 
 
+def _merge_section_weights(weights, indices):
+    if not indices:
+        return []
+    return [
+        min(1.0, sum(weights[index][position] for index in indices))
+        for position in range(len(weights[0]))
+    ]
+
+
 def _h3_tensors(latent):
     samples = latent.get("samples")
     if not isinstance(samples, comfy.nested_tensor.NestedTensor):
@@ -609,8 +670,8 @@ def _apply_timeline(timeline, latent):
             timeline["affect_audio"],
         )
         for group in timeline["conditioning_groups"]:
-            group_video = _merge_weights(video_weights, group["section_indices"])
-            group_audio = _merge_weights(audio_weights, group["section_indices"])
+            group_video = _merge_section_weights(video_weights, group["section_indices"])
+            group_audio = _merge_section_weights(audio_weights, group["section_indices"])
             mask = _flatten_mask(video.shape, audio.shape, group_video, group_audio)
             if torch.count_nonzero(mask):
                 conditioning.extend(

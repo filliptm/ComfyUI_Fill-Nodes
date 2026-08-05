@@ -104,20 +104,25 @@ def _load_beat_data(beat_positions):
 
 
 def _parse_options(options, line, default_fade_in, default_fade_out):
-    values = {"fade_in": default_fade_in, "fade_out": default_fade_out}
+    values = {
+        "fade_in": default_fade_in,
+        "fade_out": default_fade_out,
+        "crossfade": 0.0,
+    }
     if not options:
         return values
 
     for option in options.split("|"):
         if "=" not in option:
             raise ValueError(
-                f"Beat prompt schedule line {line}: options must use fade_in=value or fade_out=value."
+                f"Beat prompt schedule line {line}: options must use "
+                "fade_in=value, fade_out=value, or crossfade=value."
             )
         name, value = (part.strip() for part in option.split("=", 1))
         if name not in values:
             raise ValueError(
                 f"Beat prompt schedule line {line}: unknown option '{name}'. "
-                "Use fade_in or fade_out."
+                "Use fade_in, fade_out, or crossfade."
             )
         values[name] = _number(value, name, line)
     return values
@@ -161,6 +166,7 @@ def _parse_schedule(text, default_fade_in, default_fade_out, time_unit="beats"):
                     "end": end,
                     "fade_in": options["fade_in"],
                     "fade_out": options["fade_out"],
+                    "crossfade": options["crossfade"],
                 }
                 for name, value in frame_values.items():
                     if abs(value - round(value)) > _EPS:
@@ -210,6 +216,27 @@ def _parse_schedule(text, default_fade_in, default_fade_out, time_unit="beats"):
                 raise ValueError(
                     f"Beat prompt schedule line {section['line']}: section overlaps the previous section."
                 )
+            if section["crossfade"] > _EPS:
+                if abs(section["start_position"] - previous["end_position"]) > _EPS:
+                    raise ValueError(
+                        f"Beat prompt schedule line {section['line']}: crossfade requires "
+                        "a touching previous section."
+                    )
+                shortest = min(
+                    previous["end_position"] - previous["start_position"],
+                    section["end_position"] - section["start_position"],
+                )
+                if section["crossfade"] > shortest + _EPS:
+                    raise ValueError(
+                        f"Beat prompt schedule line {section['line']}: crossfade exceeds "
+                        "the shorter adjacent section."
+                    )
+                previous["fade_out"] = 0.0
+                section["fade_in"] = 0.0
+        elif section["crossfade"] > _EPS:
+            raise ValueError(
+                f"Beat prompt schedule line {section['line']}: the first section cannot crossfade."
+            )
         previous = section
     return sections
 
@@ -284,11 +311,9 @@ def _resolve_schedule(
                 f"Beat prompt schedule line {section['line']}: the selected range resolves "
                 "to an empty time range."
             )
-        if end > limit + _EPS:
-            raise ValueError(
-                f"Beat prompt schedule line {section['line']}: section ends at {end:g}s, "
-                f"beyond the sequence duration {limit:g}s."
-            )
+        if start >= limit - _EPS:
+            continue
+        end = min(end, limit)
         fade_in_end = _position_to_seconds(
             section["start_position"] + section["fade_in"],
             time_unit,
@@ -305,14 +330,50 @@ def _resolve_schedule(
             fps,
             section["line"],
         )
+        fade_in_end = min(end, fade_in_end)
+        fade_out_start = min(end, max(start, fade_out_start))
+        if section["crossfade"] > _EPS:
+            if time_unit == "frames":
+                crossfade_before = math.floor(section["crossfade"] / 2)
+                crossfade_after = section["crossfade"] - crossfade_before
+            else:
+                crossfade_before = section["crossfade"] * 0.5
+                crossfade_after = crossfade_before
+            crossfade_start = _position_to_seconds(
+                section["start_position"] - crossfade_before,
+                time_unit,
+                beat_times,
+                duration,
+                fps,
+                section["line"],
+            )
+            crossfade_end = _position_to_seconds(
+                section["start_position"] + crossfade_after,
+                time_unit,
+                beat_times,
+                duration,
+                fps,
+                section["line"],
+            )
+            crossfade_start = max(0.0, crossfade_start)
+            crossfade_end = min(limit, end, crossfade_end)
+        else:
+            crossfade_start = start
+            crossfade_end = start
         resolved.append({
             **section,
             "start": start,
             "end": end,
             "fade_in_end": fade_in_end,
             "fade_out_start": fade_out_start,
+            "crossfade_start": crossfade_start,
+            "crossfade_end": crossfade_end,
             "curve": curve,
         })
+    for previous, section in zip(resolved, resolved[1:]):
+        if section["crossfade_end"] > section["crossfade_start"] + _EPS:
+            previous["fade_out_start"] = previous["end"]
+            section["fade_in_end"] = section["start"]
     return resolved
 
 
@@ -323,37 +384,27 @@ def _frame_sections(sections, fps, total_frames):
         end_frame = min(total_frames, max(start_frame + 1, round(section["end"] * fps)))
         fade_in_end = min(end_frame, max(start_frame, round(section["fade_in_end"] * fps)))
         fade_out_start = min(end_frame, max(start_frame, round(section["fade_out_start"] * fps)))
+        crossfade_start = min(
+            total_frames,
+            max(0, round(section["crossfade_start"] * fps)),
+        )
+        crossfade_end = min(
+            total_frames,
+            max(crossfade_start, round(section["crossfade_end"] * fps)),
+        )
         frame_sections.append({
             "line": section["line"],
             "start_frame": start_frame,
             "end_frame": end_frame,
             "fade_in_frames": fade_in_end - start_frame,
             "fade_out_frames": end_frame - fade_out_start,
+            "crossfade_start_frame": crossfade_start,
+            "crossfade_end_frame": crossfade_end,
+            "crossfade_frames": crossfade_end - crossfade_start,
             "prompt": section["prompt"],
             "curve": section["curve"],
         })
     return frame_sections
-
-
-def _format_time(seconds):
-    minutes = int(seconds // 60)
-    remainder = seconds - minutes * 60
-    return f"{minutes:02d}:{remainder:06.3f}"
-
-
-def _preview(sections, time_unit="beats", fps=24.0):
-    lines = []
-    for section in sections:
-        start_frame = round(section["start"] * fps)
-        end_frame = round(section["end"] * fps)
-        lines.append(
-            f"[{time_unit} {section['start_position']:g} - {section['end_position']:g} | "
-            f"{_format_time(section['start'])} - {_format_time(section['end'])} | "
-            f"frames {start_frame} - {end_frame} @ {fps:g} fps | "
-            f"fade_in={section['fade_in']:g} | fade_out={section['fade_out']:g}]\n"
-            f"{section['prompt']}"
-        )
-    return "\n\n".join(lines)
 
 
 class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
@@ -518,14 +569,6 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
                     display_name="prompt_schedule",
                     tooltip="Resolved second-based prompt schedule for compatible FL diffusion nodes.",
                 ),
-                io.String.Output(
-                    display_name="preview",
-                    tooltip="Readable preview showing each source range and its resolved time and frame range.",
-                ),
-                io.Float.Output(
-                    display_name="duration_seconds",
-                    tooltip="Effective schedule duration in seconds.",
-                ),
                 io.Int.Output(
                     display_name="total_frames",
                     tooltip="Effective schedule duration converted to frames at the selected FPS.",
@@ -534,13 +577,9 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
                     display_name="audio",
                     tooltip="The selected, frame-aligned audio crop for downstream FL audio nodes.",
                 ),
-                io.String.Output(
-                    display_name="beat_positions",
-                    tooltip="Effective beat analysis JSON for FL audio-reactive nodes.",
-                ),
-                io.String.Output(
-                    display_name="drum_times",
-                    tooltip="Detected kick, snare, and hi-hat timestamps for FL audio-reactive nodes.",
+                io.Float.Output(
+                    display_name="BPM",
+                    tooltip="Detected musical tempo after applying the Half-time option.",
                 ),
             ],
         )
@@ -638,7 +677,7 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
             section.update(frame_section)
         schedule = {
             "type": "fl_prompt_schedule",
-            "version": 1,
+            "version": 2,
             "duration": duration,
             "audio_duration": audio_duration,
             "source_unit": time_unit,
@@ -702,20 +741,11 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
         )
         if waveform is not None:
             ui_payload["waveform_preview"] = waveform
-        drum_times = ui_payload["drum_times"] or {
-            "kick_times": [],
-            "snare_times": [],
-            "hihat_times": [],
-            "duration": duration,
-        }
         return io.NodeOutput(
             schedule,
-            _preview(sections, time_unit, fps),
-            duration,
             total_frames,
             cropped_audio,
-            beat_positions,
-            json.dumps(drum_times, separators=(",", ":")),
+            float(beat_data["bpm"]),
             ui={"fl_prompt_sequencer": [ui_payload]},
         )
 

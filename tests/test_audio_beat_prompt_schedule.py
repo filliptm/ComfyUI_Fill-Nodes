@@ -65,7 +65,7 @@ class BeatPromptScheduleTests(unittest.TestCase):
                 0.0,
             )
 
-    def test_node_returns_schedule_and_readable_preview(self):
+    def test_node_returns_schedule_frames_audio_and_bpm(self):
         output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
             beat_positions=beat_json(),
             timeline="[0 - 48 | fade_in=6]\nSubject turns.",
@@ -75,10 +75,11 @@ class BeatPromptScheduleTests(unittest.TestCase):
         ).result
 
         self.assertEqual(output[0]["type"], "fl_prompt_schedule")
-        self.assertEqual(output[0]["version"], 1)
+        self.assertEqual(output[0]["version"], 2)
         self.assertEqual(output[0]["source_unit"], "frames")
-        self.assertIn("frames 0 - 48", output[1])
-        self.assertIn("00:00.000 - 00:02.000", output[1])
+        self.assertEqual(output[1], 60)
+        self.assertIsNone(output[2])
+        self.assertEqual(output[3], 120.0)
 
     def test_seconds_mode_uses_direct_positions(self):
         output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
@@ -116,8 +117,7 @@ class BeatPromptScheduleTests(unittest.TestCase):
         self.assertEqual(section["end"], 2.0)
         self.assertEqual(section["fade_in_end"], 0.25)
         self.assertEqual(section["fade_out_start"], 1.75)
-        self.assertEqual(output.result[2], 2.0)
-        self.assertEqual(output.result[3], 48)
+        self.assertEqual(output.result[1], 48)
 
     def test_frames_mode_rejects_fractional_frames(self):
         with self.assertRaisesRegex(ValueError, "whole frame"):
@@ -132,18 +132,104 @@ class BeatPromptScheduleTests(unittest.TestCase):
                 sequence_duration=0,
             )
 
-    def test_frame_length_rejects_sections_past_its_end(self):
-        with self.assertRaisesRegex(ValueError, "beyond the sequence duration"):
-            schedule.FL_Audio_Beat_Prompt_Schedule.execute(
-                beat_positions=beat_json(),
-                timeline="[0 - 2.1]\nCamera move.",
-                default_fade_in=0.0,
-                default_fade_out=0.0,
-                curve="linear",
-                time_unit="seconds",
-                fps=24.0,
-                sequence_duration=48,
+    def test_crossfade_resolves_around_touching_frame_boundary(self):
+        output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
+            beat_positions=beat_json(),
+            timeline=(
+                "[0 - 24 | fade_out=6]\nFirst.\n"
+                "[24 - 48 | fade_in=6 | crossfade=12]\nSecond."
+            ),
+            default_fade_in=0.0,
+            default_fade_out=0.0,
+            curve="cosine",
+            time_unit="frames",
+            fps=24.0,
+            sequence_duration=48,
+        )
+
+        first, second = output.result[0]["sections"]
+        self.assertEqual(first["fade_out_frames"], 0)
+        self.assertEqual(second["fade_in_frames"], 0)
+        self.assertEqual(second["crossfade_start_frame"], 18)
+        self.assertEqual(second["crossfade_end_frame"], 30)
+        self.assertEqual(second["crossfade_frames"], 12)
+        self.assertEqual(second["crossfade_start"], 0.75)
+        self.assertEqual(second["crossfade_end"], 1.25)
+
+    def test_crossfade_requires_touching_previous_section(self):
+        with self.assertRaisesRegex(ValueError, "touching previous"):
+            schedule._parse_schedule(
+                "[0 - 24]\nFirst.\n[30 - 48 | crossfade=8]\nSecond.",
+                0.0,
+                0.0,
+                "frames",
             )
+
+    def test_crossfade_cannot_exceed_shorter_adjacent_section(self):
+        with self.assertRaisesRegex(ValueError, "shorter adjacent"):
+            schedule._parse_schedule(
+                "[0 - 8]\nFirst.\n[8 - 48 | crossfade=12]\nSecond.",
+                0.0,
+                0.0,
+                "frames",
+            )
+
+    def test_crossfade_must_be_a_whole_frame(self):
+        with self.assertRaisesRegex(ValueError, "whole frame"):
+            schedule._parse_schedule(
+                "[0 - 24]\nFirst.\n[24 - 48 | crossfade=5.5]\nSecond.",
+                0.0,
+                0.0,
+                "frames",
+            )
+
+    def test_frame_length_crops_sections_at_its_end(self):
+        output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
+            beat_positions=beat_json(),
+            timeline="[0 - 2.1]\nCamera move.",
+            default_fade_in=0.0,
+            default_fade_out=0.0,
+            curve="linear",
+            time_unit="seconds",
+            fps=24.0,
+            sequence_duration=48,
+        )
+
+        section = output.result[0]["sections"][0]
+        self.assertEqual(section["start"], 0.0)
+        self.assertEqual(section["end"], 2.0)
+        self.assertEqual(section["end_frame"], 48)
+
+    def test_frame_length_discards_sections_after_its_end(self):
+        output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
+            beat_positions=beat_json(),
+            timeline="[49 - 59]\nCamera move.",
+            default_fade_in=0.0,
+            default_fade_out=0.0,
+            curve="linear",
+            time_unit="frames",
+            fps=24.0,
+            sequence_duration=48,
+        )
+
+        self.assertEqual(output.result[0]["sections"], [])
+
+    def test_frame_length_preserves_visible_part_of_fade_out(self):
+        output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
+            beat_positions=beat_json(),
+            timeline="[40 - 52 | fade_out=8]\nCamera move.",
+            default_fade_in=0.0,
+            default_fade_out=0.0,
+            curve="linear",
+            time_unit="frames",
+            fps=24.0,
+            sequence_duration=48,
+        )
+
+        section = output.result[0]["sections"][0]
+        self.assertEqual(section["start_frame"], 40)
+        self.assertEqual(section["end_frame"], 48)
+        self.assertEqual(section["fade_out_frames"], 4)
 
     def test_length_is_always_a_frame_count(self):
         output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
@@ -157,8 +243,7 @@ class BeatPromptScheduleTests(unittest.TestCase):
             sequence_duration=48,
         )
 
-        self.assertEqual(output.result[2], 2.0)
-        self.assertEqual(output.result[3], 48)
+        self.assertEqual(output.result[1], 48)
 
     def test_ui_payload_contains_exact_beat_map(self):
         output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
@@ -181,6 +266,9 @@ class BeatPromptScheduleTests(unittest.TestCase):
             "end_frame": 48,
             "fade_in_frames": 6,
             "fade_out_frames": 6,
+            "crossfade_start_frame": 0,
+            "crossfade_end_frame": 0,
+            "crossfade_frames": 0,
             "prompt": "Camera move.",
             "curve": "linear",
         }])
@@ -249,7 +337,7 @@ class BeatPromptScheduleTests(unittest.TestCase):
         self.assertEqual(inputs["default_fade_in"].display_name, "default fade-in (frames)")
         self.assertEqual(inputs["default_fade_out"].display_name, "default fade-out (frames)")
 
-    def test_schema_appends_audio_inputs_and_outputs_without_shifting_existing_contract(self):
+    def test_schema_exposes_compact_outputs(self):
         schema = schedule.FL_Audio_Beat_Prompt_Schedule.define_schema()
 
         self.assertEqual(
@@ -281,16 +369,13 @@ class BeatPromptScheduleTests(unittest.TestCase):
             [output.display_name for output in schema.outputs],
             [
                 "prompt_schedule",
-                "preview",
-                "duration_seconds",
                 "total_frames",
                 "audio",
-                "beat_positions",
-                "drum_times",
+                "BPM",
             ],
         )
 
-    def test_uploaded_audio_drives_schedule_and_ecosystem_outputs(self):
+    def test_uploaded_audio_drives_schedule_audio_and_bpm_outputs(self):
         audio = {"waveform": torch.zeros(1, 2, 48000), "sample_rate": 48000}
         analysis = {
             "bpm": 120.0,
@@ -326,10 +411,12 @@ class BeatPromptScheduleTests(unittest.TestCase):
                 trim_start_frame=12,
             )
 
-        self.assertIs(output.result[4], audio)
-        self.assertEqual(json.loads(output.result[5])["detected_beat_times"], [0.05, 0.52])
-        self.assertEqual(json.loads(output.result[6])["kick_times"], [0.05])
-        self.assertEqual(output.ui["fl_prompt_sequencer"][0]["source_start"], 0.5)
+        self.assertIs(output.result[2], audio)
+        self.assertEqual(output.result[3], 120.0)
+        payload = output.ui["fl_prompt_sequencer"][0]
+        self.assertEqual(payload["detected_beat_times"], [0.05, 0.52])
+        self.assertEqual(payload["drum_times"]["kick_times"], [0.05])
+        self.assertEqual(payload["source_start"], 0.5)
 
     def test_external_beats_must_match_uploaded_crop(self):
         analysis = {
@@ -365,15 +452,12 @@ class BeatPromptScheduleTests(unittest.TestCase):
             beat_offset_ms=100,
         )
 
-        effective = json.loads(output.result[5])
         payload = output.ui["fl_prompt_sequencer"][0]
-        self.assertEqual(effective["base_beat_times"], [0.1, 0.6, 1.2, 1.9])
-        self.assertEqual(effective["beat_times"], [0.2, 0.7, 1.3, 2.0])
-        self.assertEqual(effective["beat_offset_ms"], 100)
-        self.assertEqual(effective["grid_interval_seconds"], 0.6)
         self.assertEqual(payload["base_beat_times"], [0.1, 0.6, 1.2, 1.9])
         self.assertEqual(payload["beat_times"], [0.2, 0.7, 1.3, 2.0])
         self.assertEqual(payload["beat_offset_ms"], 100)
+        self.assertEqual(payload["grid_interval_seconds"], 0.6)
+        self.assertEqual(output.result[3], 120.0)
 
     def test_scheduler_density_controls_external_grid_and_output(self):
         output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
@@ -387,14 +471,12 @@ class BeatPromptScheduleTests(unittest.TestCase):
             beat_grid_density="every_2_beats",
         )
 
-        effective = json.loads(output.result[5])
         payload = output.ui["fl_prompt_sequencer"][0]
-        self.assertEqual(effective["beat_times"], [0.1, 1.2])
-        self.assertEqual(effective["base_beat_times"], [0.1, 0.6, 1.2, 1.9])
-        self.assertEqual(effective["beat_grid_density"], "every_2_beats")
-        self.assertEqual(effective["grid_bpm"], 50.0)
         self.assertEqual(payload["beat_times"], [0.1, 1.2])
+        self.assertEqual(payload["base_beat_times"], [0.1, 0.6, 1.2, 1.9])
         self.assertEqual(payload["beat_grid_density"], "every_2_beats")
+        self.assertEqual(payload["grid_bpm"], 50.0)
+        self.assertEqual(output.result[3], 120.0)
 
 
 if __name__ == "__main__":
