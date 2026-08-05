@@ -1,17 +1,25 @@
 import importlib.util
 import json
 import pathlib
+import sys
+import torch
+import types
 import unittest
+from unittest import mock
 
 
-MODULE_PATH = (
-    pathlib.Path(__file__).parents[1]
-    / "nodes"
-    / "audio"
-    / "FL_Audio_Beat_Prompt_Schedule.py"
+AUDIO_NODE_PATH = pathlib.Path(__file__).parents[1] / "nodes" / "audio"
+PACKAGE_NAME = "fl_fill_nodes_audio_tests"
+package = types.ModuleType(PACKAGE_NAME)
+package.__path__ = [str(AUDIO_NODE_PATH)]
+sys.modules[PACKAGE_NAME] = package
+MODULE_PATH = AUDIO_NODE_PATH / "FL_Audio_Beat_Prompt_Schedule.py"
+SPEC = importlib.util.spec_from_file_location(
+    f"{PACKAGE_NAME}.FL_Audio_Beat_Prompt_Schedule",
+    MODULE_PATH,
 )
-SPEC = importlib.util.spec_from_file_location("fl_audio_beat_prompt_schedule", MODULE_PATH)
 schedule = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = schedule
 SPEC.loader.exec_module(schedule)
 
 
@@ -240,6 +248,109 @@ class BeatPromptScheduleTests(unittest.TestCase):
         self.assertEqual(inputs["sequence_duration"].display_name, "length (frames)")
         self.assertEqual(inputs["default_fade_in"].display_name, "default fade-in (frames)")
         self.assertEqual(inputs["default_fade_out"].display_name, "default fade-out (frames)")
+
+    def test_schema_appends_audio_inputs_and_outputs_without_shifting_existing_contract(self):
+        schema = schedule.FL_Audio_Beat_Prompt_Schedule.define_schema()
+
+        self.assertEqual(
+            [input.id for input in schema.inputs[:8]],
+            [
+                "beat_positions",
+                "timeline",
+                "default_fade_in",
+                "default_fade_out",
+                "curve",
+                "time_unit",
+                "fps",
+                "sequence_duration",
+            ],
+        )
+        self.assertEqual(
+            [input.id for input in schema.inputs[8:]],
+            [
+                "audio_file",
+                "trim_start_frame",
+                "bpm_method",
+                "half_time",
+                "beat_offset_ms",
+                "analysis_source",
+            ],
+        )
+        self.assertEqual(
+            [output.display_name for output in schema.outputs],
+            [
+                "prompt_schedule",
+                "preview",
+                "duration_seconds",
+                "total_frames",
+                "audio",
+                "beat_positions",
+                "drum_times",
+            ],
+        )
+
+    def test_uploaded_audio_drives_schedule_and_ecosystem_outputs(self):
+        audio = {"waveform": torch.zeros(1, 2, 48000), "sample_rate": 48000}
+        analysis = {
+            "bpm": 120.0,
+            "beat_times": [0.0, 0.5],
+            "detected_beat_times": [0.05, 0.52],
+            "onset_times": [0.05, 0.25, 0.52],
+            "audio_duration": 1.0,
+            "source_duration": 2.0,
+            "source_start": 0.5,
+            "waveform_preview": {
+                "version": 1,
+                "duration": 1.0,
+                "scale": 32767,
+                "peaks": [-100, 100],
+            },
+            "drum_times": {
+                "kick_times": [0.05],
+                "snare_times": [0.52],
+                "hihat_times": [],
+                "duration": 1.0,
+            },
+        }
+        with mock.patch.object(schedule, "analyze_audio_file", return_value=(analysis, audio)):
+            output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
+                beat_positions=None,
+                timeline="[0 - 24]\nCamera pulse.",
+                default_fade_in=0.0,
+                default_fade_out=0.0,
+                curve="linear",
+                fps=24.0,
+                sequence_duration=24,
+                audio_file="song.wav",
+                trim_start_frame=12,
+            )
+
+        self.assertIs(output.result[4], audio)
+        self.assertEqual(json.loads(output.result[5])["detected_beat_times"], [0.05, 0.52])
+        self.assertEqual(json.loads(output.result[6])["kick_times"], [0.05])
+        self.assertEqual(output.ui["fl_prompt_sequencer"][0]["source_start"], 0.5)
+
+    def test_external_beats_must_match_uploaded_crop(self):
+        analysis = {
+            "audio_duration": 1.0,
+            "source_duration": 1.0,
+            "source_start": 0.0,
+            "drum_times": {},
+            "waveform_preview": None,
+        }
+        audio = {"waveform": torch.zeros(1, 1, 48000), "sample_rate": 48000}
+        with mock.patch.object(schedule, "analyze_audio_file", return_value=(analysis, audio)):
+            with self.assertRaisesRegex(ValueError, "does not match"):
+                schedule.FL_Audio_Beat_Prompt_Schedule.execute(
+                    beat_positions=beat_json(),
+                    timeline="[0 - 24]\nCamera pulse.",
+                    default_fade_in=0.0,
+                    default_fade_out=0.0,
+                    curve="linear",
+                    fps=24.0,
+                    sequence_duration=24,
+                    audio_file="song.wav",
+                )
 
 
 if __name__ == "__main__":

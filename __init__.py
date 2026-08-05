@@ -2,6 +2,8 @@ import logging
 
 logger = logging.getLogger("fl_fill_nodes")
 
+from . import routes
+
 # AI NODES
 from .nodes.ai.FL_Fal_Gemini_ImageEdit import FL_Fal_Gemini_ImageEdit
 from .nodes.ai.FL_Fal_GPTImage2_Edit import FL_Fal_GPTImage2_Edit

@@ -1,12 +1,13 @@
 import { app } from "../../../../scripts/app.js";
+import { api } from "../../../../scripts/api.js";
 
 const STYLE_ID = "fl-beat-prompt-sequencer-styles";
 const INSTANCES = new Map();
 const HEADER_RE = /^\s*\[\s*([0-9]+(?:\.[0-9]+)?)\s*-\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\|\s*(.*?))?\s*\]\s*$/;
 const EPSILON = 1e-6;
-const FORMAT_VERSION = 2;
+const FORMAT_VERSION = 3;
 const MIN_NODE_WIDTH = 680;
-const MIN_NODE_HEIGHT = 900;
+const MIN_NODE_HEIGHT = 1100;
 const TIMELINE_LEFT = 42;
 const TIMELINE_RIGHT = 12;
 
@@ -51,6 +52,35 @@ const STYLES = `
   .flbps-status.cached { color: #fef3c7; background: #713f12; }
   .flbps-status.error { color: #fee2e2; background: #7f1d1d; }
   .flbps-toolbar { flex-wrap: wrap; padding-top: 6px; padding-bottom: 6px; }
+  .flbps-transport {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 9px;
+    border-bottom: 1px solid #2b2b31;
+    background: #18181c;
+  }
+  .flbps-transport-time {
+    min-width: 105px;
+    color: #fbbf24;
+    font: 10px "Cascadia Mono", Consolas, monospace;
+  }
+  .flbps-source-label {
+    min-width: 0;
+    overflow: hidden;
+    color: #a1a1aa;
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .flbps-auto {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #a1a1aa;
+    font-size: 9px;
+  }
   .flbps-control {
     display: flex;
     align-items: center;
@@ -354,6 +384,58 @@ function normalizeWaveformPreview(value) {
   return { version: 1, duration, scale, peaks };
 }
 
+function waveformPreviewFromBuffer(buffer) {
+  const bucketCount = Math.min(8192, Math.max(1, Math.ceil(buffer.duration * 60)));
+  const peaks = new Array(bucketCount * 2);
+  for (let bucket = 0; bucket < bucketCount; bucket++) {
+    const start = Math.floor(bucket / bucketCount * buffer.length);
+    const end = Math.max(start + 1, Math.floor((bucket + 1) / bucketCount * buffer.length));
+    let minimum = 1;
+    let maximum = -1;
+    for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+      const samples = buffer.getChannelData(channel);
+      for (let index = start; index < end; index++) {
+        minimum = Math.min(minimum, samples[index]);
+        maximum = Math.max(maximum, samples[index]);
+      }
+    }
+    peaks[bucket * 2] = Math.round(clamp(minimum, -1, 1) * 32767);
+    peaks[bucket * 2 + 1] = Math.round(clamp(maximum, -1, 1) * 32767);
+  }
+  return { version: 1, duration: buffer.duration, scale: 32767, peaks };
+}
+
+function cropWaveformPreview(preview, startSeconds, duration) {
+  if (!preview || !(duration > 0)) return null;
+  const bucketCount = preview.peaks.length / 2;
+  const startBucket = clamp(Math.floor(startSeconds / preview.duration * bucketCount), 0, bucketCount - 1);
+  const endBucket = clamp(
+    Math.ceil((startSeconds + duration) / preview.duration * bucketCount),
+    startBucket + 1,
+    bucketCount,
+  );
+  return {
+    version: 1,
+    duration,
+    scale: preview.scale,
+    peaks: preview.peaks.slice(startBucket * 2, endBucket * 2),
+  };
+}
+
+function audioViewURL(value) {
+  const match = String(value || "").match(/^(.*?)(?:\s+\[(input|output|temp)\])?$/);
+  const relative = (match?.[1] || "").replace(/\\/g, "/");
+  const slash = relative.lastIndexOf("/");
+  const filename = slash >= 0 ? relative.slice(slash + 1) : relative;
+  const subfolder = slash >= 0 ? relative.slice(0, slash) : "";
+  const params = new URLSearchParams({
+    filename,
+    subfolder,
+    type: match?.[2] || "input",
+  });
+  return api.apiURL(`/view?${params.toString()}`);
+}
+
 class BeatPromptSequencer {
   constructor({ node, container, widgets }) {
     this.node = node;
@@ -371,6 +453,15 @@ class BeatPromptSequencer {
     this.rawInvalid = false;
     this.migrationPending = false;
     this.hover = null;
+    this.sourceWaveformPreview = null;
+    this.sourceAudioDuration = 0;
+    this.audioElement = null;
+    this.audioURL = "";
+    this.analysisTimer = null;
+    this.analysisRequest = 0;
+    this.loadingAudio = false;
+    this.separationJobId = null;
+    this.separationTimer = null;
 
     const saved = node.properties?.flBeatPromptSequencer || {};
     this.beatData = saved.beatData || null;
@@ -380,8 +471,9 @@ class BeatPromptSequencer {
     this.dataFresh = false;
     this.viewStart = saved.formatVersion === FORMAT_VERSION ? finiteNumber(saved.viewStart, 0) : 0;
     this.viewEnd = saved.formatVersion === FORMAT_VERSION ? finiteNumber(saved.viewEnd, 0) : 0;
-    this.snapMode = ["beat", "frame", "off"].includes(saved.snapMode) ? saved.snapMode : "beat";
+    this.snapMode = ["beat", "detected", "onset", "frame", "off"].includes(saved.snapMode) ? saved.snapMode : "beat";
     this.waveformVisible = saved.waveformVisible !== false;
+    this.autoAnalyze = saved.autoAnalyze !== false;
 
     injectStyles();
     this.build();
@@ -389,6 +481,7 @@ class BeatPromptSequencer {
     this.loadTimeline();
     this.refreshBeatStatus();
     if (!(this.viewEnd > this.viewStart)) this.zoomToFit(false);
+    if (this.widgets.audioFile?.value) this.loadAudioSource();
     this.scheduleDraw();
   }
 
@@ -415,12 +508,26 @@ class BeatPromptSequencer {
     this.root.innerHTML = `
       <div class="flbps-header">
         <span class="flbps-title">Audio Beat Prompt Sequencer</span>
-        <span class="flbps-status" data-role="status">Run once to load exact beat markers</span>
+        <span class="flbps-status" data-role="status">Choose audio to load the timeline</span>
+      </div>
+      <div class="flbps-transport">
+        <button class="flbps-button" data-action="play" title="Play or pause the selected audio crop">Play</button>
+        <button class="flbps-button" data-action="stop" title="Stop and return to the crop start">Stop</button>
+        <span class="flbps-transport-time" data-role="transport-time">00:00.000 / 00:00.000</span>
+        <span class="flbps-source-label" data-role="source-label">No audio selected</span>
+        <span class="flbps-spacer"></span>
+        <label class="flbps-auto" title="Refresh beat, onset, and drum markers after audio or trim changes">
+          <input data-role="auto-analyze" type="checkbox"> Auto analyze
+        </label>
+        <button class="flbps-button" data-action="analyze" title="Analyze beats, onsets, and drums without queueing the workflow">Analyze</button>
+        <button class="flbps-button" data-action="separate" title="Explicitly separate and cache stems for analysis">Separate stems</button>
       </div>
       <div class="flbps-toolbar">
         <label class="flbps-control">Snap
-          <select data-role="snap" title="Beat snaps edits to detected beats. Frame uses single-frame steps. Off disables beat snapping.">
-            <option value="beat">Beat</option>
+          <select data-role="snap" title="Choose which marker family should attract prompt edits. Hold Shift to bypass snapping.">
+            <option value="beat">Beat grid</option>
+            <option value="detected">Detected beat</option>
+            <option value="onset">Onset</option>
             <option value="frame">Frame</option>
             <option value="off">Off</option>
           </select>
@@ -482,8 +589,11 @@ class BeatPromptSequencer {
     this.rawText = this.root.querySelector('[data-role="raw-text"]');
     this.summaryEl = this.root.querySelector('[data-role="summary"]');
     this.promptMetaEl = this.root.querySelector('[data-role="prompt-meta"]');
+    this.transportTimeEl = this.root.querySelector('[data-role="transport-time"]');
+    this.sourceLabelEl = this.root.querySelector('[data-role="source-label"]');
     this.controls = {
       snap: this.root.querySelector('[data-role="snap"]'),
+      autoAnalyze: this.root.querySelector('[data-role="auto-analyze"]'),
     };
     this.fields = {
       start: this.root.querySelector('[data-field="start"]'),
@@ -498,6 +608,7 @@ class BeatPromptSequencer {
     ];
 
     this.controls.snap.value = this.snapMode;
+    this.controls.autoAnalyze.checked = this.autoAnalyze;
     this.waveformButton = this.root.querySelector('[data-action="waveform"]');
     this.waveformButton.classList.toggle("active", this.waveformVisible);
     this.controls.snap.addEventListener("change", () => {
@@ -515,6 +626,15 @@ class BeatPromptSequencer {
       this.saveViewState();
       this.scheduleDraw();
     });
+    this.controls.autoAnalyze.addEventListener("change", () => {
+      this.autoAnalyze = this.controls.autoAnalyze.checked;
+      this.saveViewState();
+      if (this.autoAnalyze) this.requestAnalysis();
+    });
+    this.root.querySelector('[data-action="play"]').addEventListener("click", () => this.togglePlayback());
+    this.root.querySelector('[data-action="stop"]').addEventListener("click", () => this.stopPlayback());
+    this.root.querySelector('[data-action="analyze"]').addEventListener("click", () => this.requestAnalysis(true));
+    this.root.querySelector('[data-action="separate"]').addEventListener("click", () => this.startSeparation());
     this.root.querySelector('[data-action="add"]').addEventListener("click", () => this.addClip());
     this.root.querySelector('[data-action="split"]').addEventListener("click", () => this.splitClip());
     this.root.querySelector('[data-action="duplicate"]').addEventListener("click", () => this.duplicateClip());
@@ -569,13 +689,26 @@ class BeatPromptSequencer {
     bind(this.widgets.timeUnit, () => this.loadTimeline());
     bind(this.widgets.fps, () => {
       this.syncInspector();
+      this.refreshBrowserCrop();
       this.zoomToFit();
       this.markDirty();
+      this.scheduleAnalysis();
     });
     bind(this.widgets.sequenceDuration, () => {
+      this.refreshBrowserCrop();
       this.zoomToFit();
       this.markDirty();
+      this.scheduleAnalysis();
     });
+    bind(this.widgets.audioFile, () => this.loadAudioSource());
+    bind(this.widgets.trimStartFrame, () => {
+      this.refreshBrowserCrop();
+      this.scheduleAnalysis();
+    });
+    bind(this.widgets.bpmMethod, () => this.scheduleAnalysis());
+    bind(this.widgets.halfTime, () => this.scheduleAnalysis());
+    bind(this.widgets.beatOffset, () => this.scheduleAnalysis());
+    bind(this.widgets.analysisSource, () => this.scheduleAnalysis());
     bind(this.widgets.defaultFadeIn, () => this.markDirty());
     bind(this.widgets.defaultFadeOut, () => this.markDirty());
     bind(this.widgets.curve, () => this.markDirty());
@@ -587,16 +720,334 @@ class BeatPromptSequencer {
 
   saveViewState() {
     this.node.properties = this.node.properties || {};
+    const savedBeatData = this.beatData ? { ...this.beatData, waveformPreview: null } : null;
     this.node.properties.flBeatPromptSequencer = {
       ...(this.node.properties.flBeatPromptSequencer || {}),
       formatVersion: FORMAT_VERSION,
-      beatData: this.beatData,
+      beatData: savedBeatData,
       viewStart: this.viewStart,
       viewEnd: this.viewEnd,
       snapMode: this.snapMode,
       waveformVisible: this.waveformVisible,
+      autoAnalyze: this.autoAnalyze,
     };
     this.markDirty();
+  }
+
+  trimStartFrame() {
+    return Math.max(0, Math.round(finiteNumber(this.widgets.trimStartFrame?.value, 0)));
+  }
+
+  cropStartSeconds() {
+    return this.trimStartFrame() / this.fps();
+  }
+
+  cropDurationSeconds() {
+    const configured = this.configuredFrameCount();
+    if (configured > 0) return configured / this.fps();
+    return Math.max(0, this.sourceAudioDuration - this.cropStartSeconds());
+  }
+
+  setStatus(text, state = "") {
+    this.statusEl.className = `flbps-status${state ? ` ${state}` : ""}`;
+    this.statusEl.textContent = text;
+  }
+
+  invalidateAnalysis() {
+    if (!this.beatData) return;
+    this.beatData.beatTimes = [];
+    this.beatData.detectedBeatTimes = [];
+    this.beatData.onsetTimes = [];
+    this.beatData.drumTimes = {};
+    this.dataFresh = false;
+    this.setStatus("Audio changed · analysis pending", "cached");
+    this.scheduleDraw();
+  }
+
+  refreshBrowserCrop() {
+    if (!this.sourceWaveformPreview || !(this.sourceAudioDuration > 0)) {
+      this.updateTransportTime();
+      return;
+    }
+    const start = this.cropStartSeconds();
+    const duration = Math.min(this.cropDurationSeconds(), Math.max(0, this.sourceAudioDuration - start));
+    const cropPreview = cropWaveformPreview(this.sourceWaveformPreview, start, duration);
+    this.beatData = {
+      ...(this.beatData || {}),
+      bpm: finiteNumber(this.beatData?.bpm),
+      beatTimes: this.beatData?.beatTimes || [],
+      detectedBeatTimes: this.beatData?.detectedBeatTimes || [],
+      onsetTimes: this.beatData?.onsetTimes || [],
+      drumTimes: this.beatData?.drumTimes || {},
+      audioDuration: duration,
+      sourceDuration: this.sourceAudioDuration,
+      sourceStart: start,
+      waveformPreview: cropPreview,
+    };
+    this.updateTransportTime();
+    this.scheduleDraw();
+  }
+
+  async loadAudioSource() {
+    const filename = String(this.widgets.audioFile?.value || "");
+    const request = ++this.analysisRequest;
+    this.stopPlayback();
+    this.sourceWaveformPreview = null;
+    this.sourceAudioDuration = 0;
+    if (!filename) {
+      this.beatData = null;
+      this.audioElement = null;
+      this.sourceLabelEl.textContent = "No audio selected";
+      this.setStatus("Choose audio or connect beat positions");
+      this.scheduleDraw();
+      return;
+    }
+
+    this.loadingAudio = true;
+    this.sourceLabelEl.textContent = filename;
+    this.setStatus("Decoding waveform…");
+    const url = audioViewURL(filename);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Audio preview request failed (${response.status}).`);
+      const bytes = await response.arrayBuffer();
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) throw new Error("This browser does not support audio waveform decoding.");
+      const context = new AudioContextClass();
+      let buffer;
+      try {
+        buffer = await context.decodeAudioData(bytes);
+      } finally {
+        await context.close();
+      }
+      if (request !== this.analysisRequest) return;
+
+      this.sourceAudioDuration = buffer.duration;
+      this.sourceWaveformPreview = waveformPreviewFromBuffer(buffer);
+      const availableFrames = Math.max(1, Math.floor(buffer.duration * this.fps()) - this.trimStartFrame());
+      if (this.trimStartFrame() >= Math.floor(buffer.duration * this.fps())) {
+        this.widgets.trimStartFrame.value = 0;
+      }
+      if (!this.configuredFrameCount() || this.configuredFrameCount() > availableFrames) {
+        this.widgets.sequenceDuration.value = Math.max(
+          1,
+          Math.floor((buffer.duration - this.cropStartSeconds()) * this.fps()),
+        );
+      }
+      this.audioURL = url;
+      this.audioElement = new Audio(url);
+      this.audioElement.preload = "auto";
+      this.audioElement.addEventListener("timeupdate", () => this.updatePlaybackPosition());
+      this.audioElement.addEventListener("pause", () => this.updatePlayButton());
+      this.audioElement.addEventListener("play", () => this.updatePlayButton());
+      this.audioElement.addEventListener("ended", () => this.stopPlayback());
+      this.refreshBrowserCrop();
+      this.invalidateAnalysis();
+      this.zoomToFit(false);
+      this.scheduleAnalysis(0);
+    } catch (error) {
+      if (request !== this.analysisRequest) return;
+      this.showError(`${error.message} Server analysis will still be used.`);
+      this.scheduleAnalysis(0);
+    } finally {
+      if (request === this.analysisRequest) this.loadingAudio = false;
+    }
+  }
+
+  scheduleAnalysis(delay = 250) {
+    if (!this.autoAnalyze || !this.widgets.audioFile?.value) return;
+    clearTimeout(this.analysisTimer);
+    this.analysisTimer = setTimeout(() => this.requestAnalysis(), delay);
+  }
+
+  async requestAnalysis(force = false) {
+    if (!force && !this.autoAnalyze) return;
+    const audioFile = String(this.widgets.audioFile?.value || "");
+    if (!audioFile) {
+      this.showError("Choose an audio file before analyzing.");
+      return;
+    }
+    clearTimeout(this.analysisTimer);
+    const request = ++this.analysisRequest;
+    this.setStatus("Analyzing beats, onsets, and drums…");
+    try {
+      const response = await api.fetchApi("/fl/audio-prompt-timeline/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          audio_file: audioFile,
+          fps: this.fps(),
+          trim_start_frame: this.trimStartFrame(),
+          length_frames: this.configuredFrameCount(),
+          bpm_method: this.widgets.bpmMethod?.value || "beat_intervals",
+          half_time: Boolean(this.widgets.halfTime?.value),
+          beat_offset_ms: Math.round(finiteNumber(this.widgets.beatOffset?.value, 0)),
+          analysis_source: this.widgets.analysisSource?.value || "mix",
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || `Analysis failed (${response.status}).`);
+      if (request !== this.analysisRequest) return;
+      this.applyAnalysis(payload, true);
+      if (this.migrationPending) this.loadTimeline();
+      this.clearError();
+      this.saveViewState();
+    } catch (error) {
+      if (request !== this.analysisRequest) return;
+      this.showError(error.message);
+    }
+  }
+
+  applyAnalysis(payload, fresh) {
+    this.beatData = {
+      bpm: finiteNumber(payload.bpm),
+      beatTimes: (payload.beat_times || []).map((value) => finiteNumber(value)),
+      detectedBeatTimes: (payload.detected_beat_times || []).map((value) => finiteNumber(value)),
+      onsetTimes: (payload.onset_times || []).map((value) => finiteNumber(value)),
+      drumTimes: payload.drum_times || {},
+      audioDuration: finiteNumber(payload.audio_duration),
+      sourceDuration: finiteNumber(payload.source_duration, this.sourceAudioDuration),
+      sourceStart: finiteNumber(payload.source_start, this.cropStartSeconds()),
+      fps: finiteNumber(payload.fps, this.fps()),
+      waveformPreview: normalizeWaveformPreview(payload.waveform_preview) ||
+        cropWaveformPreview(this.sourceWaveformPreview, this.cropStartSeconds(), this.cropDurationSeconds()),
+      cacheKey: payload.cache_key || "",
+    };
+    this.dataFresh = fresh;
+    this.refreshBeatStatus();
+    this.scheduleDraw();
+  }
+
+  updatePlayButton() {
+    const button = this.root.querySelector('[data-action="play"]');
+    button.textContent = this.audioElement && !this.audioElement.paused ? "Pause" : "Play";
+  }
+
+  updateTransportTime() {
+    const current = this.playheadFrame == null ? 0 : this.playheadFrame / this.fps();
+    this.transportTimeEl.textContent =
+      `${formatClock(current)} / ${formatClock(this.cropDurationSeconds())}`;
+  }
+
+  updatePlaybackPosition() {
+    if (!this.audioElement) return;
+    const relative = this.audioElement.currentTime - this.cropStartSeconds();
+    const duration = this.cropDurationSeconds();
+    if (relative >= duration - 0.005) {
+      this.stopPlayback();
+      return;
+    }
+    this.playheadFrame = clamp(Math.round(relative * this.fps()), 0, this.sequenceFrameCount());
+    this.updateTransportTime();
+    this.scheduleDraw();
+  }
+
+  async togglePlayback() {
+    if (!this.audioElement) {
+      this.showError("Choose an audio file before playing.");
+      return;
+    }
+    if (!this.audioElement.paused) {
+      this.audioElement.pause();
+      return;
+    }
+    const frame = clamp(this.playheadFrame || 0, 0, this.sequenceFrameCount() - 1);
+    this.audioElement.currentTime = this.cropStartSeconds() + frame / this.fps();
+    try {
+      await this.audioElement.play();
+    } catch (error) {
+      this.showError(`Audio playback failed: ${error.message}`);
+    }
+  }
+
+  stopPlayback() {
+    if (this.audioElement) {
+      this.audioElement.pause();
+      this.audioElement.currentTime = this.cropStartSeconds();
+    }
+    this.playheadFrame = 0;
+    this.updatePlayButton();
+    if (this.transportTimeEl) this.updateTransportTime();
+    this.scheduleDraw();
+  }
+
+  async startSeparation() {
+    if (this.separationJobId) {
+      const response = await api.fetchApi(
+        `/fl/audio-prompt-timeline/separate/${encodeURIComponent(this.separationJobId)}/cancel`,
+        { method: "POST" },
+      );
+      const payload = await response.json();
+      if (!response.ok) this.showError(payload.error || "Could not cancel stem separation.");
+      else this.setStatus(payload.message || "Cancelling stem separation…");
+      return;
+    }
+    const audioFile = String(this.widgets.audioFile?.value || "");
+    if (!audioFile) {
+      this.showError("Choose an audio file before separating stems.");
+      return;
+    }
+    this.setStatus("Starting explicit stem separation…");
+    try {
+      const response = await api.fetchApi("/fl/audio-prompt-timeline/separate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audio_file: audioFile }),
+      });
+      const payload = await response.json();
+      if (payload.status === "completed") {
+        this.finishSeparation(payload);
+        return;
+      }
+      const job = payload.job || payload;
+      if (!response.ok && !job.job_id) {
+        throw new Error(payload.error || `Stem separation failed (${response.status}).`);
+      }
+      this.separationJobId = job.job_id;
+      this.root.querySelector('[data-action="separate"]').textContent = "Cancel separation";
+      this.setStatus(job.message || "Stem separation running…");
+      this.pollSeparation();
+    } catch (error) {
+      this.showError(error.message);
+    }
+  }
+
+  async pollSeparation() {
+    if (!this.separationJobId) return;
+    try {
+      const response = await api.fetchApi(
+        `/fl/audio-prompt-timeline/separate/${encodeURIComponent(this.separationJobId)}`,
+      );
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Could not read stem separation status.");
+      const percent = Math.round(finiteNumber(payload.progress) * 100);
+      this.setStatus(`${payload.message || payload.status} · ${percent}%`);
+      if (payload.status === "completed") {
+        this.finishSeparation(payload);
+        return;
+      }
+      if (payload.status === "error" || payload.status === "cancelled") {
+        this.separationJobId = null;
+        this.root.querySelector('[data-action="separate"]').textContent = "Separate stems";
+        if (payload.status === "error") this.showError(payload.message || "Stem separation failed.");
+        else this.setStatus("Stem separation cancelled", "cached");
+        return;
+      }
+      this.separationTimer = setTimeout(() => this.pollSeparation(), 750);
+    } catch (error) {
+      this.separationJobId = null;
+      this.root.querySelector('[data-action="separate"]').textContent = "Separate stems";
+      this.showError(error.message);
+    }
+  }
+
+  finishSeparation(payload) {
+    clearTimeout(this.separationTimer);
+    this.separationJobId = null;
+    this.root.querySelector('[data-action="separate"]').textContent = "Separate stems";
+    this.setStatus(payload.message || "Stem separation complete", "fresh");
+    if (this.widgets.analysisSource) this.widgets.analysisSource.value = "drums";
+    this.requestAnalysis(true);
   }
 
   sourceUnit() {
@@ -717,14 +1168,7 @@ class BeatPromptSequencer {
     const values = message?.fl_prompt_sequencer ?? message?.ui?.fl_prompt_sequencer;
     const payload = Array.isArray(values) ? values[0] : values;
     if (!payload || !Array.isArray(payload.beat_times)) return;
-    this.beatData = {
-      bpm: finiteNumber(payload.bpm),
-      beatTimes: payload.beat_times.map((value) => finiteNumber(value)),
-      audioDuration: finiteNumber(payload.audio_duration),
-      fps: finiteNumber(payload.fps, this.fps()),
-      waveformPreview: normalizeWaveformPreview(payload.waveform_preview),
-    };
-    this.dataFresh = true;
+    this.applyAnalysis(payload, true);
 
     const sourceUnit = payload.source_unit || payload.time_unit || this.sourceUnit();
     if (sourceUnit !== "frames" && Array.isArray(payload.frame_sections)) {
@@ -766,12 +1210,14 @@ class BeatPromptSequencer {
     }
     this.statusEl.className = "flbps-status";
     if (!this.beatData) {
-      this.statusEl.textContent = "Run once to load exact beat markers";
+      this.statusEl.textContent = "Choose audio or connect beat positions";
       return;
     }
     const count = this.beatData.beatTimes?.length || 0;
-    const text = `${finiteNumber(this.beatData.bpm).toFixed(2)} BPM · ${count} beats · ` +
-      `${finiteNumber(this.beatData.audioDuration).toFixed(2)} sec`;
+    const detected = this.beatData.detectedBeatTimes?.length || 0;
+    const onsets = this.beatData.onsetTimes?.length || 0;
+    const text = `${finiteNumber(this.beatData.bpm).toFixed(2)} BPM · ${count} grid · ` +
+      `${detected} detected · ${onsets} onsets · ${finiteNumber(this.beatData.audioDuration).toFixed(2)} sec`;
     if (this.dataFresh) {
       this.statusEl.classList.add("fresh");
       this.statusEl.textContent = text;
@@ -911,6 +1357,21 @@ class BeatPromptSequencer {
     return (this.beatData?.beatTimes || []).map((seconds) => Math.round(seconds * this.fps()));
   }
 
+  detectedBeatFrames() {
+    return (this.beatData?.detectedBeatTimes || []).map((seconds) => Math.round(seconds * this.fps()));
+  }
+
+  onsetFrames() {
+    return (this.beatData?.onsetTimes || []).map((seconds) => Math.round(seconds * this.fps()));
+  }
+
+  snapFrames() {
+    if (this.snapMode === "beat") return this.beatFrames();
+    if (this.snapMode === "detected") return this.detectedBeatFrames();
+    if (this.snapMode === "onset") return this.onsetFrames();
+    return [];
+  }
+
   sequenceFrameCount() {
     const configured = this.configuredFrameCount();
     if (configured > 0) return configured;
@@ -928,12 +1389,12 @@ class BeatPromptSequencer {
 
   snapFrame(value, bypassBeat = false) {
     const frame = Math.max(0, Math.round(value));
-    if (bypassBeat || this.snapMode !== "beat") return frame;
-    const beats = this.beatFrames();
-    if (!beats.length) return frame;
-    let nearest = beats[0];
-    for (let index = 1; index < beats.length; index++) {
-      if (Math.abs(beats[index] - frame) < Math.abs(nearest - frame)) nearest = beats[index];
+    if (bypassBeat || this.snapMode === "frame" || this.snapMode === "off") return frame;
+    const markers = this.snapFrames();
+    if (!markers.length) return frame;
+    let nearest = markers[0];
+    for (let index = 1; index < markers.length; index++) {
+      if (Math.abs(markers[index] - frame) < Math.abs(nearest - frame)) nearest = markers[index];
     }
     return nearest;
   }
@@ -1054,13 +1515,78 @@ class BeatPromptSequencer {
     };
   }
 
+  sourceFrameAtX(x) {
+    const right = Math.max(TIMELINE_LEFT + 1, this.canvas.clientWidth - TIMELINE_RIGHT);
+    const ratio = (clamp(x, TIMELINE_LEFT, right) - TIMELINE_LEFT) / (right - TIMELINE_LEFT);
+    return Math.round(ratio * this.sourceAudioDuration * this.fps());
+  }
+
+  trimHandlePositions(width = this.canvas.clientWidth) {
+    const right = Math.max(TIMELINE_LEFT + 1, width - TIMELINE_RIGHT);
+    const sourceFrames = Math.max(1, Math.round(this.sourceAudioDuration * this.fps()));
+    const start = this.trimStartFrame();
+    const end = Math.min(sourceFrames, start + this.configuredFrameCount());
+    return {
+      start,
+      end,
+      startX: TIMELINE_LEFT + start / sourceFrames * (right - TIMELINE_LEFT),
+      endX: TIMELINE_LEFT + end / sourceFrames * (right - TIMELINE_LEFT),
+      sourceFrames,
+    };
+  }
+
+  hitTestTrim(x, y) {
+    if (!this.waveformVisible || !this.sourceWaveformPreview || y < 62 || y > 100) return null;
+    const handles = this.trimHandlePositions();
+    if (Math.abs(x - handles.startX) <= 10) return { type: "trim-start", handles };
+    if (Math.abs(x - handles.endX) <= 10) return { type: "trim-end", handles };
+    return null;
+  }
+
+  updateTrimDrag(x) {
+    const frame = this.sourceFrameAtX(x);
+    const original = this.drag.original;
+    if (this.drag.type === "trim-start") {
+      const start = clamp(frame, 0, original.end - 1);
+      this.widgets.trimStartFrame.value = start;
+      this.widgets.sequenceDuration.value = original.end - start;
+    } else {
+      const end = clamp(frame, original.start + 1, original.sourceFrames);
+      this.widgets.sequenceDuration.value = end - original.start;
+    }
+    this.refreshBrowserCrop();
+    this.invalidateAnalysis();
+    this.markDirty();
+  }
+
   onPointerDown(event) {
-    if (this.migrationPending || this.rawInvalid) return;
     this.root.focus({ preventScroll: true });
     const { x, y } = this.eventPosition(event);
+    const trimHit = this.hitTestTrim(x, y);
+    if (trimHit) {
+      this.drag = {
+        type: trimHit.type,
+        pointerStartX: x,
+        pointerStartY: y,
+        original: {
+          start: trimHit.handles.start,
+          end: trimHit.handles.end,
+          sourceFrames: trimHit.handles.sourceFrames,
+        },
+        active: false,
+      };
+      this.canvas.setPointerCapture(event.pointerId);
+      event.preventDefault();
+      return;
+    }
+    if (this.migrationPending || this.rawInvalid) return;
     const hit = this.hitTest(x, y);
     if (!hit) {
       this.playheadFrame = this.snapFrame(this.frameAtX(x), event.shiftKey);
+      if (this.audioElement) {
+        this.audioElement.currentTime = this.cropStartSeconds() + this.playheadFrame / this.fps();
+      }
+      this.updateTransportTime();
       this.scheduleDraw();
       return;
     }
@@ -1142,9 +1668,23 @@ class BeatPromptSequencer {
   onPointerMove(event) {
     const { x, y } = this.eventPosition(event);
     this.hover = { x, y };
+    if (this.drag?.type === "trim-start" || this.drag?.type === "trim-end") {
+      if (!this.drag.active) {
+        const distance = Math.hypot(x - this.drag.pointerStartX, y - this.drag.pointerStartY);
+        if (distance < 3) return;
+        this.drag.active = true;
+      }
+      this.canvas.style.cursor = "ew-resize";
+      this.updateTrimDrag(x);
+      event.preventDefault();
+      return;
+    }
     if (!this.drag || !this.selectedClip()) {
+      const trimHit = this.hitTestTrim(x, y);
       const hit = this.hitTest(x, y);
-      this.canvas.style.cursor = hit
+      this.canvas.style.cursor = trimHit
+        ? "ew-resize"
+        : hit
         ? hit.type === "move" ? "grab" : "ew-resize"
         : "default";
       this.scheduleDraw();
@@ -1165,15 +1705,21 @@ class BeatPromptSequencer {
 
   onPointerUp(event) {
     if (!this.drag) return;
+    const trimChanged = this.drag.type === "trim-start" || this.drag.type === "trim-end";
     const changed = this.drag.active;
     this.drag = null;
     this.snapGuideFrame = null;
     this.canvas.style.cursor = "default";
     if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
     if (changed) {
-      this.serialize();
-      this.clearError();
-      this.saveViewState();
+      if (trimChanged) {
+        this.zoomToFit(false);
+        this.scheduleAnalysis(0);
+      } else {
+        this.serialize();
+        this.clearError();
+        this.saveViewState();
+      }
     }
     this.scheduleDraw();
   }
@@ -1286,6 +1832,60 @@ class BeatPromptSequencer {
     });
   }
 
+  drawSourceOverview(ctx, width, top, bottom) {
+    const right = width - TIMELINE_RIGHT;
+    const center = (top + bottom) / 2;
+    const preview = this.sourceWaveformPreview;
+    ctx.fillStyle = "#121417";
+    ctx.fillRect(TIMELINE_LEFT, top, right - TIMELINE_LEFT, bottom - top);
+    ctx.strokeStyle = "#2c3036";
+    ctx.strokeRect(TIMELINE_LEFT + 0.5, top + 0.5, right - TIMELINE_LEFT - 1, bottom - top - 1);
+    ctx.fillStyle = "#71717a";
+    ctx.font = "8px Inter, sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText("SOURCE", TIMELINE_LEFT - 5, center);
+    if (!preview) return;
+
+    const bins = preview.peaks.length / 2;
+    const plotHeight = Math.max(1, (bottom - top) / 2 - 3);
+    ctx.strokeStyle = "#64748b";
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    for (let x = TIMELINE_LEFT; x <= right; x++) {
+      const ratio = (x - TIMELINE_LEFT) / Math.max(1, right - TIMELINE_LEFT);
+      const bin = clamp(Math.floor(ratio * bins), 0, bins - 1);
+      const minimum = preview.peaks[bin * 2] / preview.scale;
+      const maximum = preview.peaks[bin * 2 + 1] / preview.scale;
+      ctx.moveTo(x + 0.5, center - maximum * plotHeight);
+      ctx.lineTo(x + 0.5, center - minimum * plotHeight);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    const handles = this.trimHandlePositions(width);
+    ctx.fillStyle = "rgba(34,211,238,.12)";
+    ctx.fillRect(handles.startX, top + 1, Math.max(1, handles.endX - handles.startX), bottom - top - 2);
+    ctx.fillStyle = "rgba(0,0,0,.52)";
+    ctx.fillRect(TIMELINE_LEFT, top + 1, Math.max(0, handles.startX - TIMELINE_LEFT), bottom - top - 2);
+    ctx.fillRect(handles.endX, top + 1, Math.max(0, right - handles.endX), bottom - top - 2);
+    for (const x of [handles.startX, handles.endX]) {
+      ctx.strokeStyle = "#22d3ee";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, top);
+      ctx.lineTo(x + 0.5, bottom);
+      ctx.stroke();
+      ctx.fillStyle = "#67e8f9";
+      ctx.beginPath();
+      ctx.moveTo(x, top);
+      ctx.lineTo(x - 5, top + 7);
+      ctx.lineTo(x + 5, top + 7);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
   drawWaveformLane(ctx, width, top, bottom) {
     const right = width - TIMELINE_RIGHT;
     const center = (top + bottom) / 2;
@@ -1322,7 +1922,7 @@ class BeatPromptSequencer {
       ctx.font = "9px Inter, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("Run FL Audio BPM Analyzer once to load the waveform", (TIMELINE_LEFT + right) / 2, center);
+      ctx.fillText("Choose an audio file to load its waveform", (TIMELINE_LEFT + right) / 2, center);
       return;
     }
 
@@ -1363,7 +1963,7 @@ class BeatPromptSequencer {
     ctx.stroke();
     ctx.globalAlpha = 1;
 
-    if (this.hover?.y < top || this.hover?.y > bottom ||
+    if (!this.hover || this.hover.y < top || this.hover.y > bottom ||
         this.hover.x < TIMELINE_LEFT || this.hover.x > right) {
       return;
     }
@@ -1401,7 +2001,7 @@ class BeatPromptSequencer {
     ctx.font = "8px Inter, sans-serif";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
-    ctx.fillText("BEATS", TIMELINE_LEFT - 5, 44);
+    ctx.fillText("MARKERS", TIMELINE_LEFT - 5, 44);
 
     const frames = this.beatFrames();
     let hovered = null;
@@ -1433,6 +2033,24 @@ class BeatPromptSequencer {
       }
     }
 
+    const markerFamilies = [
+      { frames: this.detectedBeatFrames(), color: "#e879f9", y: 35, height: 8 },
+      { frames: this.onsetFrames(), color: "#f59e0b", y: 49, height: 6 },
+    ];
+    for (const family of markerFamilies) {
+      ctx.strokeStyle = family.color;
+      ctx.globalAlpha = 0.75;
+      for (const frame of family.frames) {
+        if (frame < this.viewStart || frame > this.viewEnd) continue;
+        const x = this.frameToX(frame, width);
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, family.y);
+        ctx.lineTo(x + 0.5, family.y + family.height);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+
     if (hovered) {
       const text = `Beat ${hovered.index} · frame ${hovered.frame} · ${formatClock(hovered.frame / this.fps())}`;
       ctx.font = "9px Inter, sans-serif";
@@ -1462,9 +2080,11 @@ class BeatPromptSequencer {
     ctx.fillRect(0, 0, cssWidth, cssHeight);
 
     const right = cssWidth - TIMELINE_RIGHT;
-    const waveformTop = 62;
-    const waveformBottom = 132;
-    const trackTop = this.waveformVisible ? 142 : 80;
+    const sourceTop = 62;
+    const sourceBottom = 100;
+    const waveformTop = this.sourceWaveformPreview ? 106 : 62;
+    const waveformBottom = this.sourceWaveformPreview ? 176 : 132;
+    const trackTop = this.waveformVisible ? waveformBottom + 10 : 80;
     const trackBottom = cssHeight - 12;
     const trackHeight = Math.max(80, trackBottom - trackTop);
 
@@ -1474,6 +2094,9 @@ class BeatPromptSequencer {
     ctx.strokeRect(TIMELINE_LEFT + 0.5, trackTop + 0.5, right - TIMELINE_LEFT - 1, trackHeight - 1);
 
     if (this.waveformVisible) {
+      if (this.sourceWaveformPreview) {
+        this.drawSourceOverview(ctx, cssWidth, sourceTop, sourceBottom);
+      }
       this.drawWaveformLane(ctx, cssWidth, waveformTop, waveformBottom);
     }
 
@@ -1612,15 +2235,22 @@ class BeatPromptSequencer {
   updateSummary() {
     const frames = this.sequenceFrameCount();
     const beatCount = this.beatData?.beatTimes?.length || 0;
+    const detectedCount = this.beatData?.detectedBeatTimes?.length || 0;
+    const onsetCount = this.beatData?.onsetTimes?.length || 0;
     const waveformBins = (this.beatData?.waveformPreview?.peaks?.length || 0) / 2;
     this.summaryEl.textContent =
       `${this.clips.length} prompts · ${frames} frames · ${(frames / this.fps()).toFixed(3)}s · ` +
-      `${beatCount} beats · ${waveformBins ? `${waveformBins} waveform bins` : "waveform unavailable"}`;
+      `${beatCount} grid / ${detectedCount} detected / ${onsetCount} onsets · ` +
+      `${waveformBins ? `${waveformBins} waveform bins` : "waveform unavailable"}`;
   }
 
   dispose() {
     if (this.resizeObserver) this.resizeObserver.disconnect();
     if (this.pendingFrame) cancelAnimationFrame(this.pendingFrame);
+    clearTimeout(this.analysisTimer);
+    clearTimeout(this.separationTimer);
+    if (this.audioElement) this.audioElement.pause();
+    this.analysisRequest++;
     for (const restore of this.callbackRestorers) restore();
     this.callbackRestorers = [];
     this.root.remove();
@@ -1642,8 +2272,14 @@ app.registerExtension({
       timeUnit: findWidget(node, "time_unit"),
       fps: findWidget(node, "fps"),
       sequenceDuration: findWidget(node, "sequence_duration"),
+      audioFile: findWidget(node, "audio_file"),
+      trimStartFrame: findWidget(node, "trim_start_frame"),
+      bpmMethod: findWidget(node, "bpm_method"),
+      halfTime: findWidget(node, "half_time"),
+      beatOffset: findWidget(node, "beat_offset_ms"),
+      analysisSource: findWidget(node, "analysis_source"),
     };
-    const hiddenWidgets = [widgets.timeline, widgets.timeUnit];
+    const hiddenWidgets = [widgets.timeline, widgets.timeUnit, widgets.trimStartFrame];
     for (const widget of hiddenWidgets) hideWidget(widget);
 
     const container = document.createElement("div");
@@ -1656,7 +2292,7 @@ app.registerExtension({
       "fl-beat-prompt-sequencer",
       container,
       {
-        getMinHeight: () => 680,
+        getMinHeight: () => 760,
         hideOnZoom: false,
         serialize: false,
       },

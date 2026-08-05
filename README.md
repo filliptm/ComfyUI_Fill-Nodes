@@ -325,7 +325,7 @@ Fill-Nodes is a versatile collection of custom nodes for ComfyUI that extends fu
 |------|-------------|
 | `FL_Audio_BPM_Analyzer` | Analyzes audio using librosa to detect BPM and beat positions, with options for two BPM calculation methods (beat_intervals or onset_strength), beat offset adjustment, and automatic beat filling to cover the entire audio duration. Outputs beat positions as JSON with visualization. |
 | `FL_Audio_Beat_Prompt_Envelope` | Turns exact detected beats into attack/hold/release prompt-mask pulses for compatible FL diffusion video nodes. Supports beat stride, phase, response curve, and on-beat dominance above normal conditioning weight. |
-| `FL_Audio_Beat_Prompt_Schedule` | Interactive prompt sequencer using the BPM analyzer's exact detected beat times. Supports draggable prompt clips, fades, beat/frame snapping, beats/seconds/frames syntax, editable sequence duration, and resolved duration/frame outputs. |
+| `FL_Audio_Beat_Prompt_Schedule` | Integrated audio and prompt sequencer with native upload, transport, source trimming, immediate waveform display, queue-free beat/onset/drum analysis, optional cached stem analysis, and draggable frame-native prompt clips. Outputs the cropped master audio plus beat and drum JSON for the rest of the FL audio ecosystem. |
 | `FL_Audio_Beat_Visualizer` | Generates video frames that visualize beat patterns by either alternating between black/white on beat changes or cycling through provided images, with configurable frame dimensions and starting color. |
 | `FL_AudioFrameCalculator` | Given an AUDIO and a target FPS, returns the integer frame count needed to cover the audio's duration (`ceil(duration * fps)`). Useful upstream of video-generation nodes that need an exact frame budget. |
 | `FL_Audio_Crop` | Crops audio waveforms to specified start and end times using MM:SS or seconds format, with automatic clamping to valid audio boundaries. |
@@ -394,7 +394,7 @@ Cut to profile as the subject walks toward the doorway.
 
 Connect `scheduled` to the first sampler for strict latent-time control. Connect `semantic` to a low-denoise upscale pass for normal single-prompt sampling. To enforce the strict schedule again after spatial VAE re-encoding, connect the timeline and resized AV latent to `FL_MiniMaxH3ApplyTimeline`. The Apply node requires the same video and audio duration but supports different spatial dimensions.
 
-For audio-reactive timing, connect `beat_positions` from `FL_Audio_BPM_Analyzer` to `FL_Audio_Beat_Prompt_Schedule`, then connect its `prompt_schedule` output to the H3 timeline node:
+For audio-reactive timing, choose or upload audio directly on `FL_Audio_Beat_Prompt_Schedule`, then connect its `prompt_schedule` output to the H3 timeline node. The scheduler's `beat_positions`, `drum_times`, and `audio` outputs can directly drive the existing FL prompt-envelope, ADSR-envelope, and audio nodes. A connected `beat_positions` input remains an optional timing override for existing workflows:
 
 ```text
 [0 - 48 | fade_in=6 | fade_out=6]
@@ -406,7 +406,11 @@ The camera pushes forward on the beat.
 
 Frame ranges are zero-based and range ends are exclusive. Detected beats appear in their own marker lane and can be used as the editor's snap target without changing the stored frame timing. A connected prompt schedule overrides the manual timeline. Exact repeated prompts share one conditioning mask, so reuse prompts for recurring sections such as choruses.
 
-The prompt schedule node includes a frame-native on-node sequencer. Run the BPM analyzer and schedule once to load an aligned waveform and the exact beat map, then drag or resize prompt clips, adjust their fades, split and duplicate sections, and choose Beat, Frame, or Off snapping. The waveform, beat markers, playhead, and prompt clips share one frame axis at every zoom level. FPS and length are normal node widgets; length is always a frame count, and zero follows the full analyzed audio. Older beat- and second-based schedules convert to integer frames once their exact timing is available. The `duration_seconds` and `total_frames` outputs can drive downstream video-length controls.
+The prompt schedule node loads its waveform as soon as an audio file is selected; queueing is not required. Use the source overview handles to trim, Play/Stop for crop-aligned transport, and the main frame ruler to drag or resize prompt clips. Beat Grid, Detected Beat, Onset, Frame, and Off are distinct snap modes. FPS and length remain normal node widgets, and length is always a frame count. Analysis is cached by source hash, crop, FPS, and detector settings.
+
+`Separate stems` is an explicit action and never runs automatically. It separates the full source once with Hybrid Demucs, caches bass/drums/other/vocals locally, switches analysis to the drums stem, and keeps the node's audio output on the original master crop. Jobs report progress, can be cancelled between chunks, and reuse valid cached stems.
+
+A useful starter layout feeds the scheduler into `FL_Audio_Beat_Prompt_Envelope`, `FL_Audio_Reactive_Envelope`, text previews, and `PreviewAudio` before connecting the prompt outputs to a diffusion timeline.
 
 For visible beat-by-beat diffusion changes, connect the BPM analyzer to `FL_Audio_Beat_Prompt_Envelope`, then connect its `prompt_envelope` output to one of the H3 timeline node's optional prompt-envelope sockets. A peak strength above `1` changes the temporal mask weighting and lets the reactive prompt dominate on hits without multiplying its embeddings. The default peak of `3`, hold of `0.25` beats, and release of `0.5` beats are intended as a clearly visible starting point.
 

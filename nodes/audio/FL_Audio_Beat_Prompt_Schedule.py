@@ -4,6 +4,13 @@ import re
 
 from comfy_api.latest import io
 
+from .audio_files import (
+    audio_file_hash,
+    available_audio_files,
+    resolve_audio_path,
+)
+from .audio_timeline import analyze_audio_file
+
 
 FLPromptSchedule = io.Custom("FL_PROMPT_SCHEDULE")
 _HEADER = re.compile(
@@ -11,6 +18,12 @@ _HEADER = re.compile(
     r"(?:\s*\|\s*(.*?))?\s*\]\s*$"
 )
 _EPS = 1e-6
+_DEFAULT_TIMELINE = (
+    "[0 - 48 | fade_in=6 | fade_out=6]\n"
+    "The subject slowly turns toward camera.\n\n"
+    "[48 - 96 | fade_in=6 | fade_out=6]\n"
+    "The camera pushes forward on the beat."
+)
 
 
 def _number(value, name, line):
@@ -58,6 +71,9 @@ def _load_beat_data(beat_positions):
         "bpm": bpm,
         "beat_times": beat_times,
         "audio_duration": duration,
+        "detected_beat_times": data.get("detected_beat_times", []),
+        "onset_times": data.get("onset_times", []),
+        "drum_times": data.get("drum_times", {}),
         "waveform_preview": (
             data.get("waveform_preview")
             if isinstance(data.get("waveform_preview"), dict)
@@ -327,25 +343,25 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
             display_name="FL Audio Beat Prompt Schedule",
             category="🏵️Fill Nodes/Audio",
             description=(
-                "Converts exact beat times from FL Audio BPM Analyzer into a reusable "
-                "prompt schedule for diffusion video nodes."
+                "Loads and trims audio, detects beats and drums, and turns prompt clips into "
+                "a reusable diffusion-video schedule. A connected beat_positions input "
+                "overrides the internally detected beat timing."
             ),
             inputs=[
                 io.String.Input(
                     "beat_positions",
                     force_input=True,
-                    tooltip="Connect beat_positions from FL Audio BPM Analyzer. The exact beat_times array drives timing.",
+                    optional=True,
+                    tooltip=(
+                        "Optional override from FL Audio BPM Analyzer. When connected, its exact "
+                        "beat_times drive timing instead of this node's internal analysis."
+                    ),
                 ),
                 io.String.Input(
                     "timeline",
                     multiline=True,
                     dynamic_prompts=True,
-                    default=(
-                        "[0 - 48 | fade_in=6 | fade_out=6]\n"
-                        "The subject slowly turns toward camera.\n\n"
-                        "[48 - 96 | fade_in=6 | fade_out=6]\n"
-                        "The camera pushes forward on the beat."
-                    ),
+                    default=_DEFAULT_TIMELINE,
                     tooltip=(
                         "Ordered frame ranges followed by prompt text. Range ends are exclusive. "
                         "Older beat- and second-based schedules are converted by the sequencer."
@@ -409,6 +425,59 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
                         "detected audio duration."
                     ),
                 ),
+                io.Combo.Input(
+                    "audio_file",
+                    display_name="audio",
+                    options=[""] + available_audio_files(),
+                    default="",
+                    optional=True,
+                    upload=io.UploadType.audio,
+                    tooltip=(
+                        "Upload or choose the source audio. The waveform and beat markers load "
+                        "without queueing the workflow."
+                    ),
+                ),
+                io.Int.Input(
+                    "trim_start_frame",
+                    display_name="trim start (frames)",
+                    default=0,
+                    min=0,
+                    max=864000,
+                    step=1,
+                    tooltip="Source frame where the selected audio crop begins.",
+                ),
+                io.Combo.Input(
+                    "bpm_method",
+                    display_name="BPM method",
+                    options=["beat_intervals", "onset_strength"],
+                    default="beat_intervals",
+                    tooltip="Choose median detected beat intervals or Librosa onset-strength tempo.",
+                ),
+                io.Boolean.Input(
+                    "half_time",
+                    display_name="half-time",
+                    default=False,
+                    tooltip="Use every other detected beat and report half the detected BPM.",
+                ),
+                io.Int.Input(
+                    "beat_offset_ms",
+                    display_name="beat offset (ms)",
+                    default=0,
+                    min=-1000,
+                    max=1000,
+                    step=1,
+                    tooltip="Shift detected beats earlier or later without moving the audio.",
+                ),
+                io.Combo.Input(
+                    "analysis_source",
+                    display_name="analysis source",
+                    options=["mix", "drums", "vocals", "bass", "other"],
+                    default="mix",
+                    tooltip=(
+                        "Analyze the full mix or an explicitly separated stem. Stem choices become "
+                        "available after separation finishes."
+                    ),
+                ),
             ],
             outputs=[
                 FLPromptSchedule.Output(
@@ -427,22 +496,67 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
                     display_name="total_frames",
                     tooltip="Effective schedule duration converted to frames at the selected FPS.",
                 ),
+                io.Audio.Output(
+                    display_name="audio",
+                    tooltip="The selected, frame-aligned audio crop for downstream FL audio nodes.",
+                ),
+                io.String.Output(
+                    display_name="beat_positions",
+                    tooltip="Effective beat analysis JSON for FL audio-reactive nodes.",
+                ),
+                io.String.Output(
+                    display_name="drum_times",
+                    tooltip="Detected kick, snare, and hi-hat timestamps for FL audio-reactive nodes.",
+                ),
             ],
         )
 
     @classmethod
     def execute(
         cls,
-        beat_positions,
-        timeline,
-        default_fade_in,
-        default_fade_out,
-        curve,
+        beat_positions=None,
+        timeline=_DEFAULT_TIMELINE,
+        default_fade_in=0.0,
+        default_fade_out=0.0,
+        curve="cosine",
         time_unit="frames",
         fps=24.0,
         sequence_duration=0,
+        audio_file="",
+        trim_start_frame=0,
+        bpm_method="beat_intervals",
+        half_time=False,
+        beat_offset_ms=0,
+        analysis_source="mix",
     ):
-        beat_data = _load_beat_data(beat_positions)
+        internal_analysis = None
+        cropped_audio = None
+        if audio_file:
+            internal_analysis, cropped_audio = analyze_audio_file(
+                audio_file,
+                fps,
+                trim_start_frame,
+                sequence_duration,
+                bpm_method,
+                half_time,
+                beat_offset_ms,
+                analysis_source,
+            )
+        if beat_positions:
+            beat_data = _load_beat_data(beat_positions)
+            if internal_analysis is not None:
+                difference = abs(beat_data["audio_duration"] - internal_analysis["audio_duration"])
+                if difference > max(_EPS, 1.0 / fps):
+                    raise ValueError(
+                        "Connected beat_positions duration does not match the selected audio crop. "
+                        "Analyze the same crop or disconnect the override."
+                    )
+        elif internal_analysis is not None:
+            beat_positions = json.dumps(internal_analysis, separators=(",", ":"))
+            beat_data = _load_beat_data(beat_positions)
+        else:
+            raise ValueError("Choose an audio file or connect beat_positions.")
+
         beat_times = beat_data["beat_times"]
         audio_duration = beat_data["audio_duration"]
         if time_unit not in {"beats", "seconds", "frames"}:
@@ -489,7 +603,32 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
         ui_payload = {
             "bpm": beat_data["bpm"],
             "beat_times": beat_times,
+            "detected_beat_times": (
+                internal_analysis["detected_beat_times"]
+                if internal_analysis is not None
+                else beat_data["detected_beat_times"]
+            ),
+            "onset_times": (
+                internal_analysis["onset_times"]
+                if internal_analysis is not None
+                else beat_data["onset_times"]
+            ),
+            "drum_times": (
+                internal_analysis["drum_times"]
+                if internal_analysis is not None
+                else beat_data["drum_times"]
+            ),
             "audio_duration": audio_duration,
+            "source_duration": (
+                internal_analysis["source_duration"]
+                if internal_analysis is not None
+                else audio_duration
+            ),
+            "source_start": (
+                internal_analysis["source_start"]
+                if internal_analysis is not None
+                else 0.0
+            ),
             "time_unit": time_unit,
             "source_unit": time_unit,
             "fps": fps,
@@ -497,12 +636,32 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
             "sections": sections,
             "frame_sections": frame_sections,
         }
-        if beat_data["waveform_preview"] is not None:
-            ui_payload["waveform_preview"] = beat_data["waveform_preview"]
+        waveform = (
+            internal_analysis["waveform_preview"]
+            if internal_analysis is not None
+            else beat_data["waveform_preview"]
+        )
+        if waveform is not None:
+            ui_payload["waveform_preview"] = waveform
+        drum_times = ui_payload["drum_times"] or {
+            "kick_times": [],
+            "snare_times": [],
+            "hihat_times": [],
+            "duration": duration,
+        }
         return io.NodeOutput(
             schedule,
             _preview(sections, time_unit, fps),
             duration,
             total_frames,
+            cropped_audio,
+            beat_positions,
+            json.dumps(drum_times, separators=(",", ":")),
             ui={"fl_prompt_sequencer": [ui_payload]},
         )
+
+    @classmethod
+    def fingerprint_inputs(cls, audio_file="", **kwargs):
+        if not audio_file:
+            return None
+        return audio_file_hash(resolve_audio_path(audio_file))
