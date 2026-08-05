@@ -5,8 +5,8 @@ const STYLE_ID = "fl-beat-prompt-sequencer-styles";
 const INSTANCES = new Map();
 const HEADER_RE = /^\s*\[\s*([0-9]+(?:\.[0-9]+)?)\s*-\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\|\s*(.*?))?\s*\]\s*$/;
 const EPSILON = 1e-6;
-const FORMAT_VERSION = 9;
-const COMPATIBLE_FORMAT_VERSIONS = new Set([6, 7, 8, FORMAT_VERSION]);
+const FORMAT_VERSION = 10;
+const COMPATIBLE_FORMAT_VERSIONS = new Set([6, 7, 8, 9, FORMAT_VERSION]);
 const COMPACT_NODE_WIDTH = 380;
 const MEDIA_FILE_RE = /\.(?:aac|aiff?|flac|m4a|mka|mkv|mov|mp3|mp4|oga|ogg|opus|wav|webm|wma)$/i;
 const TIMELINE_LEFT = 16;
@@ -734,7 +734,6 @@ class BeatPromptSequencer {
     this.dataFresh = false;
     this.viewStart = savedCompatible ? finiteNumber(saved.viewStart, 0) : 0;
     this.viewEnd = savedCompatible ? finiteNumber(saved.viewEnd, 0) : 0;
-    this.snapMode = ["beat", "detected", "onset", "frame", "off"].includes(saved.snapMode) ? saved.snapMode : "beat";
     this.waveformVisible = saved.waveformVisible !== false;
     this.autoAnalyze = saved.autoAnalyze !== false;
 
@@ -798,15 +797,6 @@ class BeatPromptSequencer {
       </div>
       <div class="flbps-toolbar">
         <div class="flbps-control-group">
-          <label class="flbps-control">Snap
-            <select data-role="snap" title="Choose which marker family should attract prompt edits. Hold Shift to bypass snapping.">
-              <option value="beat">Beat grid</option>
-              <option value="detected">Detected beat</option>
-              <option value="onset">Onset</option>
-              <option value="frame">Frame</option>
-              <option value="off">Off</option>
-            </select>
-          </label>
           <label class="flbps-control" title="Choose the spacing of the cyan grid used for display, snapping, and beat_positions output.">
             Grid
             <select data-role="beat-grid-density">
@@ -887,7 +877,6 @@ class BeatPromptSequencer {
     this.transportTimeEl = this.root.querySelector('[data-role="transport-time"]');
     this.sourceLabelEl = this.root.querySelector('[data-role="source-label"]');
     this.controls = {
-      snap: this.root.querySelector('[data-role="snap"]'),
       beatGridDensity: this.root.querySelector('[data-role="beat-grid-density"]'),
       autoAnalyze: this.root.querySelector('[data-role="auto-analyze"]'),
       beatOffset: this.root.querySelector('[data-role="beat-offset"]'),
@@ -906,17 +895,11 @@ class BeatPromptSequencer {
       ...this.root.querySelectorAll('[data-action="add"], [data-action="split"], [data-action="duplicate"], [data-action="delete"]'),
     ];
 
-    this.controls.snap.value = this.snapMode;
     this.controls.beatGridDensity.value = this.beatGridDensity();
     this.controls.autoAnalyze.checked = this.autoAnalyze;
     this.syncBeatOffsetControls();
     this.waveformButton = this.root.querySelector('[data-action="waveform"]');
     this.waveformButton.classList.toggle("active", this.waveformVisible);
-    this.controls.snap.addEventListener("change", () => {
-      this.snapMode = this.controls.snap.value;
-      this.saveViewState();
-      this.scheduleDraw();
-    });
     this.controls.beatGridDensity.addEventListener("change", () => {
       this.setBeatGridDensity(this.controls.beatGridDensity.value);
     });
@@ -1168,13 +1151,13 @@ class BeatPromptSequencer {
     const savedBeatData = this.beatData ? { ...this.beatData, waveformPreview: null } : null;
     const previous = { ...(this.node.properties.flBeatPromptSequencer || {}) };
     delete previous.magnetMode;
+    delete previous.snapMode;
     this.node.properties.flBeatPromptSequencer = {
       ...previous,
       formatVersion: FORMAT_VERSION,
       beatData: savedBeatData,
       viewStart: this.viewStart,
       viewEnd: this.viewEnd,
-      snapMode: this.snapMode,
       waveformVisible: this.waveformVisible,
       autoAnalyze: this.autoAnalyze,
     };
@@ -1864,13 +1847,6 @@ class BeatPromptSequencer {
     return (this.beatData?.onsetTimes || []).map((seconds) => Math.round(seconds * this.fps()));
   }
 
-  snapFrames() {
-    if (this.snapMode === "beat") return this.beatFrames();
-    if (this.snapMode === "detected") return this.detectedBeatFrames();
-    if (this.snapMode === "onset") return this.onsetFrames();
-    return [];
-  }
-
   sequenceFrameCount() {
     const configured = this.configuredFrameCount();
     if (configured > 0) return configured;
@@ -1886,10 +1862,18 @@ class BeatPromptSequencer {
     return Infinity;
   }
 
-  snapFrame(value, bypassBeat = false) {
-    const frame = Math.max(0, Math.round(value));
-    if (bypassBeat || this.snapMode === "frame" || this.snapMode === "off") return frame;
-    const markers = this.snapFrames();
+  nearestBeatIndex(value, markers = this.beatFrames()) {
+    if (!markers.length) return -1;
+    let nearest = 0;
+    for (let index = 1; index < markers.length; index++) {
+      if (Math.abs(markers[index] - value) < Math.abs(markers[nearest] - value)) nearest = index;
+    }
+    return nearest;
+  }
+
+  snapFrame(value, minimum = 0, maximum = Infinity) {
+    const frame = clamp(Math.round(value), minimum, maximum);
+    const markers = this.beatFrames().filter((marker) => marker >= minimum && marker <= maximum);
     if (!markers.length) return frame;
     let nearest = markers[0];
     for (let index = 1; index < markers.length; index++) {
@@ -2174,7 +2158,7 @@ class BeatPromptSequencer {
     if (this.migrationPending || this.rawInvalid) return;
     const hit = this.hitTest(x, y);
     if (!hit) {
-      this.playheadFrame = this.snapFrame(this.frameAtX(x), event.shiftKey);
+      this.playheadFrame = this.snapFrame(this.frameAtX(x), 0, this.sequenceFrameCount());
       if (this.audioElement) {
         this.audioElement.currentTime = this.cropStartSeconds() + this.playheadFrame / this.fps();
       }
@@ -2185,14 +2169,17 @@ class BeatPromptSequencer {
 
     this.select(hit.index);
     const clip = this.selectedClip();
+    const markers = this.beatFrames();
+    const startIndex = this.nearestBeatIndex(clip.start, markers);
+    const endIndex = this.nearestBeatIndex(clip.end, markers);
     this.drag = {
       type: hit.type,
-      pointerStart: this.snapFrame(this.frameAtX(x), event.shiftKey),
-      pointerStartRaw: this.snapFrame(this.frameAtX(x), true),
+      pointerStartRaw: Math.max(0, Math.round(this.frameAtX(x))),
       pointerStartX: x,
       pointerStartY: y,
       pointerX: x,
       pointerY: y,
+      gridSpan: startIndex >= 0 && endIndex >= 0 ? Math.max(1, endIndex - startIndex) : null,
       original: { ...clip },
       active: false,
     };
@@ -2229,46 +2216,81 @@ class BeatPromptSequencer {
     this.scheduleDraw();
   }
 
-  updateDrag(x, shiftKey) {
+  updateDrag(x) {
     const clip = this.selectedClip();
     if (!this.drag || !clip) return;
     this.panDuringDrag(x);
-    const current = this.snapFrame(this.frameAtX(x), shiftKey);
-    const pointerStart = shiftKey ? this.drag.pointerStartRaw : this.drag.pointerStart;
-    const delta = current - pointerStart;
+    const currentRaw = Math.max(0, Math.round(this.frameAtX(x)));
+    const delta = currentRaw - this.drag.pointerStartRaw;
     const original = this.drag.original;
     const previous = this.clips[this.selectedIndex - 1];
     const next = this.clips[this.selectedIndex + 1];
     const maximum = this.maximumFrame();
+    let guideFrame = null;
 
     if (this.drag.type === "move") {
-      const duration = original.end - original.start;
-      let start = Math.max(0, original.start + delta);
-      if (previous) start = Math.max(start, previous.end);
-      if (next) start = Math.min(start, next.start - duration);
-      if (Number.isFinite(maximum)) start = Math.min(start, maximum - duration);
-      clip.start = Math.round(start);
-      clip.end = clip.start + duration;
+      const markers = this.beatFrames();
+      const span = this.drag.gridSpan;
+      if (span && markers.length > span) {
+        const proposedStart = original.start + delta;
+        let nearest = null;
+        for (let index = 0; index + span < markers.length; index++) {
+          const start = markers[index];
+          const end = markers[index + span];
+          if ((previous && start < previous.end) ||
+              (next && end > next.start) ||
+              (Number.isFinite(maximum) && end > maximum)) {
+            continue;
+          }
+          const distance = Math.abs(start - proposedStart);
+          if (!nearest || distance < nearest.distance) nearest = { start, end, distance };
+        }
+        if (nearest) {
+          clip.start = nearest.start;
+          clip.end = nearest.end;
+          guideFrame = nearest.start;
+        }
+      } else {
+        const duration = original.end - original.start;
+        let start = this.snapFrame(original.start + delta);
+        if (previous) start = Math.max(start, previous.end);
+        if (next) start = Math.min(start, next.start - duration);
+        if (Number.isFinite(maximum)) start = Math.min(start, maximum - duration);
+        clip.start = Math.round(start);
+        clip.end = clip.start + duration;
+        guideFrame = clip.start;
+      }
     } else if (this.drag.type === "start") {
-      let start = Math.min(original.end - 1, original.start + delta);
-      start = Math.max(previous?.end || 0, start);
+      const start = this.snapFrame(
+        original.start + delta,
+        previous?.end || 0,
+        original.end - 1,
+      );
       clip.start = Math.round(start);
       clip.fadeIn = Math.min(original.fadeIn, clip.end - clip.start - clip.fadeOut);
+      guideFrame = clip.start;
     } else if (this.drag.type === "end") {
-      let end = Math.max(original.start + 1, original.end + delta);
-      if (next) end = Math.min(end, next.start);
-      if (Number.isFinite(maximum)) end = Math.min(end, maximum);
+      const end = this.snapFrame(
+        original.end + delta,
+        original.start + 1,
+        Math.min(next?.start ?? Infinity, maximum),
+      );
       clip.end = Math.round(end);
       clip.fadeOut = Math.min(original.fadeOut, clip.end - clip.start - clip.fadeIn);
+      guideFrame = clip.end;
     } else if (this.drag.type === "fade-in") {
+      const current = this.snapFrame(currentRaw, clip.start, clip.end - clip.fadeOut);
       clip.fadeIn = clamp(current - clip.start, 0, clip.end - clip.start - clip.fadeOut);
+      guideFrame = current;
     } else if (this.drag.type === "fade-out") {
+      const current = this.snapFrame(currentRaw, clip.start + clip.fadeIn, clip.end);
       clip.fadeOut = clamp(clip.end - current, 0, clip.end - clip.start - clip.fadeIn);
+      guideFrame = current;
     }
 
     clip.fadeIn = Math.max(0, Math.round(clip.fadeIn));
     clip.fadeOut = Math.max(0, Math.round(clip.fadeOut));
-    this.snapGuideFrame = current;
+    this.snapGuideFrame = guideFrame;
     this.syncInspector();
     this.scheduleDraw();
   }
@@ -2319,7 +2341,7 @@ class BeatPromptSequencer {
       this.drag.active = true;
     }
     this.canvas.style.cursor = this.drag.type === "move" ? "grabbing" : "ew-resize";
-    this.updateDrag(x, event.shiftKey);
+    this.updateDrag(x);
     event.preventDefault();
   }
 
@@ -2399,16 +2421,24 @@ class BeatPromptSequencer {
     if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && this.selectedClip()) {
       const clip = this.selectedClip();
       const direction = event.key === "ArrowLeft" ? -1 : 1;
-      const delta = direction * (event.shiftKey ? 10 : 1);
       const previous = this.clips[this.selectedIndex - 1];
       const next = this.clips[this.selectedIndex + 1];
       const maximum = this.maximumFrame();
-      if ((!previous || clip.start + delta >= previous.end) &&
-          (!next || clip.end + delta <= next.start) &&
-          (!Number.isFinite(maximum) || clip.end + delta <= maximum) &&
-          clip.start + delta >= 0) {
-        clip.start += delta;
-        clip.end += delta;
+      const markers = this.beatFrames();
+      const startIndex = this.nearestBeatIndex(clip.start, markers);
+      const endIndex = this.nearestBeatIndex(clip.end, markers);
+      const markerStep = direction * (event.shiftKey ? DEFAULT_CLIP_GRID_INTERVALS : 1);
+      const targetStart = startIndex + markerStep;
+      const targetEnd = endIndex + markerStep;
+      if (startIndex >= 0 &&
+          endIndex > startIndex &&
+          targetStart >= 0 &&
+          targetEnd < markers.length &&
+          (!previous || markers[targetStart] >= previous.end) &&
+          (!next || markers[targetEnd] <= next.start) &&
+          (!Number.isFinite(maximum) || markers[targetEnd] <= maximum)) {
+        clip.start = markers[targetStart];
+        clip.end = markers[targetEnd];
         this.serialize();
         this.syncInspector();
         this.scheduleDraw();
@@ -3468,6 +3498,7 @@ app.registerExtension({
       formatVersion: FORMAT_VERSION,
     };
     delete savedSequencer.magnetMode;
+    delete savedSequencer.snapMode;
     if (!COMPATIBLE_FORMAT_VERSIONS.has(previousFormat)) {
       savedSequencer.beatData = null;
       savedSequencer.viewStart = 0;
