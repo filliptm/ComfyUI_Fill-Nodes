@@ -773,10 +773,9 @@ app.registerExtension({
   async setup() {
     setTimeout(() => {
       const origQueuePrompt = app.queuePrompt;
-      app.queuePrompt = async function(...args) {
+      app.queuePrompt = function(...args) {
         execNodes("before_queued", args);
-        const r = await origQueuePrompt.apply(this, arguments);
-        return r;
+        return origQueuePrompt.apply(this, args);
       }
 
       api.addEventListener("promptQueued", function(...args) {
