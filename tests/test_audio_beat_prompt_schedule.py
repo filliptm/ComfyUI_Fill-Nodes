@@ -370,6 +370,7 @@ class BeatPromptScheduleTests(unittest.TestCase):
         self.assertEqual(effective["base_beat_times"], [0.1, 0.6, 1.2, 1.9])
         self.assertEqual(effective["beat_times"], [0.2, 0.7, 1.3, 2.0])
         self.assertEqual(effective["beat_offset_ms"], 100)
+        self.assertEqual(effective["grid_interval_seconds"], 0.6)
         self.assertEqual(payload["base_beat_times"], [0.1, 0.6, 1.2, 1.9])
         self.assertEqual(payload["beat_times"], [0.2, 0.7, 1.3, 2.0])
         self.assertEqual(payload["beat_offset_ms"], 100)
@@ -391,7 +392,7 @@ class BeatPromptScheduleTests(unittest.TestCase):
         self.assertEqual(effective["beat_times"], [0.1, 1.2])
         self.assertEqual(effective["base_beat_times"], [0.1, 0.6, 1.2, 1.9])
         self.assertEqual(effective["beat_grid_density"], "every_2_beats")
-        self.assertEqual(effective["grid_bpm"], 60.0)
+        self.assertEqual(effective["grid_bpm"], 50.0)
         self.assertEqual(payload["beat_times"], [0.1, 1.2])
         self.assertEqual(payload["beat_grid_density"], "every_2_beats")
 

@@ -13,7 +13,7 @@ from .audio_files import audio_file_hash, load_audio_file, resolve_audio_path
 from .audio_separation import load_cached_stem
 
 
-ANALYSIS_VERSION = 3
+ANALYSIS_VERSION = 4
 DETECTOR_VERSION = "fl-audio-timeline-2"
 _WAVEFORM_BUCKETS_PER_SECOND = 60
 _MAX_WAVEFORM_BUCKETS = 8192
@@ -212,37 +212,63 @@ def apply_beat_offset(analysis, fps, beat_offset_ms=0, beat_grid_density="every_
 
     duration = float(analysis["audio_duration"])
     offset = beat_offset_ms / 1000.0
-    base_beat_times = analysis.get("base_beat_times", analysis.get("beat_times", []))
+    base_beat_times = list(
+        analysis.get("base_beat_times", analysis.get("beat_times", []))
+    )
+    if not base_beat_times:
+        raise ValueError("Beat analysis must contain at least one beat.")
     base_detected_beat_times = analysis.get(
         "base_detected_beat_times",
         analysis.get("detected_beat_times", []),
     )
 
-    if beat_grid_density == "every_2_beats":
-        grid_beat_times = base_beat_times[::2]
-        grid_bpm_scale = 0.5
-    elif beat_grid_density == "half_beat":
-        grid_beat_times = []
-        for index, beat_time in enumerate(base_beat_times):
-            grid_beat_times.append(beat_time)
-            if index + 1 < len(base_beat_times):
-                grid_beat_times.append((beat_time + base_beat_times[index + 1]) / 2.0)
-        grid_bpm_scale = 2.0
-    else:
-        grid_beat_times = base_beat_times
-        grid_bpm_scale = 1.0
+    base_grid_interval = float(analysis.get("base_grid_interval_seconds", 0.0))
+    if base_grid_interval <= 0 and len(base_beat_times) > 1:
+        base_grid_interval = float(np.median(np.diff(base_beat_times)))
+    if base_grid_interval <= 0:
+        bpm = float(analysis.get("bpm", 0.0))
+        base_grid_interval = 60.0 / bpm if bpm > 0 else 0.0
+    if not math.isfinite(base_grid_interval) or base_grid_interval <= 0:
+        raise ValueError("Beat analysis must provide a valid beat interval or BPM.")
 
-    def shifted(values):
-        if not values:
-            return []
-        times = np.asarray(values, dtype=np.float64)
-        return np.unique(np.clip(times + offset, 0, duration)).tolist()
+    if beat_grid_density == "every_2_beats":
+        base_grid = base_beat_times[::2]
+        grid_interval = base_grid_interval * 2.0
+    elif beat_grid_density == "half_beat":
+        base_grid = []
+        for index, beat_time in enumerate(base_beat_times):
+            base_grid.append(beat_time)
+            if index + 1 < len(base_beat_times):
+                base_grid.append((beat_time + base_beat_times[index + 1]) / 2.0)
+        grid_interval = base_grid_interval / 2.0
+    else:
+        base_grid = base_beat_times
+        grid_interval = base_grid_interval
+
+    shifted_grid = [beat_time + offset for beat_time in base_grid]
+    grid_beat_times = [
+        beat_time for beat_time in shifted_grid if 0.0 <= beat_time < duration
+    ]
+    if offset > 0:
+        beat_time = shifted_grid[0] - grid_interval
+        while beat_time >= 0:
+            if beat_time < duration:
+                grid_beat_times.insert(0, beat_time)
+            beat_time -= grid_interval
+    elif offset < 0:
+        beat_time = shifted_grid[-1] + grid_interval
+        while beat_time < duration:
+            if beat_time >= 0:
+                grid_beat_times.append(beat_time)
+            beat_time += grid_interval
 
     result = dict(analysis)
-    result["base_beat_times"] = list(base_beat_times)
+    result["version"] = ANALYSIS_VERSION
+    result["base_beat_times"] = base_beat_times
     result["base_detected_beat_times"] = list(base_detected_beat_times)
-    result["beat_times"] = shifted(grid_beat_times)
-    result["detected_beat_times"] = shifted(base_detected_beat_times)
+    result["base_grid_interval_seconds"] = base_grid_interval
+    result["beat_times"] = grid_beat_times
+    result["detected_beat_times"] = list(base_detected_beat_times)
     result["beat_frames"] = [round(value * fps) for value in result["beat_times"]]
     result["detected_beat_frames"] = [
         round(value * fps) for value in result["detected_beat_times"]
@@ -250,7 +276,8 @@ def apply_beat_offset(analysis, fps, beat_offset_ms=0, beat_grid_density="every_
     result["num_beats"] = len(result["beat_times"])
     result["beat_offset_ms"] = int(round(beat_offset_ms))
     result["beat_grid_density"] = beat_grid_density
-    result["grid_bpm"] = float(result.get("bpm", 0.0)) * grid_bpm_scale
+    result["grid_interval_seconds"] = grid_interval
+    result["grid_bpm"] = 60.0 / grid_interval
     return result
 
 
@@ -313,6 +340,7 @@ def analyze_audio(
         "detector_version": DETECTOR_VERSION,
         "bpm": float(bpm),
         "bpm_source": bpm_source,
+        "base_grid_interval_seconds": float(interval),
         "beat_times": beat_times,
         "detected_beat_times": detected_times,
         "onset_times": onsets,

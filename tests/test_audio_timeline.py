@@ -22,7 +22,7 @@ SPEC.loader.exec_module(timeline)
 
 
 class AudioTimelineTests(unittest.TestCase):
-    def test_beat_offset_shifts_only_beat_markers(self):
+    def test_beat_offset_shifts_only_the_regular_grid(self):
         analysis = {
             "audio_duration": 1.0,
             "beat_times": [0.1, 0.9],
@@ -34,24 +34,43 @@ class AudioTimelineTests(unittest.TestCase):
         shifted = timeline.apply_beat_offset(analysis, fps=24.0, beat_offset_ms=200)
 
         self.assertEqual(shifted["base_beat_times"], [0.1, 0.9])
-        self.assertEqual(shifted["beat_times"], [0.30000000000000004, 1.0])
-        self.assertEqual(shifted["detected_beat_times"], [0.2, 1.0])
-        self.assertEqual(shifted["beat_frames"], [7, 24])
+        self.assertEqual(shifted["beat_times"], [0.30000000000000004])
+        self.assertEqual(shifted["detected_beat_times"], [0.0, 0.95])
+        self.assertEqual(shifted["beat_frames"], [7])
+        self.assertEqual(shifted["detected_beat_frames"], [0, 23])
         self.assertEqual(shifted["onset_times"], [0.2])
         self.assertEqual(shifted["drum_times"], {"kick_times": [0.2]})
         self.assertEqual(shifted["beat_offset_ms"], 200)
+        self.assertEqual(shifted["grid_interval_seconds"], 0.8)
 
-    def test_beat_offset_clamps_and_deduplicates_crop_boundaries(self):
+    def test_beat_offset_preserves_periodic_spacing_at_crop_boundaries(self):
         analysis = {
             "audio_duration": 1.0,
-            "beat_times": [0.0, 0.1, 0.8],
+            "beat_times": [0.0, 0.4, 0.8],
             "detected_beat_times": [],
         }
 
         shifted = timeline.apply_beat_offset(analysis, fps=24.0, beat_offset_ms=-200)
 
-        self.assertEqual(shifted["beat_times"], [0.0, 0.6000000000000001])
-        self.assertEqual(shifted["base_beat_times"], [0.0, 0.1, 0.8])
+        self.assertEqual(shifted["beat_times"], [0.2, 0.6000000000000001])
+        self.assertEqual(shifted["base_beat_times"], [0.0, 0.4, 0.8])
+        self.assertAlmostEqual(
+            shifted["beat_times"][1] - shifted["beat_times"][0],
+            0.4,
+        )
+
+    def test_beat_offset_keeps_the_grid_visible_after_all_native_beats_leave(self):
+        analysis = {
+            "audio_duration": 0.5,
+            "bpm": 120.0,
+            "beat_times": [0.1],
+            "detected_beat_times": [0.1],
+        }
+
+        shifted = timeline.apply_beat_offset(analysis, fps=24.0, beat_offset_ms=1000)
+
+        self.assertAlmostEqual(shifted["beat_times"][0], 0.1)
+        self.assertEqual(shifted["detected_beat_times"], [0.1])
 
     def test_beat_grid_density_uses_native_beats_as_its_source(self):
         analysis = {
@@ -86,8 +105,9 @@ class AudioTimelineTests(unittest.TestCase):
             subdivisions["beat_times"],
             [0.1, 0.35, 0.6, 0.85, 1.1, 1.35, 1.6],
         )
-        self.assertEqual(subdivisions["detected_beat_times"], [0.15000000000000002, 0.65])
+        self.assertEqual(subdivisions["detected_beat_times"], [0.05, 0.55])
         self.assertEqual(subdivisions["grid_bpm"], 240.0)
+        self.assertEqual(subdivisions["grid_interval_seconds"], 0.25)
         self.assertEqual(subdivisions["beat_grid_density"], "half_beat")
 
     def test_unknown_beat_grid_density_is_rejected(self):
@@ -209,7 +229,7 @@ class AudioTimelineTests(unittest.TestCase):
         master = {"waveform": torch.ones(1, 1, 48000), "sample_rate": 48000}
         analysis = {
             "bpm": 120.0,
-            "beat_times": [0.0, 0.5, 1.0],
+            "beat_times": [0.0, 0.25, 0.5, 0.75],
             "detected_beat_times": [],
             "onset_times": [],
             "audio_duration": 1.0,
@@ -233,8 +253,8 @@ class AudioTimelineTests(unittest.TestCase):
                 )
 
         self.assertEqual(analyze.call_count, 1)
-        self.assertEqual(every_beat["beat_times"], [0.0, 0.5, 1.0])
-        self.assertEqual(every_two["beat_times"], [0.0, 1.0])
+        self.assertEqual(every_beat["beat_times"], [0.0, 0.25, 0.5, 0.75])
+        self.assertEqual(every_two["beat_times"], [0.0, 0.5])
         self.assertEqual(every_beat["cache_key"], every_two["cache_key"])
 
 

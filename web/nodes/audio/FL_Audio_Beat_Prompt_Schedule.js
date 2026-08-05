@@ -5,17 +5,20 @@ const STYLE_ID = "fl-beat-prompt-sequencer-styles";
 const INSTANCES = new Map();
 const HEADER_RE = /^\s*\[\s*([0-9]+(?:\.[0-9]+)?)\s*-\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\|\s*(.*?))?\s*\]\s*$/;
 const EPSILON = 1e-6;
-const FORMAT_VERSION = 5;
+const FORMAT_VERSION = 6;
 const MIN_NODE_WIDTH = 680;
 const MIN_NODE_HEIGHT = 1100;
 const TIMELINE_LEFT = 42;
 const TIMELINE_RIGHT = 12;
-const BEAT_LANE_TOP = 31;
-const BEAT_LANE_BOTTOM = 58;
 const GRID_DENSITY_LABELS = {
   every_2_beats: "Every 2 beats",
   every_beat: "Every beat",
   half_beat: "Half-beat",
+};
+const MAGNET_LABELS = {
+  detected: "Detected beats",
+  onset: "Onsets",
+  off: "Off",
 };
 
 const STYLES = `
@@ -468,6 +471,7 @@ class BeatPromptSequencer {
     this.selectedIndex = -1;
     this.playheadFrame = null;
     this.snapGuideFrame = null;
+    this.beatAlignmentGuide = null;
     this.drag = null;
     this.clipRects = [];
     this.pendingFrame = null;
@@ -495,6 +499,7 @@ class BeatPromptSequencer {
     this.viewStart = saved.formatVersion === FORMAT_VERSION ? finiteNumber(saved.viewStart, 0) : 0;
     this.viewEnd = saved.formatVersion === FORMAT_VERSION ? finiteNumber(saved.viewEnd, 0) : 0;
     this.snapMode = ["beat", "detected", "onset", "frame", "off"].includes(saved.snapMode) ? saved.snapMode : "beat";
+    this.magnetMode = saved.magnetMode in MAGNET_LABELS ? saved.magnetMode : "detected";
     this.waveformVisible = saved.waveformVisible !== false;
     this.autoAnalyze = saved.autoAnalyze !== false;
 
@@ -573,7 +578,15 @@ class BeatPromptSequencer {
             <option value="half_beat">Half-beat</option>
           </select>
         </label>
-        <label class="flbps-control" title="Shift the beat grid and detected-beat markers without moving the audio, waveform, onsets, drums, or prompt clips.">
+        <label class="flbps-control" title="Choose which stationary audio references attract the cyan grid while dragging. Hold Shift to bypass.">
+          Magnet
+          <select data-role="grid-magnet">
+            <option value="detected">Detected beats</option>
+            <option value="onset">Onsets</option>
+            <option value="off">Off</option>
+          </select>
+        </label>
+        <label class="flbps-control" title="Shift only the regular cyan grid over the stationary sequence waveform and audio reference markers.">
           Beat offset
           <input data-role="beat-offset" type="range" min="-1000" max="1000" step="1">
           <input data-role="beat-offset-number" type="number" min="-1000" max="1000" step="1" aria-label="Beat offset in milliseconds">
@@ -623,7 +636,7 @@ class BeatPromptSequencer {
       </div>
       <div class="flbps-footer">
         <span class="flbps-summary" data-role="summary"></span>
-        <span>drag BEAT GRID to align · drag prompt edges/handles · wheel zoom · Shift bypasses snap</span>
+        <span>drag BEAT GRID over SEQ WAVE · Shift bypasses magnet/snap · wheel zoom</span>
       </div>
     `;
     this.container.appendChild(this.root);
@@ -642,6 +655,7 @@ class BeatPromptSequencer {
     this.controls = {
       snap: this.root.querySelector('[data-role="snap"]'),
       beatGridDensity: this.root.querySelector('[data-role="beat-grid-density"]'),
+      gridMagnet: this.root.querySelector('[data-role="grid-magnet"]'),
       autoAnalyze: this.root.querySelector('[data-role="auto-analyze"]'),
       beatOffset: this.root.querySelector('[data-role="beat-offset"]'),
       beatOffsetNumber: this.root.querySelector('[data-role="beat-offset-number"]'),
@@ -661,6 +675,7 @@ class BeatPromptSequencer {
 
     this.controls.snap.value = this.snapMode;
     this.controls.beatGridDensity.value = this.beatGridDensity();
+    this.controls.gridMagnet.value = this.magnetMode;
     this.controls.autoAnalyze.checked = this.autoAnalyze;
     this.syncBeatOffsetControls();
     this.waveformButton = this.root.querySelector('[data-action="waveform"]');
@@ -672,6 +687,11 @@ class BeatPromptSequencer {
     });
     this.controls.beatGridDensity.addEventListener("change", () => {
       this.setBeatGridDensity(this.controls.beatGridDensity.value);
+    });
+    this.controls.gridMagnet.addEventListener("change", () => {
+      this.magnetMode = this.controls.gridMagnet.value;
+      this.saveViewState();
+      this.scheduleDraw();
     });
 
     this.root.querySelector('[data-action="zoom-out"]').addEventListener("click", () => this.zoom(1.5));
@@ -803,16 +823,35 @@ class BeatPromptSequencer {
       `${sign}${offset} ms · ${frameSign}${frames.toFixed(2)} fr`;
   }
 
-  shiftedMarkerTimes(values) {
-    const duration = Math.max(0, finiteNumber(this.beatData?.audioDuration));
-    const offset = this.beatOffsetMs() / 1000;
-    const shifted = (values || [])
-      .map((value) => clamp(finiteNumber(value) + offset, 0, duration))
-      .sort((left, right) => left - right);
-    return shifted.filter((value, index) => index === 0 || Math.abs(value - shifted[index - 1]) > EPSILON);
+  baseGridIntervalSeconds() {
+    const values = this.beatData?.baseBeatTimes || [];
+    const configured = finiteNumber(this.beatData?.baseGridIntervalSeconds);
+    if (configured > 0) return configured;
+    if (values.length > 1) {
+      const intervals = values
+        .slice(1)
+        .map((value, index) => finiteNumber(value) - finiteNumber(values[index]))
+        .filter((value) => value > EPSILON)
+        .sort((left, right) => left - right);
+      if (intervals.length) {
+        const middle = Math.floor(intervals.length / 2);
+        return intervals.length % 2
+          ? intervals[middle]
+          : (intervals[middle - 1] + intervals[middle]) / 2;
+      }
+    }
+    const bpm = finiteNumber(this.beatData?.bpm);
+    return bpm > 0 ? 60 / bpm : 0;
   }
 
-  gridBeatTimes() {
+  gridIntervalSeconds() {
+    const interval = this.baseGridIntervalSeconds();
+    if (this.beatGridDensity() === "every_2_beats") return interval * 2;
+    if (this.beatGridDensity() === "half_beat") return interval / 2;
+    return interval;
+  }
+
+  baseGridTimes() {
     const values = this.beatData?.baseBeatTimes || [];
     if (this.beatGridDensity() === "every_2_beats") {
       return values.filter((_, index) => index % 2 === 0);
@@ -823,6 +862,28 @@ class BeatPromptSequencer {
       result.push(values[index]);
       if (index + 1 < values.length) {
         result.push((values[index] + values[index + 1]) / 2);
+      }
+    }
+    return result;
+  }
+
+  gridBeatTimes(offsetMs = this.beatOffsetMs()) {
+    const values = this.baseGridTimes();
+    const duration = Math.max(0, finiteNumber(this.beatData?.audioDuration));
+    const interval = this.gridIntervalSeconds();
+    if (!values.length || !(duration > 0) || !(interval > 0)) return [];
+    const offset = finiteNumber(offsetMs) / 1000;
+    const shifted = values.map((value) => finiteNumber(value) + offset);
+    const result = shifted.filter((value) => value >= 0 && value < duration);
+    if (offset > 0) {
+      for (let beatTime = shifted[0] - interval; beatTime >= 0; beatTime -= interval) {
+        if (beatTime < duration) result.unshift(beatTime);
+      }
+    } else if (offset < 0) {
+      for (let beatTime = shifted[shifted.length - 1] + interval;
+        beatTime < duration;
+        beatTime += interval) {
+        if (beatTime >= 0) result.push(beatTime);
       }
     }
     return result;
@@ -841,14 +902,14 @@ class BeatPromptSequencer {
       this.scheduleDraw();
       return;
     }
-    const bpmScale = density === "every_2_beats" ? 0.5 : density === "half_beat" ? 2 : 1;
-    this.beatData.beatTimes = this.shiftedMarkerTimes(this.gridBeatTimes());
-    this.beatData.detectedBeatTimes = this.shiftedMarkerTimes(
-      this.beatData.baseDetectedBeatTimes,
-    );
+    const interval = this.gridIntervalSeconds();
+    this.beatData.beatTimes = this.gridBeatTimes();
+    this.beatData.detectedBeatTimes = [...(this.beatData.baseDetectedBeatTimes || [])];
     this.beatData.beatOffsetMs = this.beatOffsetMs();
     this.beatData.beatGridDensity = density;
-    this.beatData.gridBpm = finiteNumber(this.beatData.bpm) * bpmScale;
+    this.beatData.baseGridIntervalSeconds = this.baseGridIntervalSeconds();
+    this.beatData.gridIntervalSeconds = interval;
+    this.beatData.gridBpm = interval > 0 ? 60 / interval : 0;
     this.refreshBeatStatus();
     this.scheduleDraw();
   }
@@ -882,6 +943,7 @@ class BeatPromptSequencer {
       viewStart: this.viewStart,
       viewEnd: this.viewEnd,
       snapMode: this.snapMode,
+      magnetMode: this.magnetMode,
       waveformVisible: this.waveformVisible,
       autoAnalyze: this.autoAnalyze,
     };
@@ -1063,13 +1125,15 @@ class BeatPromptSequencer {
     this.beatData = {
       bpm: finiteNumber(payload.bpm),
       gridBpm: finiteNumber(payload.grid_bpm, payload.bpm),
+      baseGridIntervalSeconds: finiteNumber(payload.base_grid_interval_seconds),
+      gridIntervalSeconds: finiteNumber(payload.grid_interval_seconds),
       beatGridDensity: payload.beat_grid_density || this.beatGridDensity(),
       baseBeatTimes: (payload.base_beat_times || payloadBeatTimes.map(
         (value) => value - payloadOffset,
       )).map((value) => finiteNumber(value)),
       baseDetectedBeatTimes: (
         payload.base_detected_beat_times ||
-        payloadDetectedBeatTimes.map((value) => value - payloadOffset)
+        payloadDetectedBeatTimes
       ).map((value) => finiteNumber(value)),
       beatTimes: [],
       detectedBeatTimes: [],
@@ -1612,7 +1676,8 @@ class BeatPromptSequencer {
   addClipAtPointer(event) {
     if (this.migrationPending) return;
     const { y } = this.eventPosition(event);
-    if (y >= BEAT_LANE_TOP && y <= BEAT_LANE_BOTTOM) return;
+    const layout = this.timelineLayout();
+    if (y >= layout.beatTop && y <= layout.beatBottom) return;
     this.addClip(this.frameAtEvent(event));
   }
 
@@ -1690,6 +1755,31 @@ class BeatPromptSequencer {
     };
   }
 
+  timelineLayout(height = this.canvas.clientHeight) {
+    const sourceVisible = this.waveformVisible && Boolean(this.sourceWaveformPreview);
+    const sourceTop = sourceVisible ? 4 : null;
+    const sourceBottom = sourceVisible ? 42 : null;
+    const frameTop = sourceVisible ? 48 : 4;
+    const frameBottom = frameTop + 16;
+    const beatTop = frameBottom + 2;
+    const beatBottom = beatTop + 27;
+    const waveformTop = this.waveformVisible ? beatBottom + 1 : null;
+    const waveformBottom = this.waveformVisible ? waveformTop + 72 : null;
+    const trackTop = this.waveformVisible ? waveformBottom + 10 : beatBottom + 10;
+    return {
+      sourceTop,
+      sourceBottom,
+      frameTop,
+      frameBottom,
+      beatTop,
+      beatBottom,
+      waveformTop,
+      waveformBottom,
+      trackTop,
+      trackBottom: height - 12,
+    };
+  }
+
   sourceFrameAtX(x) {
     const right = Math.max(TIMELINE_LEFT + 1, this.canvas.clientWidth - TIMELINE_RIGHT);
     const ratio = (clamp(x, TIMELINE_LEFT, right) - TIMELINE_LEFT) / (right - TIMELINE_LEFT);
@@ -1711,7 +1801,13 @@ class BeatPromptSequencer {
   }
 
   hitTestTrim(x, y) {
-    if (!this.waveformVisible || !this.sourceWaveformPreview || y < 62 || y > 100) return null;
+    const layout = this.timelineLayout();
+    if (!this.waveformVisible ||
+        !this.sourceWaveformPreview ||
+        y < layout.sourceTop ||
+        y > layout.sourceBottom) {
+      return null;
+    }
     const handles = this.trimHandlePositions();
     if (Math.abs(x - handles.startX) <= 10) return { type: "trim-start", handles };
     if (Math.abs(x - handles.endX) <= 10) return { type: "trim-end", handles };
@@ -1720,12 +1816,13 @@ class BeatPromptSequencer {
 
   hitTestBeatGrid(x, y) {
     const right = this.canvas.clientWidth - TIMELINE_RIGHT;
+    const layout = this.timelineLayout();
     return Boolean(
       this.beatData?.baseBeatTimes?.length &&
       x >= TIMELINE_LEFT &&
       x <= right &&
-      y >= BEAT_LANE_TOP &&
-      y <= BEAT_LANE_BOTTOM
+      y >= layout.beatTop &&
+      y <= layout.beatBottom
     );
   }
 
@@ -1864,11 +1961,52 @@ class BeatPromptSequencer {
     this.scheduleDraw();
   }
 
-  updateBeatGridDrag(x) {
+  magnetizedBeatOffset(offsetMs, bypass) {
+    this.beatAlignmentGuide = null;
+    if (bypass || this.magnetMode === "off") return offsetMs;
+    const references = this.magnetMode === "onset"
+      ? this.beatData?.onsetTimes || []
+      : this.beatData?.baseDetectedBeatTimes || [];
+    const gridTimes = this.gridBeatTimes(offsetMs);
+    if (!references.length || !gridTimes.length) return offsetMs;
+
+    const rect = this.canvas.getBoundingClientRect();
+    const screenScale = this.canvas.clientWidth / Math.max(1, rect.width);
+    const threshold = 8 * screenScale;
+    let match = null;
+    for (const beatTime of gridTimes) {
+      const beatFrame = beatTime * this.fps();
+      if (beatFrame < this.viewStart || beatFrame > this.viewEnd) continue;
+      const beatX = this.frameToX(beatFrame, this.canvas.clientWidth);
+      for (const referenceTime of references) {
+        const referenceFrame = finiteNumber(referenceTime) * this.fps();
+        if (referenceFrame < this.viewStart || referenceFrame > this.viewEnd) continue;
+        const distance = Math.abs(
+          this.frameToX(referenceFrame, this.canvas.clientWidth) - beatX,
+        );
+        if (distance <= threshold && (!match || distance < match.distance)) {
+          match = { beatTime, referenceTime, referenceFrame, distance };
+        }
+      }
+    }
+    if (!match) return offsetMs;
+    this.beatAlignmentGuide = {
+      frame: match.referenceFrame,
+      label: this.magnetMode === "onset" ? "Onset aligned" : "Detected beat aligned",
+    };
+    return offsetMs + (match.referenceTime - match.beatTime) * 1000;
+  }
+
+  updateBeatGridDrag(x, shiftKey) {
     const right = Math.max(TIMELINE_LEFT + 1, this.canvas.clientWidth - TIMELINE_RIGHT);
     const pixels = right - TIMELINE_LEFT;
     const frames = (x - this.drag.pointerStartX) / pixels * (this.viewEnd - this.viewStart);
-    this.setBeatOffset(this.drag.originalOffset + frames / this.fps() * 1000);
+    const offset = clamp(
+      this.drag.originalOffset + frames / this.fps() * 1000,
+      -1000,
+      1000,
+    );
+    this.setBeatOffset(this.magnetizedBeatOffset(offset, shiftKey));
   }
 
   onPointerMove(event) {
@@ -1881,7 +2019,7 @@ class BeatPromptSequencer {
         this.drag.active = true;
       }
       this.canvas.style.cursor = "grabbing";
-      this.updateBeatGridDrag(x);
+      this.updateBeatGridDrag(x, event.shiftKey);
       event.preventDefault();
       return;
     }
@@ -1930,6 +2068,7 @@ class BeatPromptSequencer {
     const changed = this.drag.active;
     this.drag = null;
     this.snapGuideFrame = null;
+    this.beatAlignmentGuide = null;
     this.canvas.style.cursor = "default";
     if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
     if (changed) {
@@ -2068,6 +2207,10 @@ class BeatPromptSequencer {
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     ctx.fillText("SOURCE", TIMELINE_LEFT - 5, center);
+    ctx.fillStyle = "#52525b";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText("FULL SOURCE · TRIM ONLY", TIMELINE_LEFT + 6, top + 4);
     if (!preview) return;
 
     const bins = preview.peaks.length / 2;
@@ -2122,7 +2265,7 @@ class BeatPromptSequencer {
     ctx.font = "8px Inter, sans-serif";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
-    ctx.fillText("WAVE", TIMELINE_LEFT - 5, center);
+    ctx.fillText("SEQ WAVE", TIMELINE_LEFT - 5, center);
 
     const selected = this.selectedClip();
     if (selected) {
@@ -2216,15 +2359,15 @@ class BeatPromptSequencer {
     ctx.fillText(text, boxX + 6, top + 13);
   }
 
-  drawBeatLane(ctx, width, trackBottom) {
+  drawBeatLane(ctx, width, top, bottom, trackBottom) {
     const right = width - TIMELINE_RIGHT;
     ctx.fillStyle = "#15151a";
-    ctx.fillRect(TIMELINE_LEFT, BEAT_LANE_TOP, right - TIMELINE_LEFT, BEAT_LANE_BOTTOM - BEAT_LANE_TOP);
+    ctx.fillRect(TIMELINE_LEFT, top, right - TIMELINE_LEFT, bottom - top);
     ctx.fillStyle = "#67e8f9";
     ctx.font = "8px Inter, sans-serif";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
-    ctx.fillText("BEAT GRID", TIMELINE_LEFT - 5, 44);
+    ctx.fillText("BEAT GRID", TIMELINE_LEFT - 5, (top + bottom) / 2);
 
     const frames = this.beatFrames();
     const visibleFrames = frames.filter((frame) => frame >= this.viewStart && frame <= this.viewEnd);
@@ -2240,31 +2383,31 @@ class BeatPromptSequencer {
       ctx.lineWidth = accent ? 1.5 : 1;
       ctx.globalAlpha = accent ? 0.42 : 0.24;
       ctx.beginPath();
-      ctx.moveTo(x + 0.5, BEAT_LANE_TOP);
+      ctx.moveTo(x + 0.5, top);
       ctx.lineTo(x + 0.5, trackBottom);
       ctx.stroke();
       ctx.lineWidth = 1;
       ctx.fillStyle = "#67e8f9";
       ctx.globalAlpha = 0.95;
       ctx.beginPath();
-      ctx.arc(x, 40, 2.5, 0, Math.PI * 2);
+      ctx.arc(x, top + 9, 2.5, 0, Math.PI * 2);
       ctx.fill();
       if (labelEveryBeat || accent) {
         ctx.font = "7px Inter, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        ctx.fillText(String(index + 1), x, 47);
+        ctx.fillText(String(index + 1), x, top + 16);
       }
       ctx.globalAlpha = 1;
-      if (this.hover?.y >= BEAT_LANE_TOP && this.hover?.y <= BEAT_LANE_BOTTOM &&
+      if (this.hover?.y >= top && this.hover?.y <= bottom &&
           Math.abs(this.hover.x - x) <= 6) {
         hovered = { index, frame, x };
       }
     }
 
     const markerFamilies = [
-      { frames: this.detectedBeatFrames(), color: "#e879f9", y: 35, height: 8 },
-      { frames: this.onsetFrames(), color: "#f59e0b", y: 49, height: 6 },
+      { frames: this.detectedBeatFrames(), color: "#e879f9", y: top + 3, height: 8 },
+      { frames: this.onsetFrames(), color: "#f59e0b", y: bottom - 8, height: 6 },
     ];
     for (const family of markerFamilies) {
       ctx.strokeStyle = family.color;
@@ -2286,11 +2429,11 @@ class BeatPromptSequencer {
       const boxWidth = ctx.measureText(text).width + 12;
       const boxX = clamp(hovered.x - boxWidth / 2, TIMELINE_LEFT, right - boxWidth);
       ctx.fillStyle = "#083344";
-      ctx.fillRect(boxX, 59, boxWidth, 18);
+      ctx.fillRect(boxX, bottom + 2, boxWidth, 18);
       ctx.fillStyle = "#cffafe";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      ctx.fillText(text, boxX + 6, 68);
+      ctx.fillText(text, boxX + 6, bottom + 11);
     }
   }
 
@@ -2309,12 +2452,19 @@ class BeatPromptSequencer {
     ctx.fillRect(0, 0, cssWidth, cssHeight);
 
     const right = cssWidth - TIMELINE_RIGHT;
-    const sourceTop = 62;
-    const sourceBottom = 100;
-    const waveformTop = this.sourceWaveformPreview ? 106 : 62;
-    const waveformBottom = this.sourceWaveformPreview ? 176 : 132;
-    const trackTop = this.waveformVisible ? waveformBottom + 10 : 80;
-    const trackBottom = cssHeight - 12;
+    const layout = this.timelineLayout(cssHeight);
+    const {
+      sourceTop,
+      sourceBottom,
+      frameTop,
+      frameBottom,
+      beatTop,
+      beatBottom,
+      waveformTop,
+      waveformBottom,
+      trackTop,
+      trackBottom,
+    } = layout;
     const trackHeight = Math.max(80, trackBottom - trackTop);
 
     ctx.fillStyle = "#18181c";
@@ -2352,11 +2502,11 @@ class BeatPromptSequencer {
     for (let frame = firstTick; frame <= this.viewEnd + EPSILON; frame += step) {
       const x = this.frameToX(frame, cssWidth);
       ctx.fillStyle = "#a1a1aa";
-      ctx.fillText(String(Math.round(frame)), x, 7);
+      ctx.fillText(String(Math.round(frame)), x, frameTop + 2);
     }
     ctx.fillStyle = "#71717a";
     ctx.textAlign = "right";
-    ctx.fillText("FRAMES", TIMELINE_LEFT - 5, 7);
+    ctx.fillText("FRAMES", TIMELINE_LEFT - 5, frameTop + 2);
 
     this.clipRects = [];
     for (let index = 0; index < this.clips.length; index++) {
@@ -2432,14 +2582,36 @@ class BeatPromptSequencer {
       this.clipRects.push({ index, x, y, width, height, fadeInX, fadeOutX });
     }
 
-    this.drawBeatLane(ctx, cssWidth, trackBottom);
+    this.drawBeatLane(ctx, cssWidth, beatTop, beatBottom, trackBottom);
+
+    if (this.beatAlignmentGuide &&
+        this.beatAlignmentGuide.frame >= this.viewStart &&
+        this.beatAlignmentGuide.frame <= this.viewEnd) {
+      const x = this.frameToX(this.beatAlignmentGuide.frame, cssWidth);
+      ctx.strokeStyle = "#f0abfc";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, beatTop);
+      ctx.lineTo(x + 0.5, trackBottom);
+      ctx.stroke();
+      ctx.fillStyle = "#701a75";
+      ctx.font = "8px Inter, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      const labelWidth = ctx.measureText(this.beatAlignmentGuide.label).width + 10;
+      const labelX = clamp(x + 5, TIMELINE_LEFT, right - labelWidth);
+      ctx.fillRect(labelX, beatBottom + 3, labelWidth, 16);
+      ctx.fillStyle = "#fae8ff";
+      ctx.fillText(this.beatAlignmentGuide.label, labelX + 5, beatBottom + 11);
+      ctx.lineWidth = 1;
+    }
 
     if (this.snapGuideFrame != null && this.snapGuideFrame >= this.viewStart && this.snapGuideFrame <= this.viewEnd) {
       const x = this.frameToX(this.snapGuideFrame, cssWidth);
       ctx.strokeStyle = "#f0abfc";
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
-      ctx.moveTo(x + 0.5, 31);
+      ctx.moveTo(x + 0.5, beatTop);
       ctx.lineTo(x + 0.5, trackBottom);
       ctx.stroke();
       ctx.setLineDash([]);
@@ -2450,7 +2622,7 @@ class BeatPromptSequencer {
       ctx.strokeStyle = "#fbbf24";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(x + 0.5, 4);
+      ctx.moveTo(x + 0.5, frameTop);
       ctx.lineTo(x + 0.5, trackBottom);
       ctx.stroke();
     }

@@ -85,6 +85,8 @@ def _load_beat_data(beat_positions):
     return {
         "bpm": bpm,
         "grid_bpm": data.get("grid_bpm", bpm),
+        "base_grid_interval_seconds": data.get("base_grid_interval_seconds", 0.0),
+        "grid_interval_seconds": data.get("grid_interval_seconds", 0.0),
         "beat_grid_density": data.get("beat_grid_density", "every_beat"),
         "beat_times": beat_times,
         "base_beat_times": base_beat_times,
@@ -486,8 +488,8 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
                     max=1000,
                     step=1,
                     tooltip=(
-                        "Backing value for the sequencer's live Beat offset control. It shifts the "
-                        "beat grid and detected beats without moving audio, onsets, drums, or prompts."
+                        "Backing value for the sequencer's live Beat offset control. It shifts only "
+                        "the regular beat grid while audio-derived reference markers remain fixed."
                     ),
                 ),
                 io.Combo.Input(
@@ -646,6 +648,8 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
         ui_payload = {
             "bpm": beat_data["bpm"],
             "grid_bpm": beat_data["grid_bpm"],
+            "base_grid_interval_seconds": beat_data["base_grid_interval_seconds"],
+            "grid_interval_seconds": beat_data["grid_interval_seconds"],
             "beat_grid_density": beat_data["beat_grid_density"],
             "beat_times": beat_times,
             "base_beat_times": beat_data["base_beat_times"],
