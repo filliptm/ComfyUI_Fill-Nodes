@@ -352,6 +352,27 @@ class BeatPromptScheduleTests(unittest.TestCase):
                     audio_file="song.wav",
                 )
 
+    def test_scheduler_offset_applies_to_external_beat_positions(self):
+        output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
+            beat_positions=beat_json(),
+            timeline="[0 - 24]\nCamera pulse.",
+            default_fade_in=0.0,
+            default_fade_out=0.0,
+            curve="linear",
+            fps=24.0,
+            sequence_duration=24,
+            beat_offset_ms=100,
+        )
+
+        effective = json.loads(output.result[5])
+        payload = output.ui["fl_prompt_sequencer"][0]
+        self.assertEqual(effective["base_beat_times"], [0.1, 0.6, 1.2, 1.9])
+        self.assertEqual(effective["beat_times"], [0.2, 0.7, 1.3, 2.0])
+        self.assertEqual(effective["beat_offset_ms"], 100)
+        self.assertEqual(payload["base_beat_times"], [0.1, 0.6, 1.2, 1.9])
+        self.assertEqual(payload["beat_times"], [0.2, 0.7, 1.3, 2.0])
+        self.assertEqual(payload["beat_offset_ms"], 100)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -9,7 +9,7 @@ from .audio_files import (
     available_audio_files,
     resolve_audio_path,
 )
-from .audio_timeline import analyze_audio_file
+from .audio_timeline import analyze_audio_file, apply_beat_offset
 
 
 FLPromptSchedule = io.Custom("FL_PROMPT_SCHEDULE")
@@ -41,11 +41,17 @@ def _load_beats(beat_positions):
     return data["beat_times"], data["audio_duration"]
 
 
-def _load_beat_data(beat_positions):
+def _parse_beat_payload(beat_positions):
+    if isinstance(beat_positions, dict):
+        return beat_positions
     try:
-        data = json.loads(beat_positions)
+        return json.loads(beat_positions)
     except json.JSONDecodeError as error:
         raise ValueError(f"Beat positions is not valid JSON: {error.msg}.") from error
+
+
+def _load_beat_data(beat_positions):
+    data = _parse_beat_payload(beat_positions)
     if not isinstance(data, dict):
         raise ValueError("Beat positions must be the JSON object from FL Audio BPM Analyzer.")
 
@@ -67,11 +73,22 @@ def _load_beat_data(beat_positions):
         raise ValueError("Beat positions contains a beat after audio_duration.")
 
     bpm = _number(data.get("bpm", 0.0), "bpm", 0)
+    base_beat_times = data.get("base_beat_times", beat_times)
+    if not isinstance(base_beat_times, list):
+        base_beat_times = beat_times
+    base_detected_beat_times = data.get(
+        "base_detected_beat_times",
+        data.get("detected_beat_times", []),
+    )
+    if not isinstance(base_detected_beat_times, list):
+        base_detected_beat_times = []
     return {
         "bpm": bpm,
         "beat_times": beat_times,
+        "base_beat_times": base_beat_times,
         "audio_duration": duration,
         "detected_beat_times": data.get("detected_beat_times", []),
+        "base_detected_beat_times": base_detected_beat_times,
         "onset_times": data.get("onset_times", []),
         "drum_times": data.get("drum_times", {}),
         "waveform_preview": (
@@ -466,7 +483,10 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
                     min=-1000,
                     max=1000,
                     step=1,
-                    tooltip="Shift detected beats earlier or later without moving the audio.",
+                    tooltip=(
+                        "Backing value for the sequencer's live Beat offset control. It shifts the "
+                        "beat grid and detected beats without moving audio, onsets, drums, or prompts."
+                    ),
                 ),
                 io.Combo.Input(
                     "analysis_source",
@@ -543,7 +563,11 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
                 analysis_source,
             )
         if beat_positions:
-            beat_data = _load_beat_data(beat_positions)
+            beat_payload = _parse_beat_payload(beat_positions)
+            _load_beat_data(beat_payload)
+            beat_payload = apply_beat_offset(beat_payload, fps, beat_offset_ms)
+            beat_positions = json.dumps(beat_payload, separators=(",", ":"))
+            beat_data = _load_beat_data(beat_payload)
             if internal_analysis is not None:
                 difference = abs(beat_data["audio_duration"] - internal_analysis["audio_duration"])
                 if difference > max(_EPS, 1.0 / fps):
@@ -603,11 +627,21 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
         ui_payload = {
             "bpm": beat_data["bpm"],
             "beat_times": beat_times,
+            "base_beat_times": beat_data["base_beat_times"],
             "detected_beat_times": (
                 internal_analysis["detected_beat_times"]
                 if internal_analysis is not None
                 else beat_data["detected_beat_times"]
             ),
+            "base_detected_beat_times": (
+                internal_analysis.get(
+                    "base_detected_beat_times",
+                    internal_analysis["detected_beat_times"],
+                )
+                if internal_analysis is not None
+                else beat_data["base_detected_beat_times"]
+            ),
+            "beat_offset_ms": int(round(beat_offset_ms)),
             "onset_times": (
                 internal_analysis["onset_times"]
                 if internal_analysis is not None

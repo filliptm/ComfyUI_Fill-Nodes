@@ -5,7 +5,7 @@ const STYLE_ID = "fl-beat-prompt-sequencer-styles";
 const INSTANCES = new Map();
 const HEADER_RE = /^\s*\[\s*([0-9]+(?:\.[0-9]+)?)\s*-\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\|\s*(.*?))?\s*\]\s*$/;
 const EPSILON = 1e-6;
-const FORMAT_VERSION = 3;
+const FORMAT_VERSION = 4;
 const MIN_NODE_WIDTH = 680;
 const MIN_NODE_HEIGHT = 1100;
 const TIMELINE_LEFT = 42;
@@ -88,7 +88,7 @@ const STYLES = `
     color: #a1a1aa;
     font-size: 9px;
   }
-  .flbps-control select, .flbps-inspector input,
+  .flbps-control select, .flbps-control input[type="number"], .flbps-inspector input,
   .flbps-inspector textarea, .flbps-raw textarea {
     color: #f4f4f5;
     background: #252529;
@@ -103,7 +103,23 @@ const STYLES = `
     padding: 2px 5px;
     font-size: 9px;
   }
-  .flbps-control select:focus, .flbps-inspector input:focus,
+  .flbps-control input[type="range"] {
+    width: 110px;
+    accent-color: #22d3ee;
+  }
+  .flbps-control input[type="number"] {
+    width: 62px;
+    height: 23px;
+    padding: 2px 4px;
+    font-size: 9px;
+    text-align: right;
+  }
+  .flbps-offset-frames {
+    min-width: 66px;
+    color: #67e8f9;
+    font: 9px "Cascadia Mono", Consolas, monospace;
+  }
+  .flbps-control select:focus, .flbps-control input[type="number"]:focus, .flbps-inspector input:focus,
   .flbps-inspector textarea:focus, .flbps-raw textarea:focus { border-color: #22d3ee; }
   .flbps-canvas-wrap {
     position: relative;
@@ -464,7 +480,7 @@ class BeatPromptSequencer {
     this.separationTimer = null;
 
     const saved = node.properties?.flBeatPromptSequencer || {};
-    this.beatData = saved.beatData || null;
+    this.beatData = saved.formatVersion === FORMAT_VERSION ? saved.beatData || null : null;
     if (this.beatData) {
       this.beatData.waveformPreview = normalizeWaveformPreview(this.beatData.waveformPreview);
     }
@@ -478,6 +494,7 @@ class BeatPromptSequencer {
     injectStyles();
     this.build();
     this.bindWidgetCallbacks();
+    this.applyBeatOffset();
     this.loadTimeline();
     this.refreshBeatStatus();
     if (!(this.viewEnd > this.viewStart)) this.zoomToFit(false);
@@ -487,6 +504,10 @@ class BeatPromptSequencer {
 
   fps() {
     return Math.max(1, finiteNumber(this.widgets.fps?.value, 24));
+  }
+
+  beatOffsetMs() {
+    return clamp(Math.round(finiteNumber(this.widgets.beatOffset?.value, 0)), -1000, 1000);
   }
 
   configuredFrameCount() {
@@ -532,6 +553,13 @@ class BeatPromptSequencer {
             <option value="off">Off</option>
           </select>
         </label>
+        <label class="flbps-control" title="Shift the beat grid and detected-beat markers without moving the audio, waveform, onsets, drums, or prompt clips.">
+          Beat offset
+          <input data-role="beat-offset" type="range" min="-1000" max="1000" step="1">
+          <input data-role="beat-offset-number" type="number" min="-1000" max="1000" step="1" aria-label="Beat offset in milliseconds">
+          <span class="flbps-offset-frames" data-role="beat-offset-frames"></span>
+        </label>
+        <button class="flbps-button" data-action="reset-offset" title="Reset the beat offset to zero">Zero</button>
         <button class="flbps-button" data-action="zoom-out" title="Show more frames">Zoom -</button>
         <button class="flbps-button" data-action="zoom-in" title="Show fewer frames">Zoom +</button>
         <button class="flbps-button" data-action="fit" title="Show the complete frame range">Fit</button>
@@ -594,6 +622,9 @@ class BeatPromptSequencer {
     this.controls = {
       snap: this.root.querySelector('[data-role="snap"]'),
       autoAnalyze: this.root.querySelector('[data-role="auto-analyze"]'),
+      beatOffset: this.root.querySelector('[data-role="beat-offset"]'),
+      beatOffsetNumber: this.root.querySelector('[data-role="beat-offset-number"]'),
+      beatOffsetFrames: this.root.querySelector('[data-role="beat-offset-frames"]'),
     };
     this.fields = {
       start: this.root.querySelector('[data-field="start"]'),
@@ -609,6 +640,7 @@ class BeatPromptSequencer {
 
     this.controls.snap.value = this.snapMode;
     this.controls.autoAnalyze.checked = this.autoAnalyze;
+    this.syncBeatOffsetControls();
     this.waveformButton = this.root.querySelector('[data-action="waveform"]');
     this.waveformButton.classList.toggle("active", this.waveformVisible);
     this.controls.snap.addEventListener("change", () => {
@@ -630,6 +662,20 @@ class BeatPromptSequencer {
       this.autoAnalyze = this.controls.autoAnalyze.checked;
       this.saveViewState();
       if (this.autoAnalyze) this.requestAnalysis();
+    });
+    this.controls.beatOffset.addEventListener("input", () => {
+      this.setBeatOffset(this.controls.beatOffset.value);
+    });
+    this.controls.beatOffsetNumber.addEventListener("input", () => {
+      if (this.controls.beatOffsetNumber.value !== "") {
+        this.setBeatOffset(this.controls.beatOffsetNumber.value);
+      }
+    });
+    this.controls.beatOffsetNumber.addEventListener("change", () => {
+      this.setBeatOffset(this.controls.beatOffsetNumber.value);
+    });
+    this.root.querySelector('[data-action="reset-offset"]').addEventListener("click", () => {
+      this.setBeatOffset(0);
     });
     this.root.querySelector('[data-action="play"]').addEventListener("click", () => this.togglePlayback());
     this.root.querySelector('[data-action="stop"]').addEventListener("click", () => this.stopPlayback());
@@ -689,6 +735,7 @@ class BeatPromptSequencer {
     bind(this.widgets.timeUnit, () => this.loadTimeline());
     bind(this.widgets.fps, () => {
       this.syncInspector();
+      this.syncBeatOffsetControls();
       this.refreshBrowserCrop();
       this.zoomToFit();
       this.markDirty();
@@ -707,7 +754,7 @@ class BeatPromptSequencer {
     });
     bind(this.widgets.bpmMethod, () => this.scheduleAnalysis());
     bind(this.widgets.halfTime, () => this.scheduleAnalysis());
-    bind(this.widgets.beatOffset, () => this.scheduleAnalysis());
+    bind(this.widgets.beatOffset, (value) => this.setBeatOffset(value, false));
     bind(this.widgets.analysisSource, () => this.scheduleAnalysis());
     bind(this.widgets.defaultFadeIn, () => this.markDirty());
     bind(this.widgets.defaultFadeOut, () => this.markDirty());
@@ -716,6 +763,51 @@ class BeatPromptSequencer {
 
   markDirty() {
     this.node.graph?.change?.();
+  }
+
+  syncBeatOffsetControls() {
+    if (!this.controls?.beatOffset) return;
+    const offset = this.beatOffsetMs();
+    const sign = offset > 0 ? "+" : "";
+    const frames = offset / 1000 * this.fps();
+    const frameSign = frames > 0 ? "+" : "";
+    this.controls.beatOffset.value = String(offset);
+    this.controls.beatOffsetNumber.value = String(offset);
+    this.controls.beatOffsetFrames.textContent =
+      `${sign}${offset} ms · ${frameSign}${frames.toFixed(2)} fr`;
+  }
+
+  shiftedMarkerTimes(values) {
+    const duration = Math.max(0, finiteNumber(this.beatData?.audioDuration));
+    const offset = this.beatOffsetMs() / 1000;
+    const shifted = (values || [])
+      .map((value) => clamp(finiteNumber(value) + offset, 0, duration))
+      .sort((left, right) => left - right);
+    return shifted.filter((value, index) => index === 0 || Math.abs(value - shifted[index - 1]) > EPSILON);
+  }
+
+  applyBeatOffset() {
+    this.syncBeatOffsetControls();
+    if (!this.beatData) {
+      this.scheduleDraw();
+      return;
+    }
+    this.beatData.beatTimes = this.shiftedMarkerTimes(this.beatData.baseBeatTimes);
+    this.beatData.detectedBeatTimes = this.shiftedMarkerTimes(
+      this.beatData.baseDetectedBeatTimes,
+    );
+    this.beatData.beatOffsetMs = this.beatOffsetMs();
+    this.refreshBeatStatus();
+    this.scheduleDraw();
+  }
+
+  setBeatOffset(value, updateWidget = true) {
+    const offset = clamp(Math.round(finiteNumber(value, 0)), -1000, 1000);
+    if (this.widgets.beatOffset && (updateWidget || this.widgets.beatOffset.value !== offset)) {
+      this.widgets.beatOffset.value = offset;
+    }
+    this.applyBeatOffset();
+    this.markDirty();
   }
 
   saveViewState() {
@@ -755,6 +847,8 @@ class BeatPromptSequencer {
 
   invalidateAnalysis() {
     if (!this.beatData) return;
+    this.beatData.baseBeatTimes = [];
+    this.beatData.baseDetectedBeatTimes = [];
     this.beatData.beatTimes = [];
     this.beatData.detectedBeatTimes = [];
     this.beatData.onsetTimes = [];
@@ -881,7 +975,7 @@ class BeatPromptSequencer {
           length_frames: this.configuredFrameCount(),
           bpm_method: this.widgets.bpmMethod?.value || "beat_intervals",
           half_time: Boolean(this.widgets.halfTime?.value),
-          beat_offset_ms: Math.round(finiteNumber(this.widgets.beatOffset?.value, 0)),
+          beat_offset_ms: 0,
           analysis_source: this.widgets.analysisSource?.value || "mix",
         }),
       });
@@ -899,10 +993,22 @@ class BeatPromptSequencer {
   }
 
   applyAnalysis(payload, fresh) {
+    const payloadOffset = finiteNumber(payload.beat_offset_ms, 0) / 1000;
+    const payloadBeatTimes = (payload.beat_times || []).map((value) => finiteNumber(value));
+    const payloadDetectedBeatTimes = (payload.detected_beat_times || []).map(
+      (value) => finiteNumber(value),
+    );
     this.beatData = {
       bpm: finiteNumber(payload.bpm),
-      beatTimes: (payload.beat_times || []).map((value) => finiteNumber(value)),
-      detectedBeatTimes: (payload.detected_beat_times || []).map((value) => finiteNumber(value)),
+      baseBeatTimes: (payload.base_beat_times || payloadBeatTimes.map(
+        (value) => value - payloadOffset,
+      )).map((value) => finiteNumber(value)),
+      baseDetectedBeatTimes: (
+        payload.base_detected_beat_times ||
+        payloadDetectedBeatTimes.map((value) => value - payloadOffset)
+      ).map((value) => finiteNumber(value)),
+      beatTimes: [],
+      detectedBeatTimes: [],
       onsetTimes: (payload.onset_times || []).map((value) => finiteNumber(value)),
       drumTimes: payload.drum_times || {},
       audioDuration: finiteNumber(payload.audio_duration),
@@ -914,8 +1020,7 @@ class BeatPromptSequencer {
       cacheKey: payload.cache_key || "",
     };
     this.dataFresh = fresh;
-    this.refreshBeatStatus();
-    this.scheduleDraw();
+    this.applyBeatOffset();
   }
 
   updatePlayButton() {
@@ -1216,8 +1321,11 @@ class BeatPromptSequencer {
     const count = this.beatData.beatTimes?.length || 0;
     const detected = this.beatData.detectedBeatTimes?.length || 0;
     const onsets = this.beatData.onsetTimes?.length || 0;
+    const offset = this.beatOffsetMs();
+    const offsetText = offset ? ` · offset ${offset > 0 ? "+" : ""}${offset} ms` : "";
     const text = `${finiteNumber(this.beatData.bpm).toFixed(2)} BPM · ${count} grid · ` +
-      `${detected} detected · ${onsets} onsets · ${finiteNumber(this.beatData.audioDuration).toFixed(2)} sec`;
+      `${detected} detected · ${onsets} onsets · ${finiteNumber(this.beatData.audioDuration).toFixed(2)} sec` +
+      offsetText;
     if (this.dataFresh) {
       this.statusEl.classList.add("fresh");
       this.statusEl.textContent = text;
@@ -2279,7 +2387,12 @@ app.registerExtension({
       beatOffset: findWidget(node, "beat_offset_ms"),
       analysisSource: findWidget(node, "analysis_source"),
     };
-    const hiddenWidgets = [widgets.timeline, widgets.timeUnit, widgets.trimStartFrame];
+    const hiddenWidgets = [
+      widgets.timeline,
+      widgets.timeUnit,
+      widgets.trimStartFrame,
+      widgets.beatOffset,
+    ];
     for (const widget of hiddenWidgets) hideWidget(widget);
 
     const container = document.createElement("div");
@@ -2319,6 +2432,7 @@ app.registerExtension({
       requestAnimationFrame(() => enforceMinimumNodeSize(this));
       const editor = INSTANCES.get(node.id);
       if (editor) {
+        editor.applyBeatOffset();
         editor.loadTimeline();
         editor.refreshBeatStatus();
         editor.scheduleDraw();

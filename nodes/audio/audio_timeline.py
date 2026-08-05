@@ -13,8 +13,8 @@ from .audio_files import audio_file_hash, load_audio_file, resolve_audio_path
 from .audio_separation import load_cached_stem
 
 
-ANALYSIS_VERSION = 2
-DETECTOR_VERSION = "fl-audio-timeline-1"
+ANALYSIS_VERSION = 3
+DETECTOR_VERSION = "fl-audio-timeline-2"
 _WAVEFORM_BUCKETS_PER_SECOND = 60
 _MAX_WAVEFORM_BUCKETS = 8192
 _WAVEFORM_SCALE = 32767
@@ -202,6 +202,40 @@ def _detect_drums(waveform, sample_rate, onset_frames, onset_times):
     }
 
 
+def apply_beat_offset(analysis, fps, beat_offset_ms=0):
+    if not math.isfinite(fps) or fps <= 0:
+        raise ValueError("FPS must be greater than zero.")
+    if not math.isfinite(beat_offset_ms):
+        raise ValueError("Beat offset must be a finite number.")
+
+    duration = float(analysis["audio_duration"])
+    offset = beat_offset_ms / 1000.0
+    base_beat_times = analysis.get("base_beat_times", analysis.get("beat_times", []))
+    base_detected_beat_times = analysis.get(
+        "base_detected_beat_times",
+        analysis.get("detected_beat_times", []),
+    )
+
+    def shifted(values):
+        if not values:
+            return []
+        times = np.asarray(values, dtype=np.float64)
+        return np.unique(np.clip(times + offset, 0, duration)).tolist()
+
+    result = dict(analysis)
+    result["base_beat_times"] = list(base_beat_times)
+    result["base_detected_beat_times"] = list(base_detected_beat_times)
+    result["beat_times"] = shifted(base_beat_times)
+    result["detected_beat_times"] = shifted(base_detected_beat_times)
+    result["beat_frames"] = [round(value * fps) for value in result["beat_times"]]
+    result["detected_beat_frames"] = [
+        round(value * fps) for value in result["detected_beat_times"]
+    ]
+    result["num_beats"] = len(result["beat_times"])
+    result["beat_offset_ms"] = int(round(beat_offset_ms))
+    return result
+
+
 def analyze_audio(audio, fps, bpm_method="beat_intervals", half_time=False, beat_offset_ms=0):
     if bpm_method not in {"beat_intervals", "onset_strength"}:
         raise ValueError(f"Unknown BPM method: {bpm_method}")
@@ -232,10 +266,6 @@ def analyze_audio(audio, fps, bpm_method="beat_intervals", half_time=False, beat
         detected_beats = detected_beats[::2]
 
     regularized_beats = _regularize_beats(detected_beats, interval, duration)
-    offset = beat_offset_ms / 1000.0
-    if offset:
-        detected_beats = np.clip(detected_beats + offset, 0, duration)
-        regularized_beats = np.clip(regularized_beats + offset, 0, duration)
     detected_beats = np.unique(detected_beats)
     regularized_beats = np.unique(regularized_beats)
     if not len(regularized_beats):
@@ -253,7 +283,7 @@ def analyze_audio(audio, fps, bpm_method="beat_intervals", half_time=False, beat
     detected_times = detected_beats.tolist()
     onsets = onset_times.tolist()
 
-    return {
+    analysis = {
         "version": ANALYSIS_VERSION,
         "detector_version": DETECTOR_VERSION,
         "bpm": float(bpm),
@@ -270,9 +300,10 @@ def analyze_audio(audio, fps, bpm_method="beat_intervals", half_time=False, beat
         "drum_times": drum_times,
         "waveform_preview": waveform_preview(waveform, sample_rate),
     }
+    return apply_beat_offset(analysis, fps, beat_offset_ms)
 
 
-def analysis_cache_key(path, fps, trim_start_frame, length_frames, bpm_method, half_time, beat_offset_ms, analysis_source):
+def analysis_cache_key(path, fps, trim_start_frame, length_frames, bpm_method, half_time, analysis_source):
     values = {
         "audio_sha256": audio_file_hash(path),
         "fps": float(fps),
@@ -280,7 +311,6 @@ def analysis_cache_key(path, fps, trim_start_frame, length_frames, bpm_method, h
         "length_frames": int(length_frames),
         "bpm_method": bpm_method,
         "half_time": bool(half_time),
-        "beat_offset_ms": int(beat_offset_ms),
         "analysis_source": analysis_source,
         "detector_version": DETECTOR_VERSION,
     }
@@ -319,7 +349,6 @@ def analyze_audio_file(
         length_frames,
         bpm_method,
         half_time,
-        beat_offset_ms,
         analysis_source,
     )
     cache_path = _cache_path(cache_key)
@@ -331,7 +360,6 @@ def analyze_audio_file(
             fps,
             bpm_method,
             half_time,
-            beat_offset_ms,
         )
         analysis.update(crop)
         analysis.update({
@@ -342,4 +370,4 @@ def analyze_audio_file(
         temporary_path = cache_path.with_suffix(".tmp")
         temporary_path.write_text(json.dumps(analysis, separators=(",", ":")), encoding="utf-8")
         temporary_path.replace(cache_path)
-    return analysis, cropped_audio
+    return apply_beat_offset(analysis, fps, beat_offset_ms), cropped_audio
