@@ -5,11 +5,11 @@ const STYLE_ID = "fl-beat-prompt-sequencer-styles";
 const INSTANCES = new Map();
 const HEADER_RE = /^\s*\[\s*([0-9]+(?:\.[0-9]+)?)\s*-\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\|\s*(.*?))?\s*\]\s*$/;
 const EPSILON = 1e-6;
-const FORMAT_VERSION = 7;
-const COMPATIBLE_FORMAT_VERSIONS = new Set([6, FORMAT_VERSION]);
+const FORMAT_VERSION = 8;
+const COMPATIBLE_FORMAT_VERSIONS = new Set([6, 7, FORMAT_VERSION]);
 const COMPACT_NODE_WIDTH = 380;
 const MEDIA_FILE_RE = /\.(?:aac|aiff?|flac|m4a|mka|mkv|mov|mp3|mp4|oga|ogg|opus|wav|webm|wma)$/i;
-const TIMELINE_LEFT = 42;
+const TIMELINE_LEFT = 16;
 const TIMELINE_RIGHT = 12;
 let activeModal = null;
 const GRID_DENSITY_LABELS = {
@@ -38,7 +38,9 @@ const STYLES = `
     box-sizing: border-box;
   }
   .flbps-root * { box-sizing: border-box; }
-  .flbps-header, .flbps-toolbar, .flbps-actions, .flbps-footer {
+  .flbps-root:focus { outline: none; }
+  .flbps-root:focus-visible { outline: 1px solid #525762; outline-offset: -1px; }
+  .flbps-toolbar, .flbps-actions, .flbps-footer {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
@@ -47,15 +49,13 @@ const STYLES = `
     border-bottom: 1px solid #2b2b31;
     background: #1c1c20;
   }
-  .flbps-header { justify-content: space-between; }
-  .flbps-title { font-size: 12px; font-weight: 700; color: #fafafa; }
   .flbps-status {
-    max-width: 72%;
+    max-width: 390px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding: 3px 7px;
-    border-radius: 9px;
+    padding: 4px 8px;
+    border-radius: 10px;
     color: #a1a1aa;
     background: #27272a;
     font-size: 9px;
@@ -63,7 +63,15 @@ const STYLES = `
   .flbps-status.fresh { color: #d1fae5; background: #065f46; }
   .flbps-status.cached { color: #fef3c7; background: #713f12; }
   .flbps-status.error { color: #fee2e2; background: #7f1d1d; }
-  .flbps-toolbar { flex-wrap: wrap; padding-top: 6px; padding-bottom: 6px; }
+  .flbps-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    background: #17191e;
+  }
+  .flbps-control-group { display: flex; align-items: center; gap: 7px; }
+  .flbps-toolbar-divider { width: 1px; height: 20px; background: #343740; }
   .flbps-transport {
     flex: 0 0 auto;
     display: flex;
@@ -135,8 +143,9 @@ const STYLES = `
   .flbps-inspector textarea:focus, .flbps-raw textarea:focus { border-color: #22d3ee; }
   .flbps-canvas-wrap {
     position: relative;
-    flex: 1 1 auto;
-    min-height: 245px;
+    height: clamp(300px, 45vh, 420px);
+    flex: 0 1 420px;
+    min-height: 280px;
     overflow: hidden;
     background: #101013;
   }
@@ -163,6 +172,7 @@ const STYLES = `
     border-radius: 5px;
     font-size: 9px;
     cursor: pointer;
+    transition: color .1s ease, background .1s ease, border-color .1s ease, opacity .1s ease;
   }
   .flbps-button:hover { color: #fff; border-color: #52525b; background: #303036; }
   .flbps-button.primary { color: #ecfeff; border-color: #0e7490; background: #155e75; }
@@ -171,7 +181,10 @@ const STYLES = `
   .flbps-button:disabled { opacity: .4; cursor: default; }
   .flbps-spacer { flex: 1; }
   .flbps-inspector {
-    flex: 0 0 auto;
+    flex: 1 1 150px;
+    min-height: 128px;
+    display: flex;
+    flex-direction: column;
     padding: 8px 9px;
     background: #19191d;
     border-bottom: 1px solid #2b2b31;
@@ -200,23 +213,30 @@ const STYLES = `
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #67e8f9;
+    color: #c4b5fd;
     text-transform: none;
     letter-spacing: 0;
   }
-  .flbps-inspector textarea { width: 100%; height: 68px; resize: vertical; padding: 6px; font-size: 10px; line-height: 1.35; }
+  .flbps-inspector textarea {
+    width: 100%;
+    min-height: 68px;
+    flex: 1 1 auto;
+    resize: vertical;
+    padding: 7px;
+    font-size: 10px;
+    line-height: 1.4;
+  }
   .flbps-raw { display: none; flex: 0 0 auto; padding: 8px 9px; background: #17171a; border-bottom: 1px solid #2b2b31; }
   .flbps-raw.open { display: block; }
   .flbps-raw-label { margin-bottom: 5px; color: #a1a1aa; font-size: 9px; }
   .flbps-raw textarea { width: 100%; height: 130px; resize: vertical; padding: 7px; font-family: "Cascadia Mono", Consolas, monospace; font-size: 9px; line-height: 1.35; }
   .flbps-raw-actions { display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end; }
   .flbps-footer {
-    justify-content: space-between;
+    justify-content: flex-end;
     border-bottom: 0;
     color: #71717a;
     font-size: 8px;
   }
-  .flbps-summary { color: #a1a1aa; }
   .flbps-error {
     display: none;
     flex: 0 0 auto;
@@ -289,6 +309,17 @@ const STYLES = `
     overflow: hidden;
     background: #17171b;
     border-right: 1px solid #303036;
+    transition: width .16s ease, flex-basis .16s ease, padding .16s ease,
+      opacity .12s ease, border-color .12s ease;
+  }
+  .flbps-modal-shell.library-collapsed .flbps-library {
+    width: 0;
+    flex-basis: 0;
+    padding-left: 0;
+    padding-right: 0;
+    opacity: 0;
+    border-right-color: transparent;
+    pointer-events: none;
   }
   .flbps-library-section { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; }
   .flbps-library-label {
@@ -368,6 +399,7 @@ const STYLES = `
   .flbps-setting.checkbox { flex-direction: row; align-items: center; padding-top: 15px; }
   .flbps-setting.checkbox input { width: auto; height: auto; }
   .flbps-editor-host { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 8px; }
+  .flbps-sidebar-toggle { min-width: 82px; }
   .flbps-modal-close { min-width: 66px; }
   @keyframes flbps-fade-in { from { opacity: 0; } to { opacity: 1; } }
   @keyframes flbps-modal-in {
@@ -378,6 +410,12 @@ const STYLES = `
     .flbps-modal-overlay { padding: 0; }
     .flbps-modal-shell { width: 100vw; height: 100vh; min-width: 0; min-height: 0; border-radius: 0; }
     .flbps-library { width: 250px; flex-basis: 250px; }
+    .flbps-status { display: none; }
+    .flbps-toolbar-divider { display: none; }
+  }
+  @media (max-width: 1250px) and (min-width: 981px) {
+    .flbps-status { max-width: 220px; }
+    .flbps-source-label { max-width: 130px; }
   }
 `;
 
@@ -418,6 +456,38 @@ function formatClock(seconds) {
   const minutes = Math.floor(value / 60);
   const remainder = value - minutes * 60;
   return `${String(minutes).padStart(2, "0")}:${remainder.toFixed(3).padStart(6, "0")}`;
+}
+
+function formatRulerTime(seconds) {
+  const value = Math.max(0, finiteNumber(seconds));
+  if (value < 60) return `${value.toFixed(value < 10 ? 1 : 0)}s`;
+  const minutes = Math.floor(value / 60);
+  return `${minutes}:${String(Math.floor(value % 60)).padStart(2, "0")}`;
+}
+
+function canvasTextLines(ctx, text, maxWidth, maximumLines = 2) {
+  const words = String(text || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const lines = [];
+  let line = "";
+  while (words.length && lines.length < maximumLines) {
+    const word = words.shift();
+    const candidate = line ? `${line} ${word}` : word;
+    if (!line || ctx.measureText(candidate).width <= maxWidth) {
+      line = candidate;
+      continue;
+    }
+    lines.push(line);
+    line = word;
+  }
+  if (line && lines.length < maximumLines) lines.push(line);
+  if (words.length && lines.length) {
+    let last = `${lines.pop()}…`;
+    while (last.length > 1 && ctx.measureText(last).width > maxWidth) {
+      last = `${last.slice(0, -2)}…`;
+    }
+    lines.push(last);
+  }
+  return lines;
 }
 
 function filenameFromPath(value) {
@@ -720,16 +790,13 @@ class BeatPromptSequencer {
     this.root.className = "flbps-root";
     this.root.tabIndex = 0;
     this.root.innerHTML = `
-      <div class="flbps-header">
-        <span class="flbps-title">Audio Beat Prompt Sequencer</span>
-        <span class="flbps-status" data-role="status">Choose audio to load the timeline</span>
-      </div>
       <div class="flbps-transport">
         <button class="flbps-button" data-action="play" title="Play or pause the selected audio crop">Play</button>
         <button class="flbps-button" data-action="stop" title="Stop and return to the crop start">Stop</button>
         <span class="flbps-transport-time" data-role="transport-time">00:00.000 / 00:00.000</span>
         <span class="flbps-source-label" data-role="source-label">No audio selected</span>
         <span class="flbps-spacer"></span>
+        <span class="flbps-status" data-role="status">Choose audio to load the timeline</span>
         <label class="flbps-auto" title="Refresh beat, onset, and drum markers after audio or trim changes">
           <input data-role="auto-analyze" type="checkbox"> Auto analyze
         </label>
@@ -737,44 +804,52 @@ class BeatPromptSequencer {
         <button class="flbps-button" data-action="separate" title="Explicitly separate and cache stems for analysis">Separate stems</button>
       </div>
       <div class="flbps-toolbar">
-        <label class="flbps-control">Snap
-          <select data-role="snap" title="Choose which marker family should attract prompt edits. Hold Shift to bypass snapping.">
-            <option value="beat">Beat grid</option>
-            <option value="detected">Detected beat</option>
-            <option value="onset">Onset</option>
-            <option value="frame">Frame</option>
-            <option value="off">Off</option>
-          </select>
-        </label>
-        <label class="flbps-control" title="Choose the spacing of the cyan grid used for display, snapping, and beat_positions output.">
-          Grid
-          <select data-role="beat-grid-density">
-            <option value="every_2_beats">Every 2 beats</option>
-            <option value="every_beat">Every beat</option>
-            <option value="half_beat">Half-beat</option>
-          </select>
-        </label>
-        <label class="flbps-control" title="Choose which stationary audio references attract the cyan grid while dragging. Hold Shift to bypass.">
-          Magnet
-          <select data-role="grid-magnet">
-            <option value="detected">Detected beats</option>
-            <option value="onset">Onsets</option>
-            <option value="off">Off</option>
-          </select>
-        </label>
-        <label class="flbps-control" title="Shift only the regular cyan grid over the stationary sequence waveform and audio reference markers.">
-          Beat offset
-          <input data-role="beat-offset" type="range" min="-1000" max="1000" step="1">
-          <input data-role="beat-offset-number" type="number" min="-1000" max="1000" step="1" aria-label="Beat offset in milliseconds">
-          <span class="flbps-offset-frames" data-role="beat-offset-frames"></span>
-        </label>
-        <button class="flbps-button" data-action="reset-offset" title="Reset the beat offset to zero">Zero</button>
-        <button class="flbps-button" data-action="zoom-out" title="Show more frames">Zoom -</button>
-        <button class="flbps-button" data-action="zoom-in" title="Show fewer frames">Zoom +</button>
-        <button class="flbps-button" data-action="fit" title="Show the complete frame range">Fit</button>
-        <button class="flbps-button" data-action="waveform" title="Show or hide the aligned audio waveform">Waveform</button>
+        <div class="flbps-control-group">
+          <label class="flbps-control">Snap
+            <select data-role="snap" title="Choose which marker family should attract prompt edits. Hold Shift to bypass snapping.">
+              <option value="beat">Beat grid</option>
+              <option value="detected">Detected beat</option>
+              <option value="onset">Onset</option>
+              <option value="frame">Frame</option>
+              <option value="off">Off</option>
+            </select>
+          </label>
+          <label class="flbps-control" title="Choose the spacing of the cyan grid used for display, snapping, and beat_positions output.">
+            Grid
+            <select data-role="beat-grid-density">
+              <option value="every_2_beats">Every 2 beats</option>
+              <option value="every_beat">Every beat</option>
+              <option value="half_beat">Half-beat</option>
+            </select>
+          </label>
+          <label class="flbps-control" title="Choose which stationary audio references attract the cyan grid while dragging. Hold Shift to bypass.">
+            Magnet
+            <select data-role="grid-magnet">
+              <option value="detected">Detected beats</option>
+              <option value="onset">Onsets</option>
+              <option value="off">Off</option>
+            </select>
+          </label>
+        </div>
+        <span class="flbps-toolbar-divider"></span>
+        <div class="flbps-control-group">
+          <label class="flbps-control" title="Shift the cyan beat grid over the stationary waveform and detected reference ticks.">
+            Beat offset
+            <input data-role="beat-offset" type="range" min="-1000" max="1000" step="1">
+            <input data-role="beat-offset-number" type="number" min="-1000" max="1000" step="1" aria-label="Beat offset in milliseconds">
+            <span class="flbps-offset-frames" data-role="beat-offset-frames"></span>
+          </label>
+          <button class="flbps-button" data-action="reset-offset" title="Reset the beat offset to zero">Zero</button>
+        </div>
+        <span class="flbps-toolbar-divider"></span>
+        <div class="flbps-control-group">
+          <button class="flbps-button" data-action="zoom-out" title="Show more frames">Zoom -</button>
+          <button class="flbps-button" data-action="zoom-in" title="Show fewer frames">Zoom +</button>
+          <button class="flbps-button" data-action="fit" title="Show the complete frame range">Fit</button>
+          <button class="flbps-button" data-action="waveform" title="Show or hide the aligned audio waveform">Waveform</button>
+        </div>
         <span class="flbps-spacer"></span>
-        <span class="flbps-control">Frame-native timeline</span>
+        <span class="flbps-control">Frames</span>
       </div>
       <div class="flbps-error" data-role="error"></div>
       <div class="flbps-canvas-wrap">
@@ -811,8 +886,7 @@ class BeatPromptSequencer {
         </div>
       </div>
       <div class="flbps-footer">
-        <span class="flbps-summary" data-role="summary"></span>
-        <span>drag BEAT GRID over SEQ WAVE · Shift bypasses magnet/snap · wheel zoom</span>
+        <span>drag cyan ruler markers to shift the beat grid · Shift bypasses magnet/snap · wheel zoom</span>
       </div>
     `;
     this.container.appendChild(this.root);
@@ -824,7 +898,6 @@ class BeatPromptSequencer {
     this.inspector = this.root.querySelector('[data-role="inspector"]');
     this.rawPanel = this.root.querySelector('[data-role="raw-panel"]');
     this.rawText = this.root.querySelector('[data-role="raw-text"]');
-    this.summaryEl = this.root.querySelector('[data-role="summary"]');
     this.promptMetaEl = this.root.querySelector('[data-role="prompt-meta"]');
     this.transportTimeEl = this.root.querySelector('[data-role="transport-time"]');
     this.sourceLabelEl = this.root.querySelector('[data-role="source-label"]');
@@ -1672,7 +1745,6 @@ class BeatPromptSequencer {
       this.statusEl.classList.add("cached");
       this.statusEl.textContent = `${text} · cached`;
     }
-    this.updateSummary();
   }
 
   showError(message) {
@@ -1797,7 +1869,6 @@ class BeatPromptSequencer {
     this.widgets.timeline.value = serializeTimeline(this.clips);
     this.rawText.value = this.widgets.timeline.value;
     this.markDirty();
-    this.updateSummary();
   }
 
   beatFrames() {
@@ -1887,7 +1958,7 @@ class BeatPromptSequencer {
     if (this.migrationPending) return;
     const { y } = this.eventPosition(event);
     const layout = this.timelineLayout();
-    if (y >= layout.beatTop && y <= layout.beatBottom) return;
+    if (y < layout.trackTop || y > layout.trackBottom) return;
     this.addClip(this.frameAtEvent(event));
   }
 
@@ -1968,25 +2039,21 @@ class BeatPromptSequencer {
   timelineLayout(height = this.canvas.clientHeight) {
     const sourceVisible = this.waveformVisible && Boolean(this.sourceWaveformPreview);
     const sourceTop = sourceVisible ? 4 : null;
-    const sourceBottom = sourceVisible ? 42 : null;
-    const frameTop = sourceVisible ? 48 : 4;
-    const frameBottom = frameTop + 16;
-    const beatTop = frameBottom + 2;
-    const beatBottom = beatTop + 27;
-    const waveformTop = this.waveformVisible ? beatBottom + 1 : null;
-    const waveformBottom = this.waveformVisible ? waveformTop + 72 : null;
-    const trackTop = this.waveformVisible ? waveformBottom + 10 : beatBottom + 10;
+    const sourceBottom = sourceVisible ? 38 : null;
+    const rulerTop = sourceVisible ? 44 : 4;
+    const rulerBottom = rulerTop + 30;
+    const waveformTop = this.waveformVisible ? rulerBottom + 2 : null;
+    const waveformBottom = this.waveformVisible ? waveformTop + 92 : null;
+    const trackTop = this.waveformVisible ? waveformBottom + 7 : rulerBottom + 7;
     return {
       sourceTop,
       sourceBottom,
-      frameTop,
-      frameBottom,
-      beatTop,
-      beatBottom,
+      rulerTop,
+      rulerBottom,
       waveformTop,
       waveformBottom,
       trackTop,
-      trackBottom: height - 12,
+      trackBottom: height - 8,
     };
   }
 
@@ -2024,16 +2091,28 @@ class BeatPromptSequencer {
     return null;
   }
 
-  hitTestBeatGrid(x, y) {
+  hitTestBeatMarker(x, y) {
     const right = this.canvas.clientWidth - TIMELINE_RIGHT;
     const layout = this.timelineLayout();
-    return Boolean(
-      this.beatData?.baseBeatTimes?.length &&
-      x >= TIMELINE_LEFT &&
-      x <= right &&
-      y >= layout.beatTop &&
-      y <= layout.beatBottom
-    );
+    if (!this.beatData?.baseBeatTimes?.length ||
+        x < TIMELINE_LEFT ||
+        x > right ||
+        y < layout.rulerTop ||
+        y > layout.rulerBottom) {
+      return null;
+    }
+    let nearest = null;
+    const frames = this.beatFrames();
+    for (let index = 0; index < frames.length; index++) {
+      const frame = frames[index];
+      if (frame < this.viewStart || frame > this.viewEnd) continue;
+      const markerX = this.frameToX(frame, this.canvas.clientWidth);
+      const distance = Math.abs(x - markerX);
+      if (distance <= 7 && (!nearest || distance < nearest.distance)) {
+        nearest = { index, frame, x: markerX, distance };
+      }
+    }
+    return nearest;
   }
 
   updateTrimDrag(x) {
@@ -2055,9 +2134,11 @@ class BeatPromptSequencer {
   onPointerDown(event) {
     this.root.focus({ preventScroll: true });
     const { x, y } = this.eventPosition(event);
-    if (this.hitTestBeatGrid(x, y)) {
+    const beatMarker = this.hitTestBeatMarker(x, y);
+    if (beatMarker) {
       this.drag = {
         type: "beat-grid",
+        markerIndex: beatMarker.index,
         pointerStartX: x,
         pointerStartY: y,
         originalOffset: this.beatOffsetMs(),
@@ -2245,7 +2326,7 @@ class BeatPromptSequencer {
       return;
     }
     if (!this.drag || !this.selectedClip()) {
-      const gridHit = this.hitTestBeatGrid(x, y);
+      const gridHit = this.hitTestBeatMarker(x, y);
       const trimHit = this.hitTestTrim(x, y);
       const hit = this.hitTest(x, y);
       this.canvas.style.cursor = gridHit
@@ -2408,24 +2489,20 @@ class BeatPromptSequencer {
     const right = width - TIMELINE_RIGHT;
     const center = (top + bottom) / 2;
     const preview = this.sourceWaveformPreview;
-    ctx.fillStyle = "#121417";
+    ctx.fillStyle = "#12151a";
     ctx.fillRect(TIMELINE_LEFT, top, right - TIMELINE_LEFT, bottom - top);
-    ctx.strokeStyle = "#2c3036";
+    ctx.strokeStyle = "#2d323a";
     ctx.strokeRect(TIMELINE_LEFT + 0.5, top + 0.5, right - TIMELINE_LEFT - 1, bottom - top - 1);
-    ctx.fillStyle = "#71717a";
-    ctx.font = "8px Inter, sans-serif";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    ctx.fillText("SOURCE", TIMELINE_LEFT - 5, center);
-    ctx.fillStyle = "#52525b";
+    ctx.fillStyle = "#656b76";
+    ctx.font = "7px Inter, sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    ctx.fillText("FULL SOURCE · TRIM ONLY", TIMELINE_LEFT + 6, top + 4);
+    ctx.fillText("SOURCE TRIM", TIMELINE_LEFT + 6, top + 4);
     if (!preview) return;
 
     const bins = preview.peaks.length / 2;
     const plotHeight = Math.max(1, (bottom - top) / 2 - 3);
-    ctx.strokeStyle = "#64748b";
+    ctx.strokeStyle = "#66798a";
     ctx.globalAlpha = 0.7;
     ctx.beginPath();
     for (let x = TIMELINE_LEFT; x <= right; x++) {
@@ -2467,27 +2544,22 @@ class BeatPromptSequencer {
     const center = (top + bottom) / 2;
     const preview = this.beatData?.waveformPreview;
 
-    ctx.fillStyle = "#121b20";
+    ctx.fillStyle = "#14191e";
     ctx.fillRect(TIMELINE_LEFT, top, right - TIMELINE_LEFT, bottom - top);
-    ctx.strokeStyle = "#26343b";
+    ctx.strokeStyle = "#293039";
     ctx.strokeRect(TIMELINE_LEFT + 0.5, top + 0.5, right - TIMELINE_LEFT - 1, bottom - top - 1);
-    ctx.fillStyle = "#71717a";
-    ctx.font = "8px Inter, sans-serif";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    ctx.fillText("SEQ WAVE", TIMELINE_LEFT - 5, center);
 
     const selected = this.selectedClip();
     if (selected) {
       const selectionStart = clamp(this.frameToX(selected.start, width), TIMELINE_LEFT, right);
       const selectionEnd = clamp(this.frameToX(selected.end, width), TIMELINE_LEFT, right);
       if (selectionEnd > selectionStart) {
-        ctx.fillStyle = "rgba(34,211,238,.10)";
+        ctx.fillStyle = "rgba(167,139,250,.09)";
         ctx.fillRect(selectionStart, top + 1, selectionEnd - selectionStart, bottom - top - 2);
       }
     }
 
-    ctx.strokeStyle = "#33444c";
+    ctx.strokeStyle = "#303944";
     ctx.beginPath();
     ctx.moveTo(TIMELINE_LEFT, center + 0.5);
     ctx.lineTo(right, center + 0.5);
@@ -2511,8 +2583,8 @@ class BeatPromptSequencer {
     const startX = Math.max(TIMELINE_LEFT, Math.floor(this.frameToX(visibleStart, width)));
     const endX = Math.min(right, Math.ceil(this.frameToX(visibleEnd, width)));
     const plotHeight = Math.max(1, (bottom - top) / 2 - 5);
-    ctx.strokeStyle = "#38bdf8";
-    ctx.globalAlpha = 0.82;
+    ctx.strokeStyle = "#6d9bad";
+    ctx.globalAlpha = 0.92;
     ctx.beginPath();
     for (let x = startX; x <= endX; x++) {
       const firstFrame = this.frameAtX(x);
@@ -2545,105 +2617,362 @@ class BeatPromptSequencer {
     }
     const frame = clamp(Math.round(this.frameAtX(this.hover.x)), 0, Math.round(waveformEndFrame));
     const seconds = frame / this.fps();
-    const bin = clamp(Math.floor((seconds / preview.duration) * binCount), 0, binCount - 1);
-    const amplitude = Math.max(
-      Math.abs(preview.peaks[bin * 2]),
-      Math.abs(preview.peaks[bin * 2 + 1]),
-    ) / preview.scale;
     const x = this.frameToX(frame, width);
-    ctx.strokeStyle = "#fbbf24";
+    ctx.strokeStyle = "rgba(251,191,36,.42)";
     ctx.beginPath();
     ctx.moveTo(x + 0.5, top);
     ctx.lineTo(x + 0.5, bottom);
     ctx.stroke();
 
-    const text = `frame ${frame} · ${formatClock(seconds)} · ${this.nearestBeatLabel(frame)} · ${Math.round(amplitude * 100)}%`;
+    const text = `F${frame} · ${formatClock(seconds)} · ${this.nearestBeatLabel(frame)}`;
     ctx.font = "9px Inter, sans-serif";
     const boxWidth = ctx.measureText(text).width + 12;
     const boxX = clamp(x - boxWidth / 2, TIMELINE_LEFT, right - boxWidth);
-    ctx.fillStyle = "#082f49";
+    ctx.fillStyle = "rgba(28,25,23,.94)";
     ctx.fillRect(boxX, top + 4, boxWidth, 18);
-    ctx.fillStyle = "#e0f2fe";
+    ctx.fillStyle = "#fef3c7";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.fillText(text, boxX + 6, top + 13);
   }
 
-  drawBeatLane(ctx, width, top, bottom, trackBottom) {
+  drawRuler(ctx, width, top, bottom) {
     const right = width - TIMELINE_RIGHT;
-    ctx.fillStyle = "#15151a";
-    ctx.fillRect(TIMELINE_LEFT, top, right - TIMELINE_LEFT, bottom - top);
-    ctx.fillStyle = "#67e8f9";
-    ctx.font = "8px Inter, sans-serif";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    ctx.fillText("BEAT GRID", TIMELINE_LEFT - 5, (top + bottom) / 2);
+    const range = Math.max(1, this.viewEnd - this.viewStart);
+    const step = niceFrameStep(range, right - TIMELINE_LEFT, this.fps());
+    const minor = step % 4 === 0 ? step / 4 : step % 2 === 0 ? step / 2 : step;
 
-    const frames = this.beatFrames();
-    const visibleFrames = frames.filter((frame) => frame >= this.viewStart && frame <= this.viewEnd);
-    const labelEveryBeat = visibleFrames.length < 2 ||
-      Math.abs(this.frameToX(visibleFrames[1], width) - this.frameToX(visibleFrames[0], width)) >= 22;
-    let hovered = null;
-    for (let index = 0; index < frames.length; index++) {
-      const frame = frames[index];
-      if (frame < this.viewStart || frame > this.viewEnd) continue;
+    ctx.fillStyle = "#17191f";
+    ctx.fillRect(TIMELINE_LEFT, top, right - TIMELINE_LEFT, bottom - top);
+    ctx.strokeStyle = "#343842";
+    ctx.beginPath();
+    ctx.moveTo(TIMELINE_LEFT, bottom - 0.5);
+    ctx.lineTo(right, bottom - 0.5);
+    ctx.stroke();
+
+    const firstMinor = Math.ceil(this.viewStart / minor) * minor;
+    for (let frame = firstMinor; frame <= this.viewEnd + EPSILON; frame += minor) {
       const x = this.frameToX(frame, width);
-      const accent = index % 4 === 0;
-      ctx.strokeStyle = "#22d3ee";
-      ctx.lineWidth = accent ? 1.5 : 1;
-      ctx.globalAlpha = accent ? 0.42 : 0.24;
+      const major = Math.abs(frame % step) < EPSILON;
+      ctx.strokeStyle = major ? "#59606c" : "#3a3f48";
+      ctx.globalAlpha = major ? 0.72 : 0.5;
       ctx.beginPath();
-      ctx.moveTo(x + 0.5, top);
-      ctx.lineTo(x + 0.5, trackBottom);
+      ctx.moveTo(x + 0.5, bottom - (major ? 8 : 4));
+      ctx.lineTo(x + 0.5, bottom);
       ctx.stroke();
-      ctx.lineWidth = 1;
-      ctx.fillStyle = "#67e8f9";
-      ctx.globalAlpha = 0.95;
-      ctx.beginPath();
-      ctx.arc(x, top + 9, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-      if (labelEveryBeat || accent) {
+    }
+    ctx.globalAlpha = 1;
+
+    const firstTick = Math.ceil(this.viewStart / step) * step;
+    const tickWidth = Math.abs(
+      this.frameToX(firstTick + step, width) - this.frameToX(firstTick, width),
+    );
+    for (let frame = firstTick; frame <= this.viewEnd + EPSILON; frame += step) {
+      const x = this.frameToX(frame, width);
+      ctx.fillStyle = "#c0c4cc";
+      ctx.font = "8px Inter, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText(`${Math.round(frame)}f`, x, top + 3);
+      if (tickWidth >= 54) {
+        ctx.fillStyle = "#737984";
         ctx.font = "7px Inter, sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        ctx.fillText(String(index + 1), x, top + 16);
-      }
-      ctx.globalAlpha = 1;
-      if (this.hover?.y >= top && this.hover?.y <= bottom &&
-          Math.abs(this.hover.x - x) <= 6) {
-        hovered = { index, frame, x };
+        ctx.fillText(formatRulerTime(frame / this.fps()), x, top + 14);
       }
     }
+  }
 
-    const markerFamilies = [
-      { frames: this.detectedBeatFrames(), color: "#e879f9", y: top + 3, height: 8 },
-      { frames: this.onsetFrames(), color: "#f59e0b", y: bottom - 8, height: 6 },
+  drawAnalysisMarkers(ctx, width, top, bottom, tooltipTop) {
+    const right = width - TIMELINE_RIGHT;
+    const families = [
+      {
+        type: "detected",
+        label: "Detected",
+        frames: this.detectedBeatFrames(),
+        color: "#e879f9",
+        startY: bottom - 10,
+        active: this.magnetMode === "detected",
+      },
+      {
+        type: "onset",
+        label: "Onset",
+        frames: this.onsetFrames(),
+        color: "#f59e0b",
+        startY: bottom - 5,
+        active: this.magnetMode === "onset",
+      },
     ];
-    for (const family of markerFamilies) {
+    let hovered = null;
+    for (const family of families) {
       ctx.strokeStyle = family.color;
-      ctx.globalAlpha = 0.75;
+      ctx.lineWidth = family.active ? 1.5 : 1;
+      ctx.globalAlpha = family.active ? 0.82 : 0.28;
       for (const frame of family.frames) {
         if (frame < this.viewStart || frame > this.viewEnd) continue;
         const x = this.frameToX(frame, width);
         ctx.beginPath();
-        ctx.moveTo(x + 0.5, family.y);
-        ctx.lineTo(x + 0.5, family.y + family.height);
+        ctx.moveTo(x + 0.5, family.startY);
+        ctx.lineTo(x + 0.5, bottom - 1);
         ctx.stroke();
+        if (this.hover?.y >= top && this.hover?.y <= bottom &&
+            Math.abs(this.hover.x - x) <= 4 &&
+            (!hovered || Math.abs(this.hover.x - x) < hovered.distance)) {
+          hovered = {
+            ...family,
+            frame,
+            x,
+            distance: Math.abs(this.hover.x - x),
+          };
+        }
       }
     }
     ctx.globalAlpha = 1;
+    ctx.lineWidth = 1;
 
-    if (hovered) {
-      const text = `Beat ${hovered.index + 1} · frame ${hovered.frame} · ${formatClock(hovered.frame / this.fps())} · drag to align`;
+    if (hovered && !this.hitTestBeatMarker(this.hover.x, this.hover.y)) {
+      const text = `${hovered.label} · F${hovered.frame} · ${formatClock(hovered.frame / this.fps())}`;
       ctx.font = "9px Inter, sans-serif";
       const boxWidth = ctx.measureText(text).width + 12;
       const boxX = clamp(hovered.x - boxWidth / 2, TIMELINE_LEFT, right - boxWidth);
-      ctx.fillStyle = "#083344";
-      ctx.fillRect(boxX, bottom + 2, boxWidth, 18);
+      ctx.fillStyle = "rgba(24,24,27,.95)";
+      ctx.fillRect(boxX, tooltipTop + 5, boxWidth, 18);
+      ctx.fillStyle = hovered.color;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, boxX + 6, tooltipTop + 14);
+    }
+  }
+
+  drawBeatGrid(ctx, width, rulerBottom, contentTop, contentBottom) {
+    const right = width - TIMELINE_RIGHT;
+    const frames = this.beatFrames();
+    const visibleFrames = frames.filter((frame) => frame >= this.viewStart && frame <= this.viewEnd);
+    const markerSpacing = visibleFrames.length > 1
+      ? Math.abs(this.frameToX(visibleFrames[1], width) - this.frameToX(visibleFrames[0], width))
+      : Infinity;
+    const hovered = this.hover ? this.hitTestBeatMarker(this.hover.x, this.hover.y) : null;
+    const dragging = this.drag?.type === "beat-grid";
+    const groupStride = this.beatGridDensity() === "half_beat"
+      ? 8
+      : this.beatGridDensity() === "every_2_beats"
+      ? 2
+      : 4;
+
+    for (let index = 0; index < frames.length; index++) {
+      const frame = frames[index];
+      if (frame < this.viewStart || frame > this.viewEnd) continue;
+      const x = this.frameToX(frame, width);
+      const accent = index % groupStride === 0;
+      const focused = hovered?.index === index || (dragging && this.drag.markerIndex === index);
+      ctx.strokeStyle = "#22d3ee";
+      ctx.lineWidth = focused ? 2 : accent ? 1.25 : 1;
+      ctx.globalAlpha = focused ? 0.72 : accent ? (dragging ? 0.38 : 0.28) : (dragging ? 0.22 : 0.14);
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, contentTop);
+      ctx.lineTo(x + 0.5, contentBottom);
+      ctx.stroke();
+
+      ctx.globalAlpha = focused ? 1 : accent ? 0.9 : 0.72;
+      ctx.fillStyle = "#67e8f9";
+      ctx.beginPath();
+      ctx.arc(x, rulerBottom - 4, focused ? 4 : accent ? 3 : 2.25, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (accent || markerSpacing >= 38) {
+        ctx.fillStyle = focused ? "#ecfeff" : "#8ddde8";
+        ctx.font = "7px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(String(index + 1), x, rulerBottom - 9);
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 1;
+
+    if (hovered) {
+      const text = `Beat ${hovered.index + 1} · F${hovered.frame} · ${formatClock(hovered.frame / this.fps())} · drag to align`;
+      ctx.font = "9px Inter, sans-serif";
+      const boxWidth = ctx.measureText(text).width + 12;
+      const boxX = clamp(hovered.x - boxWidth / 2, TIMELINE_LEFT, right - boxWidth);
+      ctx.fillStyle = "rgba(8,51,68,.96)";
+      ctx.fillRect(boxX, contentTop + 5, boxWidth, 18);
       ctx.fillStyle = "#cffafe";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      ctx.fillText(text, boxX + 6, bottom + 11);
+      ctx.fillText(text, boxX + 6, contentTop + 14);
+    }
+  }
+
+  drawPromptClips(ctx, width, top, bottom) {
+    const right = width - TIMELINE_RIGHT;
+    const trackHeight = Math.max(80, bottom - top);
+    const cardY = top + 7;
+    const cardHeight = trackHeight - 14;
+    const previousHover = this.hover ? this.hitTest(this.hover.x, this.hover.y) : null;
+
+    ctx.fillStyle = "#15171c";
+    ctx.fillRect(TIMELINE_LEFT, top, right - TIMELINE_LEFT, trackHeight);
+    ctx.strokeStyle = "#2d3038";
+    ctx.strokeRect(TIMELINE_LEFT + 0.5, top + 0.5, right - TIMELINE_LEFT - 1, trackHeight - 1);
+
+    this.clipRects = [];
+    for (let index = 0; index < this.clips.length; index++) {
+      const clip = this.clips[index];
+      if (clip.end < this.viewStart || clip.start > this.viewEnd) continue;
+      const startX = this.frameToX(clip.start, width);
+      const endX = this.frameToX(clip.end, width);
+      const fadeInX = this.frameToX(clip.start + clip.fadeIn, width);
+      const fadeOutX = this.frameToX(clip.end - clip.fadeOut, width);
+      const x = clamp(startX, TIMELINE_LEFT, right);
+      const clippedEnd = clamp(endX, TIMELINE_LEFT, right);
+      const cardWidth = Math.max(2, clippedEnd - x);
+      const drawX = x + 1;
+      const drawWidth = Math.max(1, cardWidth - 2);
+      const selected = index === this.selectedIndex;
+      const hovered = previousHover?.index === index;
+
+      ctx.save();
+      if (selected) {
+        ctx.shadowColor = "rgba(167,139,250,.28)";
+        ctx.shadowBlur = 8;
+      }
+      ctx.fillStyle = selected ? "#353149" : hovered ? "#30333f" : "#292c36";
+      ctx.strokeStyle = selected ? "#a78bfa" : hovered ? "#686d7a" : "#454955";
+      ctx.lineWidth = selected ? 2 : 1;
+      ctx.beginPath();
+      ctx.roundRect(drawX, cardY, drawWidth, cardHeight, 6);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      if (fadeInX > startX) {
+        const fadeStart = clamp(startX, TIMELINE_LEFT, right);
+        const fadeEnd = clamp(fadeInX, TIMELINE_LEFT, right);
+        const gradient = ctx.createLinearGradient(fadeStart, 0, fadeEnd, 0);
+        gradient.addColorStop(0, "rgba(12,14,20,.72)");
+        gradient.addColorStop(1, "rgba(12,14,20,0)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(fadeStart, cardY + 2, Math.max(0, fadeEnd - fadeStart), cardHeight - 4);
+      }
+      if (fadeOutX < endX) {
+        const fadeStart = clamp(fadeOutX, TIMELINE_LEFT, right);
+        const fadeEnd = clamp(endX, TIMELINE_LEFT, right);
+        const gradient = ctx.createLinearGradient(fadeStart, 0, fadeEnd, 0);
+        gradient.addColorStop(0, "rgba(12,14,20,0)");
+        gradient.addColorStop(1, "rgba(12,14,20,.72)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(fadeStart, cardY + 2, Math.max(0, fadeEnd - fadeStart), cardHeight - 4);
+      }
+
+      if (selected || hovered) {
+        ctx.fillStyle = selected ? "#c4b5fd" : "#7b8190";
+        ctx.fillRect(drawX, cardY + 22, Math.min(3, drawWidth), Math.max(12, cardHeight - 44));
+        ctx.fillRect(Math.max(drawX, drawX + drawWidth - 3), cardY + 22, Math.min(3, drawWidth), Math.max(12, cardHeight - 44));
+      }
+      if (selected) {
+        for (const handleX of [fadeInX, fadeOutX]) {
+          if (handleX < TIMELINE_LEFT || handleX > right) continue;
+          ctx.fillStyle = "#ddd6fe";
+          ctx.beginPath();
+          ctx.moveTo(handleX, cardY + 3);
+          ctx.lineTo(handleX - 5, cardY + 9);
+          ctx.lineTo(handleX, cardY + 15);
+          ctx.lineTo(handleX + 5, cardY + 9);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      if (drawWidth > 24) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(drawX + 9, cardY + 8, Math.max(0, drawWidth - 18), cardHeight - 16);
+        ctx.clip();
+        ctx.fillStyle = "#f4f4f5";
+        ctx.font = "600 10px Inter, sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        const lines = canvasTextLines(ctx, clip.prompt, Math.max(1, drawWidth - 18), 2);
+        lines.forEach((line, lineIndex) => ctx.fillText(line, drawX + 9, cardY + 10 + lineIndex * 14));
+        ctx.fillStyle = selected ? "#c4b5fd" : "#9ca3af";
+        ctx.font = "8px Inter, sans-serif";
+        ctx.fillText(
+          `${clip.start}–${clip.end}f · ${(clip.start / this.fps()).toFixed(2)}–${(clip.end / this.fps()).toFixed(2)}s`,
+          drawX + 9,
+          cardY + cardHeight - 19,
+        );
+        ctx.restore();
+      }
+
+      this.clipRects.push({
+        index,
+        x,
+        y: cardY,
+        width: cardWidth,
+        height: cardHeight,
+        fadeInX,
+        fadeOutX,
+      });
+    }
+  }
+
+  drawGuidesAndPlayhead(ctx, width, layout) {
+    const right = width - TIMELINE_RIGHT;
+    const contentTop = this.waveformVisible ? layout.waveformTop : layout.trackTop;
+
+    if (this.beatAlignmentGuide &&
+        this.beatAlignmentGuide.frame >= this.viewStart &&
+        this.beatAlignmentGuide.frame <= this.viewEnd) {
+      const x = this.frameToX(this.beatAlignmentGuide.frame, width);
+      ctx.strokeStyle = "#f0abfc";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, layout.rulerBottom);
+      ctx.lineTo(x + 0.5, layout.trackBottom);
+      ctx.stroke();
+      ctx.fillStyle = "#701a75";
+      ctx.font = "8px Inter, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      const labelWidth = ctx.measureText(this.beatAlignmentGuide.label).width + 10;
+      const labelX = clamp(x + 5, TIMELINE_LEFT, right - labelWidth);
+      ctx.fillRect(labelX, contentTop + 4, labelWidth, 16);
+      ctx.fillStyle = "#fae8ff";
+      ctx.fillText(this.beatAlignmentGuide.label, labelX + 5, contentTop + 12);
+      ctx.lineWidth = 1;
+    }
+
+    if (this.snapGuideFrame != null &&
+        this.snapGuideFrame >= this.viewStart &&
+        this.snapGuideFrame <= this.viewEnd) {
+      const x = this.frameToX(this.snapGuideFrame, width);
+      ctx.strokeStyle = "#c4b5fd";
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, layout.rulerBottom);
+      ctx.lineTo(x + 0.5, layout.trackBottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    if (this.playheadFrame != null &&
+        this.playheadFrame >= this.viewStart &&
+        this.playheadFrame <= this.viewEnd) {
+      const x = this.frameToX(this.playheadFrame, width);
+      ctx.strokeStyle = "#fbbf24";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, layout.rulerTop);
+      ctx.lineTo(x + 0.5, layout.trackBottom);
+      ctx.stroke();
+      ctx.fillStyle = "#fbbf24";
+      ctx.beginPath();
+      ctx.moveTo(x, layout.rulerTop + 9);
+      ctx.lineTo(x - 6, layout.rulerTop + 1);
+      ctx.lineTo(x + 6, layout.rulerTop + 1);
+      ctx.closePath();
+      ctx.fill();
+      ctx.lineWidth = 1;
     }
   }
 
@@ -2661,26 +2990,17 @@ class BeatPromptSequencer {
     ctx.fillStyle = "#101013";
     ctx.fillRect(0, 0, cssWidth, cssHeight);
 
-    const right = cssWidth - TIMELINE_RIGHT;
     const layout = this.timelineLayout(cssHeight);
     const {
       sourceTop,
       sourceBottom,
-      frameTop,
-      frameBottom,
-      beatTop,
-      beatBottom,
+      rulerTop,
+      rulerBottom,
       waveformTop,
       waveformBottom,
       trackTop,
       trackBottom,
     } = layout;
-    const trackHeight = Math.max(80, trackBottom - trackTop);
-
-    ctx.fillStyle = "#18181c";
-    ctx.fillRect(TIMELINE_LEFT, trackTop, right - TIMELINE_LEFT, trackHeight);
-    ctx.strokeStyle = "#303036";
-    ctx.strokeRect(TIMELINE_LEFT + 0.5, trackTop + 0.5, right - TIMELINE_LEFT - 1, trackHeight - 1);
 
     if (this.waveformVisible) {
       if (this.sourceWaveformPreview) {
@@ -2688,173 +3008,18 @@ class BeatPromptSequencer {
       }
       this.drawWaveformLane(ctx, cssWidth, waveformTop, waveformBottom);
     }
-
-    const range = Math.max(1, this.viewEnd - this.viewStart);
-    const step = niceFrameStep(range, right - TIMELINE_LEFT, this.fps());
-    const minor = step % 4 === 0 ? step / 4 : step % 2 === 0 ? step / 2 : step;
-    const firstMinor = Math.ceil(this.viewStart / minor) * minor;
-    for (let frame = firstMinor; frame <= this.viewEnd + EPSILON; frame += minor) {
-      const x = this.frameToX(frame, cssWidth);
-      const major = frame % step === 0;
-      ctx.strokeStyle = major ? "#2b2b30" : "#202024";
-      ctx.globalAlpha = major ? 0.72 : 0.48;
-      ctx.beginPath();
-      ctx.moveTo(x + 0.5, trackTop);
-      ctx.lineTo(x + 0.5, trackBottom);
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-
-    const firstTick = Math.ceil(this.viewStart / step) * step;
-    ctx.font = "9px Inter, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    for (let frame = firstTick; frame <= this.viewEnd + EPSILON; frame += step) {
-      const x = this.frameToX(frame, cssWidth);
-      ctx.fillStyle = "#a1a1aa";
-      ctx.fillText(String(Math.round(frame)), x, frameTop + 2);
-    }
-    ctx.fillStyle = "#71717a";
-    ctx.textAlign = "right";
-    ctx.fillText("FRAMES", TIMELINE_LEFT - 5, frameTop + 2);
-
-    this.clipRects = [];
-    for (let index = 0; index < this.clips.length; index++) {
-      const clip = this.clips[index];
-      if (clip.end < this.viewStart || clip.start > this.viewEnd) continue;
-      const startX = this.frameToX(clip.start, cssWidth);
-      const endX = this.frameToX(clip.end, cssWidth);
-      const fadeInX = this.frameToX(clip.start + clip.fadeIn, cssWidth);
-      const fadeOutX = this.frameToX(clip.end - clip.fadeOut, cssWidth);
-      const x = clamp(startX, TIMELINE_LEFT, right);
-      const clippedEnd = clamp(endX, TIMELINE_LEFT, right);
-      const width = Math.max(2, clippedEnd - x);
-      const y = trackTop + 14;
-      const height = trackHeight - 28;
-      const selected = index === this.selectedIndex;
-
-      ctx.fillStyle = selected ? "#155e75" : "#31313a";
-      ctx.strokeStyle = selected ? "#67e8f9" : "#52525b";
-      ctx.lineWidth = selected ? 2 : 1;
-      ctx.beginPath();
-      ctx.roundRect(x, y, width, height, 6);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = selected ? "rgba(103,232,249,.17)" : "rgba(161,161,170,.10)";
-      if (fadeInX > startX) {
-        ctx.beginPath();
-        ctx.moveTo(clamp(startX, TIMELINE_LEFT, right), y + height);
-        ctx.lineTo(clamp(fadeInX, TIMELINE_LEFT, right), y);
-        ctx.lineTo(clamp(fadeInX, TIMELINE_LEFT, right), y + height);
-        ctx.closePath();
-        ctx.fill();
-      }
-      if (fadeOutX < endX) {
-        ctx.beginPath();
-        ctx.moveTo(clamp(fadeOutX, TIMELINE_LEFT, right), y);
-        ctx.lineTo(clamp(endX, TIMELINE_LEFT, right), y + height);
-        ctx.lineTo(clamp(fadeOutX, TIMELINE_LEFT, right), y + height);
-        ctx.closePath();
-        ctx.fill();
-      }
-
-      if (selected) {
-        for (const handleX of [fadeInX, fadeOutX]) {
-          if (handleX < TIMELINE_LEFT || handleX > right) continue;
-          ctx.fillStyle = "#a5f3fc";
-          ctx.beginPath();
-          ctx.moveTo(handleX, y + 2);
-          ctx.lineTo(handleX - 5, y + 11);
-          ctx.lineTo(handleX + 5, y + 11);
-          ctx.closePath();
-          ctx.fill();
-        }
-        ctx.fillStyle = "#a5f3fc";
-        ctx.fillRect(x, y + 20, Math.min(3, width), Math.max(10, height - 40));
-        ctx.fillRect(Math.max(x, x + width - 3), y + 20, Math.min(3, width), Math.max(10, height - 40));
-      }
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x + 8, y + 8, Math.max(0, width - 16), height - 16);
-      ctx.clip();
-      ctx.fillStyle = "#fafafa";
-      ctx.font = "600 10px Inter, sans-serif";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "top";
-      ctx.fillText(clip.prompt.replace(/\s+/g, " "), x + 9, y + 10);
-      ctx.fillStyle = "#a1a1aa";
-      ctx.font = "8px Inter, sans-serif";
-      ctx.fillText(`${clip.start}–${clip.end} frames · ${(clip.start / this.fps()).toFixed(2)}–${(clip.end / this.fps()).toFixed(2)}s`, x + 9, y + 28);
-      ctx.restore();
-
-      this.clipRects.push({ index, x, y, width, height, fadeInX, fadeOutX });
-    }
-
-    this.drawBeatLane(ctx, cssWidth, beatTop, beatBottom, trackBottom);
-
-    if (this.beatAlignmentGuide &&
-        this.beatAlignmentGuide.frame >= this.viewStart &&
-        this.beatAlignmentGuide.frame <= this.viewEnd) {
-      const x = this.frameToX(this.beatAlignmentGuide.frame, cssWidth);
-      ctx.strokeStyle = "#f0abfc";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(x + 0.5, beatTop);
-      ctx.lineTo(x + 0.5, trackBottom);
-      ctx.stroke();
-      ctx.fillStyle = "#701a75";
-      ctx.font = "8px Inter, sans-serif";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      const labelWidth = ctx.measureText(this.beatAlignmentGuide.label).width + 10;
-      const labelX = clamp(x + 5, TIMELINE_LEFT, right - labelWidth);
-      ctx.fillRect(labelX, beatBottom + 3, labelWidth, 16);
-      ctx.fillStyle = "#fae8ff";
-      ctx.fillText(this.beatAlignmentGuide.label, labelX + 5, beatBottom + 11);
-      ctx.lineWidth = 1;
-    }
-
-    if (this.snapGuideFrame != null && this.snapGuideFrame >= this.viewStart && this.snapGuideFrame <= this.viewEnd) {
-      const x = this.frameToX(this.snapGuideFrame, cssWidth);
-      ctx.strokeStyle = "#f0abfc";
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.moveTo(x + 0.5, beatTop);
-      ctx.lineTo(x + 0.5, trackBottom);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    if (this.playheadFrame != null && this.playheadFrame >= this.viewStart && this.playheadFrame <= this.viewEnd) {
-      const x = this.frameToX(this.playheadFrame, cssWidth);
-      ctx.strokeStyle = "#fbbf24";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x + 0.5, frameTop);
-      ctx.lineTo(x + 0.5, trackBottom);
-      ctx.stroke();
-    }
+    this.drawPromptClips(ctx, cssWidth, trackTop, trackBottom);
+    this.drawRuler(ctx, cssWidth, rulerTop, rulerBottom);
+    const contentTop = this.waveformVisible ? waveformTop : trackTop;
+    this.drawAnalysisMarkers(ctx, cssWidth, rulerTop, rulerBottom, contentTop);
+    this.drawBeatGrid(ctx, cssWidth, rulerBottom, contentTop, trackBottom);
+    this.drawGuidesAndPlayhead(ctx, cssWidth, layout);
 
     if (this.migrationPending) {
       this.emptyEl.textContent = "Run once to convert this legacy beat schedule into frames.";
     } else {
       this.emptyEl.textContent = this.clips.length ? "" : "Open Raw to repair the schedule, or add a prompt clip.";
     }
-    this.updateSummary();
-  }
-
-  updateSummary() {
-    const frames = this.sequenceFrameCount();
-    const beatCount = this.beatData?.beatTimes?.length || 0;
-    const detectedCount = this.beatData?.detectedBeatTimes?.length || 0;
-    const onsetCount = this.beatData?.onsetTimes?.length || 0;
-    const waveformBins = (this.beatData?.waveformPreview?.peaks?.length || 0) / 2;
-    this.summaryEl.textContent =
-      `${this.clips.length} prompts · ${frames} frames · ${(frames / this.fps()).toFixed(3)}s · ` +
-      `${beatCount} grid / ${detectedCount} detected / ${onsetCount} onsets · ` +
-      `${waveformBins ? `${waveformBins} waveform bins` : "waveform unavailable"}`;
   }
 
   dispose() {
@@ -2922,6 +3087,7 @@ class BeatPromptSequencerModal {
     this.libraryEntries = [];
     this.localEntries = [];
     this.libraryMode = "library";
+    this.libraryCollapsed = Boolean(node.properties?.flBeatPromptSequencer?.libraryCollapsed);
     this.widgetRestorers = [];
     this.previousBodyOverflow = "";
     this.closed = false;
@@ -2941,6 +3107,7 @@ class BeatPromptSequencerModal {
             <div class="flbps-modal-subtitle" data-role="modal-subtitle"></div>
           </div>
           <span class="flbps-spacer"></span>
+          <button class="flbps-button flbps-sidebar-toggle" data-action="toggle-library" title="Show or hide the audio library and sequence settings">Hide library</button>
           <button class="flbps-button primary flbps-modal-close" data-action="modal-close">Done</button>
         </div>
         <div class="flbps-modal-main">
@@ -2997,6 +3164,8 @@ class BeatPromptSequencerModal {
     this.libraryMessage = this.overlay.querySelector('[data-role="library-message"]');
     this.dropZone = this.overlay.querySelector('[data-role="drop-zone"]');
     this.editorHost = this.overlay.querySelector('[data-role="editor-host"]');
+    this.libraryToggle = this.overlay.querySelector('[data-action="toggle-library"]');
+    this.syncLibraryVisibility();
 
     this.fileInput = document.createElement("input");
     this.fileInput.type = "file";
@@ -3010,6 +3179,7 @@ class BeatPromptSequencerModal {
     this.library.append(this.fileInput, this.folderInput);
 
     this.overlay.querySelector('[data-action="modal-close"]').addEventListener("click", () => this.close());
+    this.libraryToggle.addEventListener("click", () => this.toggleLibrary());
     this.overlay.addEventListener("pointerdown", (event) => {
       if (event.target === this.overlay) this.close();
     });
@@ -3137,6 +3307,24 @@ class BeatPromptSequencerModal {
 
   handleEditorState() {
     this.syncSettings();
+  }
+
+  syncLibraryVisibility() {
+    this.shell.classList.toggle("library-collapsed", this.libraryCollapsed);
+    this.libraryToggle.textContent = this.libraryCollapsed ? "Show library" : "Hide library";
+  }
+
+  toggleLibrary() {
+    this.libraryCollapsed = !this.libraryCollapsed;
+    this.node.properties = this.node.properties || {};
+    this.node.properties.flBeatPromptSequencer = {
+      ...(this.node.properties.flBeatPromptSequencer || {}),
+      formatVersion: FORMAT_VERSION,
+      libraryCollapsed: this.libraryCollapsed,
+    };
+    this.syncLibraryVisibility();
+    this.node.graph?.change?.();
+    setTimeout(() => this.editor?.scheduleDraw(), 180);
   }
 
   chooseFile() {
