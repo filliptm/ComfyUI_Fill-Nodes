@@ -189,7 +189,7 @@ class VideoCombineAudioTests(unittest.TestCase):
 
 
 class VideoCombineExecutionTests(unittest.TestCase):
-    def test_execution_builds_native_video_and_returns_preview(self):
+    def test_execution_encodes_video_and_returns_preview(self):
         settings = video_combine.DEFAULT_RENDER_SETTINGS.copy()
         settings.update({
             "filename_prefix": "clips/test",
@@ -204,7 +204,6 @@ class VideoCombineExecutionTests(unittest.TestCase):
             "waveform": torch.ones((1, 2, 48000)),
             "sample_rate": 48000,
         }
-        native_video = mock.Mock()
 
         with (
             mock.patch.object(video_combine.folder_paths, "get_temp_directory", return_value="D:\\temp"),
@@ -213,7 +212,7 @@ class VideoCombineExecutionTests(unittest.TestCase):
                 "get_save_image_path",
                 return_value=("D:\\temp\\clips", "test", 7, "clips", "clips/test"),
             ) as save_path,
-            mock.patch.object(video_combine.InputImpl, "VideoFromComponents", return_value=native_video) as create_video,
+            mock.patch.object(video_combine, "_save_video") as save_video,
             mock.patch.object(video_combine.args, "disable_metadata", False),
         ):
             result = video_combine.FL_VideoCombine().combine_video(
@@ -225,24 +224,22 @@ class VideoCombineExecutionTests(unittest.TestCase):
             )
 
         save_path.assert_called_once_with("clips/test", "D:\\temp", 8, 6)
-        components = create_video.call_args.args[0]
-        self.assertEqual(components.images.shape, (3, 6, 8, 3))
-        self.assertEqual(float(components.frame_rate), 12.0)
-        self.assertEqual(components.audio["sample_rate"], 48000)
-        torch.testing.assert_close(components.audio["waveform"], audio["waveform"] * (10 ** (-6 / 20)))
-        self.assertEqual(create_video.call_args.kwargs["bit_depth"], 10)
-
         output_path = os.path.join("D:\\temp\\clips", "test_00007_.mp4")
-        native_video.save_to.assert_called_once_with(
-            output_path,
-            format=video_combine.Types.VideoContainer.MP4,
-            codec=video_combine.Types.VideoCodec.H264,
-            metadata={
+        save_video.assert_called_once()
+        save_args = save_video.call_args.args
+        self.assertEqual(save_args[0], output_path)
+        self.assertEqual(save_args[1].shape, (3, 6, 8, 3))
+        self.assertEqual(save_args[2]["sample_rate"], 48000)
+        torch.testing.assert_close(save_args[2]["waveform"], audio["waveform"] * (10 ** (-6 / 20)))
+        self.assertEqual(save_args[3:6], (12.0, 10, 23))
+        self.assertEqual(
+            save_args[6],
+            {
                 "workflow": {"nodes": []},
                 "prompt": {"1": {"class_type": "Test"}},
             },
-            crf=23,
         )
+
         self.assertEqual(result["result"], (output_path,))
         preview = result["ui"]["fl_video_combine"][0]
         self.assertEqual(preview["filename"], "test_00007_.mp4")
@@ -253,6 +250,66 @@ class VideoCombineExecutionTests(unittest.TestCase):
         self.assertEqual((preview["encoded_width"], preview["encoded_height"]), (8, 6))
         self.assertTrue(preview["has_audio"])
 
+    def test_encoder_reports_frame_progress_and_writes_audio_video(self):
+        images = torch.linspace(0, 1, 3 * 16 * 16 * 3).reshape(3, 16, 16, 3)
+        audio = {
+            "waveform": torch.zeros((1, 2, 12000)),
+            "sample_rate": 48000,
+        }
+        progress = mock.Mock()
+
+        with tempfile.TemporaryDirectory() as output_directory:
+            output_path = os.path.join(output_directory, "progress.mp4")
+            with mock.patch.object(video_combine, "ProgressBar", return_value=progress) as progress_bar:
+                video_combine._save_video(
+                    output_path,
+                    images,
+                    audio,
+                    12,
+                    8,
+                    23,
+                    {"workflow": {"nodes": []}},
+                )
+
+            progress_bar.assert_called_once_with(4)
+            self.assertEqual(
+                progress.update_absolute.call_args_list,
+                [mock.call(0), mock.call(1), mock.call(2), mock.call(3), mock.call(4)],
+            )
+            self.assertTrue(os.path.isfile(output_path))
+            with video_combine.av.open(output_path) as container:
+                self.assertEqual(len(container.streams.video), 1)
+                self.assertEqual(len(container.streams.audio), 1)
+                self.assertEqual(container.streams.video[0].width, 16)
+                self.assertEqual(container.streams.video[0].height, 16)
+                self.assertEqual(json.loads(container.metadata["workflow"]), {"nodes": []})
+
+    def test_encoder_removes_partial_output_when_progress_is_cancelled(self):
+        images = torch.zeros((2, 16, 16, 3))
+        progress = mock.Mock()
+        progress.update_absolute.side_effect = [None, video_combine.InterruptProcessingException()]
+
+        with tempfile.TemporaryDirectory() as output_directory:
+            output_path = os.path.join(output_directory, "cancelled.mp4")
+            with (
+                mock.patch.object(video_combine, "ProgressBar", return_value=progress),
+                self.assertRaises(video_combine.InterruptProcessingException),
+            ):
+                video_combine._save_video(output_path, images, None, 12, 8, 19, None)
+
+            self.assertFalse(os.path.exists(output_path))
+
+    def test_encoder_supports_ten_bit_video(self):
+        images = torch.linspace(0, 1, 2 * 16 * 16 * 3).reshape(2, 16, 16, 3)
+
+        with tempfile.TemporaryDirectory() as output_directory:
+            output_path = os.path.join(output_directory, "ten-bit.mp4")
+            with mock.patch.object(video_combine, "ProgressBar"):
+                video_combine._save_video(output_path, images, None, 12, 10, 23, None)
+
+            with video_combine.av.open(output_path) as container:
+                self.assertEqual(container.streams.video[0].codec_context.format.name, "yuv420p10le")
+
     def test_custom_directory_overrides_default_destination_and_uses_token_preview(self):
         with tempfile.TemporaryDirectory() as output_directory:
             settings = video_combine.DEFAULT_RENDER_SETTINGS.copy()
@@ -262,7 +319,6 @@ class VideoCombineExecutionTests(unittest.TestCase):
                 "save_output": False,
             })
             images = torch.ones((2, 4, 6, 3))
-            native_video = mock.Mock()
             output_path = os.path.join(output_directory, "custom_00003_.mp4")
 
             with (
@@ -273,7 +329,7 @@ class VideoCombineExecutionTests(unittest.TestCase):
                     "get_save_image_path",
                     return_value=(output_directory, "custom", 3, "", "custom"),
                 ) as save_path,
-                mock.patch.object(video_combine.InputImpl, "VideoFromComponents", return_value=native_video),
+                mock.patch.object(video_combine, "_save_video"),
                 mock.patch.object(video_combine, "register_preview_file", return_value="preview-token") as register_preview,
             ):
                 result = video_combine.FL_VideoCombine().combine_video(images, json.dumps(settings))

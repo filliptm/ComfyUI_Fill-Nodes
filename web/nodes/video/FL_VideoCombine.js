@@ -128,6 +128,7 @@ const STYLES = `
   .flvc-toggle[data-enabled="true"] .flvc-toggle-value { color: #86efac; }
   .flvc-more-button,
   .flvc-icon-button,
+  .flvc-sync-button,
   .flvc-menu-close,
   .flvc-reset-button {
     background: var(--flvc-control);
@@ -145,6 +146,7 @@ const STYLES = `
   }
   .flvc-more-button:hover,
   .flvc-icon-button:hover,
+  .flvc-sync-button:hover,
   .flvc-menu-close:hover,
   .flvc-reset-button:hover {
     border-color: var(--flvc-accent);
@@ -155,6 +157,7 @@ const STYLES = `
   }
   .flvc-more-button:focus-visible,
   .flvc-icon-button:focus-visible,
+  .flvc-sync-button:focus-visible,
   .flvc-menu-close:focus-visible,
   .flvc-reset-button:focus-visible {
     outline: 2px solid var(--flvc-accent);
@@ -236,6 +239,14 @@ const STYLES = `
     flex: 0 0 28px;
     height: 25px;
     padding: 0;
+  }
+  .flvc-sync-button {
+    border-radius: 4px;
+    flex: 0 0 38px;
+    font-size: 9px;
+    font-weight: 700;
+    height: 25px;
+    padding: 0 5px;
   }
   .flvc-time {
     color: #e4e4e7;
@@ -399,6 +410,25 @@ function formatTime(value) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+function syncVideoCombinePreviews() {
+  const videos = [];
+  for (const node of app.graph?._nodes || []) {
+    if (node.comfyClass !== "FL_VideoCombine") continue;
+    const video = node._flVideoCombinePanel?.video;
+    if (!video?.src || video.readyState < HTMLMediaElement.HAVE_METADATA) continue;
+    try {
+      video.pause();
+      video.currentTime = 0;
+      videos.push(video);
+    } catch {
+      // A preview can become unavailable while the graph is changing.
+    }
+  }
+  for (const video of videos) {
+    video.play().catch(() => {});
+  }
+}
+
 class VideoCombinePanel {
   constructor(node, settingsWidget, container) {
     this.node = node;
@@ -500,6 +530,7 @@ class VideoCombinePanel {
             <button class="flvc-icon-button" data-role="preview-mute" type="button" title="Mute preview">🔇</button>
             <input class="flvc-preview-volume" data-role="preview-volume" aria-label="Preview volume" type="range" min="0" max="100" step="1">
             <span class="flvc-preview-value" data-role="preview-volume-value">80%</span>
+            <button class="flvc-sync-button" data-role="sync" type="button" title="Restart all FL Video Combine previews together">Sync</button>
           </div>
         </div>
 
@@ -549,6 +580,7 @@ class VideoCombinePanel {
     this.previewMuteButton = this.container.querySelector('[data-role="preview-mute"]');
     this.previewVolume = this.container.querySelector('[data-role="preview-volume"]');
     this.previewVolumeValue = this.container.querySelector('[data-role="preview-volume-value"]');
+    this.syncButton = this.container.querySelector('[data-role="sync"]');
     this.time = this.container.querySelector('[data-role="time"]');
     this.audioToggle = this.container.querySelector('[data-role="audio-toggle"]');
     this.audioToggleValue = this.container.querySelector('[data-role="audio-toggle-value"]');
@@ -640,6 +672,7 @@ class VideoCombinePanel {
       this.node.properties.previewVolume = Number(this.previewVolume.value) / 100;
       this.applyPreviewAudio();
     });
+    this.syncButton.addEventListener("click", syncVideoCombinePreviews);
   }
 
   setMenuOpen(open) {
@@ -794,6 +827,9 @@ class VideoCombinePanel {
     this.video.pause();
     this.video.removeAttribute("src");
     this.video.load();
+    if (this.node._flVideoCombinePanel === this) {
+      delete this.node._flVideoCombinePanel;
+    }
     this.container.replaceChildren();
   }
 }
@@ -822,6 +858,7 @@ app.registerExtension({
     requestAnimationFrame(() => enforceMinimumNodeSize(node));
 
     const panel = new VideoCombinePanel(node, settingsWidget, container);
+    node._flVideoCombinePanel = panel;
 
     const originalOnExecuted = node.onExecuted;
     node.onExecuted = function (message) {
