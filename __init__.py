@@ -2,6 +2,8 @@ import logging
 
 logger = logging.getLogger("fl_fill_nodes")
 
+from . import routes
+
 # AI NODES
 from .nodes.ai.FL_Fal_Gemini_ImageEdit import FL_Fal_Gemini_ImageEdit
 from .nodes.ai.FL_Fal_GPTImage2_Edit import FL_Fal_GPTImage2_Edit
@@ -236,6 +238,8 @@ from .nodes.video.FL_VideoCadence import FL_VideoCadence
 from .nodes.video.FL_VideoCadenceCompile import FL_VideoCadenceCompile
 from .nodes.video.FL_VideoCrossfade import FL_VideoCrossfade
 from .nodes.video.FL_VideoCut import FL_VideoCut
+from .nodes.video.FL_LoadVideo import FL_LoadVideo
+from .nodes.video.FL_VideoCombine import FL_VideoCombine
 from .nodes.video.FL_VideoTrim import FL_VideoTrim
 
 # WIP NODES
@@ -367,6 +371,8 @@ NODE_CLASS_MAPPINGS = {
     "FL_ImageBatchToGrid": FL_ImageBatchToGrid,
     "FL_ApplyMask": FL_ApplyMask,
     "FL_ProResVideo": FL_ProResVideo,
+    "FL_LoadVideo": FL_LoadVideo,
+    "FL_VideoCombine": FL_VideoCombine,
     "FL_Padding": FL_Padding,
     "FL_GoogleDriveDownloader": FL_GoogleDriveDownloader,
     "FL_NodeLoader": FL_NodeLoader,
@@ -569,6 +575,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_ImageBatchToGrid": "FL Image Batch To Grid",
     "FL_ApplyMask": "FL Apply Mask",
     "FL_ProResVideo": "FL ProRes Video",
+    "FL_LoadVideo": "FL Load Video",
+    "FL_VideoCombine": "FL Video Combine",
     "FL_Padding": "FL Padding",
     "FL_GoogleDriveDownloader": "FL Google Drive Downloader",
     "FL_NodeLoader": "FL Node Loader",
