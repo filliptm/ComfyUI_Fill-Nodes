@@ -17,6 +17,7 @@ _HEADER = re.compile(
     r"^\s*\[\s*([0-9]+(?:\.[0-9]+)?)\s*-\s*([0-9]+(?:\.[0-9]+)?)"
     r"(?:\s*\|\s*(.*?))?\s*\]\s*$"
 )
+_HEADER_START = re.compile(r"^\s*\[\s*[0-9]+(?:\.[0-9]+)?\s*-")
 _EPS = 1e-6
 _DEFAULT_TIMELINE = (
     "[0 - 48 | fade_in=6 | fade_out=6]\n"
@@ -188,7 +189,7 @@ def _parse_schedule(text, default_fade_in, default_fade_out, time_unit="beats"):
             }
             continue
 
-        if line.lstrip().startswith("["):
+        if _HEADER_START.match(line):
             raise ValueError(
                 f"Beat prompt schedule line {line_number}: expected a header like "
                 "[0 - 8 | fade_in=0.5 | fade_out=0.5]."

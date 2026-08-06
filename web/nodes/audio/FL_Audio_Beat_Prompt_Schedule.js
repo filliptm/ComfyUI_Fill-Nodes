@@ -4,6 +4,7 @@ import { api } from "../../../../scripts/api.js";
 const STYLE_ID = "fl-beat-prompt-sequencer-styles";
 const INSTANCES = new Map();
 const HEADER_RE = /^\s*\[\s*([0-9]+(?:\.[0-9]+)?)\s*-\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\|\s*(.*?))?\s*\]\s*$/;
+const HEADER_START_RE = /^\s*\[\s*[0-9]+(?:\.[0-9]+)?\s*-/;
 const EPSILON = 1e-6;
 const FORMAT_VERSION = 11;
 const COMPATIBLE_FORMAT_VERSIONS = new Set([6, 7, 8, 9, 10, FORMAT_VERSION]);
@@ -330,23 +331,28 @@ const STYLES = `
     width: 310px;
     flex: 0 0 310px;
     min-height: 0;
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 9px;
     padding: 11px;
-    overflow: hidden;
+    overflow: visible;
     background: #17171b;
     border-right: 1px solid #303036;
-    transition: width .16s ease, flex-basis .16s ease, padding .16s ease,
-      opacity .12s ease, border-color .12s ease;
+    transition: width .16s ease, flex-basis .16s ease, padding .16s ease;
+  }
+  .flbps-library > :not(.flbps-sidebar-toggle) {
+    transition: opacity .1s ease, visibility .1s ease;
   }
   .flbps-modal-shell.library-collapsed .flbps-library {
-    width: 0;
-    flex-basis: 0;
-    padding-left: 0;
-    padding-right: 0;
+    width: 14px;
+    flex-basis: 14px;
+    gap: 0;
+    padding: 0;
+  }
+  .flbps-modal-shell.library-collapsed .flbps-library > :not(.flbps-sidebar-toggle) {
     opacity: 0;
-    border-right-color: transparent;
+    visibility: hidden;
     pointer-events: none;
   }
   .flbps-library-section { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; }
@@ -427,7 +433,35 @@ const STYLES = `
   .flbps-setting.checkbox { flex-direction: row; align-items: center; padding-top: 15px; }
   .flbps-setting.checkbox input { width: auto; height: auto; }
   .flbps-editor-host { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 8px; }
-  .flbps-sidebar-toggle { min-width: 82px; }
+  .flbps-sidebar-toggle {
+    width: 28px;
+    height: 52px;
+    min-width: 0;
+    position: absolute;
+    z-index: 4;
+    top: 50%;
+    right: -14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 1px 2px 0;
+    color: #a1a1aa;
+    background: #202027;
+    border: 1px solid #3f3f46;
+    border-radius: 0 8px 8px 0;
+    box-shadow: 4px 0 12px rgba(0, 0, 0, .28);
+    font-size: 20px;
+    line-height: 1;
+    transform: translateY(-50%);
+    cursor: pointer;
+  }
+  .flbps-sidebar-toggle:hover { color: #f4f4f5; background: #2a2a31; border-color: #52525b; }
+  .flbps-sidebar-toggle:focus-visible { outline: 2px solid #22d3ee; outline-offset: 2px; }
+  .flbps-modal-shell.library-collapsed .flbps-sidebar-toggle {
+    color: #cffafe;
+    background: #164e63;
+    border-color: #0e7490;
+  }
   .flbps-modal-close { min-width: 66px; }
   @keyframes flbps-fade-in { from { opacity: 0; } to { opacity: 1; } }
   @keyframes flbps-modal-in {
@@ -649,7 +683,7 @@ function parseTimeline(text, defaultFadeIn, defaultFadeOut) {
       };
       continue;
     }
-    if (line.trimStart().startsWith("[")) {
+    if (HEADER_START_RE.test(line)) {
       throw new Error(`Line ${index + 1}: invalid schedule header.`);
     }
     if (!current) {
@@ -824,7 +858,6 @@ class BeatPromptSequencer {
     this.dataFresh = false;
     this.viewStart = savedCompatible ? finiteNumber(saved.viewStart, 0) : 0;
     this.viewEnd = savedCompatible ? finiteNumber(saved.viewEnd, 0) : 0;
-    this.waveformVisible = saved.waveformVisible !== false;
     this.autoAnalyze = saved.autoAnalyze !== false;
 
     injectStyles();
@@ -907,13 +940,6 @@ class BeatPromptSequencer {
           </label>
           <button class="flbps-button" data-action="reset-offset" title="Reset the beat offset to zero">Zero</button>
         </div>
-        <span class="flbps-toolbar-divider"></span>
-        <div class="flbps-control-group">
-          <button class="flbps-button" data-action="zoom-out" title="Show more frames">Zoom -</button>
-          <button class="flbps-button" data-action="zoom-in" title="Show fewer frames">Zoom +</button>
-          <button class="flbps-button" data-action="fit" title="Show the complete frame range">Fit</button>
-          <button class="flbps-button" data-action="waveform" title="Show or hide the aligned audio waveform">Waveform</button>
-        </div>
         <span class="flbps-spacer"></span>
         <span class="flbps-control">Frames</span>
       </div>
@@ -991,19 +1017,8 @@ class BeatPromptSequencer {
     this.controls.beatGridDensity.value = this.beatGridDensity();
     this.controls.autoAnalyze.checked = this.autoAnalyze;
     this.syncBeatOffsetControls();
-    this.waveformButton = this.root.querySelector('[data-action="waveform"]');
-    this.waveformButton.classList.toggle("active", this.waveformVisible);
     this.controls.beatGridDensity.addEventListener("change", () => {
       this.setBeatGridDensity(this.controls.beatGridDensity.value);
-    });
-    this.root.querySelector('[data-action="zoom-out"]').addEventListener("click", () => this.zoom(1.5));
-    this.root.querySelector('[data-action="zoom-in"]').addEventListener("click", () => this.zoom(0.65));
-    this.root.querySelector('[data-action="fit"]').addEventListener("click", () => this.zoomToFit());
-    this.waveformButton.addEventListener("click", () => {
-      this.waveformVisible = !this.waveformVisible;
-      this.waveformButton.classList.toggle("active", this.waveformVisible);
-      this.saveViewState();
-      this.scheduleDraw();
     });
     this.controls.autoAnalyze.addEventListener("change", () => {
       this.autoAnalyze = this.controls.autoAnalyze.checked;
@@ -1257,13 +1272,13 @@ class BeatPromptSequencer {
     const previous = { ...(this.node.properties.flBeatPromptSequencer || {}) };
     delete previous.magnetMode;
     delete previous.snapMode;
+    delete previous.waveformVisible;
     this.node.properties.flBeatPromptSequencer = {
       ...previous,
       formatVersion: FORMAT_VERSION,
       beatData: savedBeatData,
       viewStart: this.viewStart,
       viewEnd: this.viewEnd,
-      waveformVisible: this.waveformVisible,
       autoAnalyze: this.autoAnalyze,
     };
     this.markDirty();
@@ -2517,14 +2532,14 @@ class BeatPromptSequencer {
   }
 
   timelineLayout(height = this.canvas.clientHeight) {
-    const sourceVisible = this.waveformVisible && Boolean(this.sourceWaveformPreview);
+    const sourceVisible = Boolean(this.sourceWaveformPreview);
     const sourceTop = sourceVisible ? 4 : null;
     const sourceBottom = sourceVisible ? 38 : null;
     const rulerTop = sourceVisible ? 44 : 4;
     const rulerBottom = rulerTop + 30;
-    const waveformTop = this.waveformVisible ? rulerBottom + 2 : null;
-    const waveformBottom = this.waveformVisible ? waveformTop + 92 : null;
-    const trackTop = this.waveformVisible ? waveformBottom + 7 : rulerBottom + 7;
+    const waveformTop = rulerBottom + 2;
+    const waveformBottom = waveformTop + 92;
+    const trackTop = waveformBottom + 7;
     return {
       sourceTop,
       sourceBottom,
@@ -2559,8 +2574,7 @@ class BeatPromptSequencer {
 
   hitTestTrim(x, y) {
     const layout = this.timelineLayout();
-    if (!this.waveformVisible ||
-        !this.sourceWaveformPreview ||
+    if (!this.sourceWaveformPreview ||
         y < layout.sourceTop ||
         y > layout.sourceBottom) {
       return null;
@@ -3661,15 +3675,13 @@ class BeatPromptSequencer {
       trackBottom,
     } = layout;
 
-    if (this.waveformVisible) {
-      if (this.sourceWaveformPreview) {
-        this.drawSourceOverview(ctx, cssWidth, sourceTop, sourceBottom);
-      }
-      this.drawWaveformLane(ctx, cssWidth, waveformTop, waveformBottom);
+    if (this.sourceWaveformPreview) {
+      this.drawSourceOverview(ctx, cssWidth, sourceTop, sourceBottom);
     }
+    this.drawWaveformLane(ctx, cssWidth, waveformTop, waveformBottom);
     this.drawPromptClips(ctx, cssWidth, trackTop, trackBottom);
     this.drawRuler(ctx, cssWidth, rulerTop, rulerBottom);
-    const contentTop = this.waveformVisible ? waveformTop : trackTop;
+    const contentTop = waveformTop;
     this.drawAnalysisMarkers(ctx, cssWidth, rulerTop, rulerBottom, contentTop);
     this.drawBeatGrid(ctx, cssWidth, rulerBottom, contentTop, trackBottom);
     this.drawGuidesAndPlayhead(ctx, cssWidth, layout);
@@ -3768,7 +3780,6 @@ class BeatPromptSequencerModal {
             <div class="flbps-modal-subtitle" data-role="modal-subtitle"></div>
           </div>
           <span class="flbps-spacer"></span>
-          <button class="flbps-button flbps-sidebar-toggle" data-action="toggle-library" title="Show or hide the audio library and sequence settings">Hide library</button>
           <button class="flbps-button primary flbps-modal-close" data-action="modal-close">Done</button>
         </div>
         <div class="flbps-modal-main">
@@ -3811,6 +3822,7 @@ class BeatPromptSequencerModal {
                 <div class="flbps-setting checkbox" title="Use every other detected beat and report half the detected BPM"><input data-setting="half-time" type="checkbox"><label>Half-time</label></div>
               </div>
             </div>
+            <button class="flbps-sidebar-toggle" data-action="toggle-library" type="button" aria-expanded="true" aria-label="Hide audio library and sequence settings" title="Hide audio library and sequence settings">&lsaquo;</button>
           </aside>
           <main class="flbps-editor-host" data-role="editor-host"></main>
         </div>
@@ -3980,7 +3992,12 @@ class BeatPromptSequencerModal {
 
   syncLibraryVisibility() {
     this.shell.classList.toggle("library-collapsed", this.libraryCollapsed);
-    this.libraryToggle.textContent = this.libraryCollapsed ? "Show library" : "Hide library";
+    const expanded = !this.libraryCollapsed;
+    const action = expanded ? "Hide" : "Show";
+    this.libraryToggle.textContent = expanded ? "\u2039" : "\u203a";
+    this.libraryToggle.setAttribute("aria-expanded", String(expanded));
+    this.libraryToggle.setAttribute("aria-label", `${action} audio library and sequence settings`);
+    this.libraryToggle.title = `${action} audio library and sequence settings`;
   }
 
   toggleLibrary() {

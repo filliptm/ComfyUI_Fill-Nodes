@@ -12,6 +12,7 @@ from comfy_extras import nodes_minimax_h3 as minimax_h3
 
 
 H3Timeline = io.Custom("FL_H3_TIMELINE")
+H3ShotPlan = io.Custom("FL_H3_SHOT_PLAN")
 FLPromptSchedule = io.Custom("FL_PROMPT_SCHEDULE")
 FLPromptEnvelope = io.Custom("FL_PROMPT_ENVELOPE")
 _HEADER = re.compile(r"^\s*\[\s*([0-9:.]+)\s*-\s*([0-9:.]+)\s*\]\s*$")
@@ -247,6 +248,86 @@ def _schedule_sections(schedule):
                 f"FL prompt schedule section {index + 1} crossfade exceeds the previous section."
             )
     return sections
+
+
+def _video_token_edges(video_t):
+    edges = [0]
+    for token in range(video_t):
+        edges.append(edges[-1] + _VIDEO_FRAMES_PER_TOKEN[token % len(_VIDEO_FRAMES_PER_TOKEN)])
+    return edges
+
+
+def _align_h3_sections(sections, authored_frame_count, frame_count, video_t, transition_mode):
+    resolved = [dict(section) for section in sections]
+    edges = _video_token_edges(video_t)
+    if edges[-1] != frame_count:
+        raise ValueError(
+            f"FL MiniMax H3 timeline resolved {edges[-1]} frames from {video_t} video tokens, "
+            f"but the latent contains {frame_count} frames."
+        )
+
+    adjustments = []
+    if transition_mode == "hard":
+        for first, second in zip(resolved, resolved[1:]):
+            if abs(first["end"] - second["start"]) > _EPS:
+                continue
+            crossfade_start = second.get("crossfade_start", second["start"])
+            crossfade_end = second.get("crossfade_end", second["start"])
+            if crossfade_end > crossfade_start + _EPS:
+                continue
+
+            authored_frame = round(second["start"] * minimax_h3.FPS)
+            candidates = [
+                edge for edge in edges
+                if edge > first["start"] * minimax_h3.FPS + _EPS
+                and edge < second["end"] * minimax_h3.FPS - _EPS
+            ]
+            if not candidates:
+                continue
+            aligned_frame = min(
+                candidates,
+                key=lambda edge: (
+                    abs(edge - authored_frame),
+                    edge < authored_frame,
+                    edge,
+                ),
+            )
+            if aligned_frame == authored_frame:
+                continue
+
+            first_end = first["end"]
+            second_start = second["start"]
+            aligned_seconds = aligned_frame / minimax_h3.FPS
+            if "fade_out_start" in first:
+                fade_out = max(0.0, first_end - first["fade_out_start"])
+                first["fade_out_start"] = max(first["start"], aligned_seconds - fade_out)
+            if "fade_in_end" in second:
+                fade_in = max(0.0, second["fade_in_end"] - second_start)
+                second["fade_in_end"] = min(second["end"], aligned_seconds + fade_in)
+            if "crossfade_start" in second:
+                second["crossfade_start"] = aligned_seconds
+                second["crossfade_end"] = aligned_seconds
+            first["end"] = aligned_seconds
+            second["start"] = aligned_seconds
+            adjustments.append({
+                "authored_frame": authored_frame,
+                "aligned_frame": aligned_frame,
+                "offset_frames": aligned_frame - authored_frame,
+            })
+
+    extended_final_section = False
+    if resolved and frame_count > authored_frame_count:
+        last = resolved[-1]
+        if round(last["end"] * minimax_h3.FPS) == authored_frame_count:
+            previous_end = last["end"]
+            render_end = frame_count / minimax_h3.FPS
+            if "fade_out_start" in last:
+                fade_out = max(0.0, previous_end - last["fade_out_start"])
+                last["fade_out_start"] = max(last["start"], render_end - fade_out)
+            last["end"] = render_end
+            extended_final_section = True
+
+    return resolved, adjustments, extended_final_section
 
 
 def _prompt_envelopes(prompt_envelopes):
@@ -978,7 +1059,8 @@ class FL_MiniMaxH3PromptTimeline(io.ComfyNode):
         ref_video_audios=None,
         ref_audios=None,
     ):
-        latent, frame_count = minimax_h3._empty_av_latent(width, height, length)
+        authored_frame_count = max(5, round(length))
+        latent, frame_count = minimax_h3._empty_av_latent(width, height, authored_frame_count)
         video, audio = _h3_tensors(latent)
         duration = frame_count / minimax_h3.FPS
         if prompt_schedule is not None:
@@ -995,6 +1077,14 @@ class FL_MiniMaxH3PromptTimeline(io.ComfyNode):
             duration_policy,
             resolved_transition_mode,
             resolved_transition_frames,
+        )
+        authored_sections = [dict(section) for section in sections]
+        sections, boundary_adjustments, extended_final_section = _align_h3_sections(
+            sections,
+            authored_frame_count,
+            frame_count,
+            video.shape[2],
+            resolved_transition_mode,
         )
         resolved_prompt_envelopes = _prompt_envelopes(prompt_envelopes)
 
@@ -1038,10 +1128,15 @@ class FL_MiniMaxH3PromptTimeline(io.ComfyNode):
         timeline_object = {
             "type": "minimax_h3_prompt_timeline",
             "frame_count": frame_count,
+            "authored_frame_count": authored_frame_count,
+            "padding_frames": frame_count - authored_frame_count,
             "video_t": video.shape[2],
             "audio_t": audio.shape[-1],
             "duration": duration,
+            "authored_sections": authored_sections,
             "sections": sections,
+            "boundary_adjustments": boundary_adjustments,
+            "extended_final_section": extended_final_section,
             "conditioning_groups": conditioning_groups,
             "prompt_envelopes": resolved_prompt_envelopes,
             "prompt_envelope_groups": prompt_envelope_groups,
@@ -1054,12 +1149,15 @@ class FL_MiniMaxH3PromptTimeline(io.ComfyNode):
         scheduled_conditioning = _apply_timeline(timeline_object, latent)
         logging.info(
             "FL MiniMax H3 timeline: %d sections, %d unique timeline prompts, "
-            "%d reactive envelopes, %d unique reactive prompts, %d frames, %.3fs.",
+            "%d reactive envelopes, %d unique reactive prompts, %d authored frames, "
+            "%d render frames, %d aligned hard boundaries, %.3fs.",
             len(sections),
             len(conditioning_groups),
             len(resolved_prompt_envelopes),
             len(prompt_envelope_groups),
+            authored_frame_count,
             frame_count,
+            len(boundary_adjustments),
             duration,
         )
         return io.NodeOutput(
@@ -1104,3 +1202,387 @@ class FL_MiniMaxH3ApplyTimeline(io.ComfyNode):
     @classmethod
     def execute(cls, timeline, latent):
         return io.NodeOutput(_apply_timeline(timeline, latent))
+
+
+def _independent_shot_sections(schedule):
+    sections = _schedule_sections(schedule)
+    try:
+        fps = float(schedule["fps"])
+        duration = float(schedule["duration"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("FL MiniMax H3 Beat Shot Planner received invalid schedule timing.") from error
+    if not math.isfinite(fps) or abs(fps - minimax_h3.FPS) > _EPS:
+        raise ValueError(
+            f"FL MiniMax H3 Beat Shot Planner requires a {minimax_h3.FPS} fps prompt schedule."
+        )
+    if not math.isfinite(duration) or duration <= 0:
+        raise ValueError("FL MiniMax H3 Beat Shot Planner requires a positive schedule duration.")
+
+    total_frames = round(duration * minimax_h3.FPS)
+    raw_sections = schedule["sections"]
+    resolved = []
+    for index, (section, raw) in enumerate(zip(sections, raw_sections), 1):
+        start_frame = raw.get("start_frame", round(section["start"] * minimax_h3.FPS))
+        end_frame = raw.get("end_frame", round(section["end"] * minimax_h3.FPS))
+        if (
+            isinstance(start_frame, bool)
+            or isinstance(end_frame, bool)
+            or not isinstance(start_frame, (int, float))
+            or not isinstance(end_frame, (int, float))
+            or not math.isfinite(start_frame)
+            or not math.isfinite(end_frame)
+            or abs(start_frame - round(start_frame)) > _EPS
+            or abs(end_frame - round(end_frame)) > _EPS
+        ):
+            raise ValueError(
+                f"FL MiniMax H3 Beat Shot Planner section {index} has invalid frame boundaries."
+            )
+        start_frame = round(start_frame)
+        end_frame = round(end_frame)
+        if start_frame < 0 or end_frame <= start_frame or end_frame > total_frames:
+            raise ValueError(
+                f"FL MiniMax H3 Beat Shot Planner section {index} has an invalid frame range."
+            )
+        if section["crossfade_end"] > section["crossfade_start"] + _EPS:
+            raise ValueError(
+                "FL MiniMax H3 Beat Shot Planner renders hard scene cuts. "
+                f"Remove the crossfade from section {index} before rendering independent shots."
+            )
+        resolved.append({
+            **section,
+            "start_frame": start_frame,
+            "end_frame": end_frame,
+        })
+
+    if not resolved:
+        raise ValueError("FL MiniMax H3 Beat Shot Planner requires at least one prompt section.")
+    if resolved[0]["start_frame"] != 0:
+        raise ValueError("FL MiniMax H3 Beat Shot Planner requires the first section to start at frame 0.")
+    for index, (first, second) in enumerate(zip(resolved, resolved[1:]), 2):
+        if first["end_frame"] != second["start_frame"]:
+            raise ValueError(
+                "FL MiniMax H3 Beat Shot Planner requires complete touching sections; "
+                f"there is a gap or overlap before section {index}."
+            )
+    if resolved[-1]["end_frame"] != total_frames:
+        raise ValueError(
+            "FL MiniMax H3 Beat Shot Planner requires the final section to end at "
+            f"frame {total_frames}."
+        )
+    return resolved, total_frames
+
+
+def _shot_audio(audio, start_frame, end_frame):
+    if not isinstance(audio, dict):
+        raise TypeError("FL MiniMax H3 Beat Shot Planner received invalid timeline audio.")
+    waveform = audio.get("waveform")
+    sample_rate = audio.get("sample_rate")
+    if not isinstance(waveform, torch.Tensor) or waveform.ndim != 3 or waveform.shape[0] != 1:
+        raise ValueError(
+            "FL MiniMax H3 Beat Shot Planner expects audio waveform shape [1, channels, samples]."
+        )
+    if (
+        isinstance(sample_rate, bool)
+        or not isinstance(sample_rate, (int, float))
+        or not math.isfinite(sample_rate)
+        or sample_rate <= 0
+    ):
+        raise ValueError("FL MiniMax H3 Beat Shot Planner received an invalid audio sample rate.")
+    sample_rate = round(sample_rate)
+    start_sample = round(start_frame * sample_rate / minimax_h3.FPS)
+    end_sample = round(end_frame * sample_rate / minimax_h3.FPS)
+    if end_sample > waveform.shape[-1]:
+        raise ValueError(
+            "FL MiniMax H3 Beat Shot Planner timeline audio is shorter than the prompt schedule."
+        )
+    return {
+        "waveform": waveform[..., start_sample:end_sample].clone(),
+        "sample_rate": sample_rate,
+    }
+
+
+def _shot_prompt_envelopes(prompt_envelopes, start_frame, render_frames):
+    start = start_frame / minimax_h3.FPS
+    duration = render_frames / minimax_h3.FPS
+    resolved = []
+    for envelope in prompt_envelopes:
+        count = max(1, math.ceil(duration * envelope["fps"]))
+        weights = [
+            _envelope_at_time(
+                envelope,
+                start + (position + 0.5) / envelope["fps"],
+            )
+            for position in range(count)
+        ]
+        resolved.append({
+            "prompt": envelope["prompt"],
+            "weights": weights,
+            "fps": envelope["fps"],
+            "duration": duration,
+        })
+    return resolved
+
+
+class FL_MiniMaxH3BeatShotPlanner(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="FL_MiniMaxH3BeatShotPlanner",
+            display_name="FL MiniMax H3 Beat Shot Planner",
+            category="🏵️Fill Nodes/Prompting",
+            description=(
+                "Turns an FL beat prompt schedule into independent MiniMax H3 shots with "
+                "shot-local audio and conditioning."
+            ),
+            inputs=[
+                io.Clip.Input(
+                    "clip",
+                    tooltip="MiniMax H3 text encoder used for each independent shot.",
+                ),
+                io.Vae.Input(
+                    "vae",
+                    tooltip="MiniMax H3 video VAE used to encode image and video references.",
+                ),
+                io.Vae.Input(
+                    "audio_vae",
+                    tooltip="MiniMax H3 audio VAE used to encode each shot's matching audio slice.",
+                ),
+                FLPromptSchedule.Input(
+                    "prompt_schedule",
+                    tooltip="Exact 24 fps shot ranges from FL Audio Beat Prompt Schedule.",
+                ),
+                io.Audio.Input(
+                    "timeline_audio",
+                    tooltip=(
+                        "Frame-aligned cropped audio from FL Audio Beat Prompt Schedule. "
+                        "Each shot receives only its matching slice."
+                    ),
+                ),
+                io.String.Input(
+                    "global_prompt",
+                    multiline=True,
+                    dynamic_prompts=True,
+                    tooltip="Persistent character, identity, visual style, and production context.",
+                ),
+                io.Int.Input(
+                    "width",
+                    default=1344,
+                    min=32,
+                    max=nodes.MAX_RESOLUTION,
+                    step=32,
+                    tooltip="Width of every independently rendered shot.",
+                ),
+                io.Int.Input(
+                    "height",
+                    default=768,
+                    min=32,
+                    max=nodes.MAX_RESOLUTION,
+                    step=32,
+                    tooltip="Height of every independently rendered shot.",
+                ),
+                io.Combo.Input(
+                    "affect_audio",
+                    options=["video only", "video and audio"],
+                    default="video only",
+                    tooltip="Choose whether scheduled prompt masks also affect H3 audio tokens.",
+                ),
+                io.Combo.Input(
+                    "ref_image_size",
+                    options=["match", "max"],
+                    default="match",
+                    tooltip="Reference image sizing, matching the standard MiniMax H3 reference node.",
+                ),
+                io.Autogrow.Input(
+                    "prompt_envelopes",
+                    optional=True,
+                    tooltip="Audio-reactive prompt envelopes, sliced and rebased for every shot.",
+                    template=io.Autogrow.TemplatePrefix(
+                        input=FLPromptEnvelope.Input("prompt_envelope"),
+                        prefix="prompt_envelope_",
+                        min=0,
+                        max=10,
+                    ),
+                ),
+                io.Autogrow.Input(
+                    "ref_images",
+                    optional=True,
+                    tooltip="Character or scene images applied to every independent shot.",
+                    template=io.Autogrow.TemplatePrefix(
+                        input=io.Image.Input("ref_image"),
+                        prefix="ref_image_",
+                        min=0,
+                        max=9,
+                    ),
+                ),
+                io.Autogrow.Input(
+                    "ref_videos",
+                    optional=True,
+                    tooltip="Reference videos applied independently to each shot.",
+                    template=io.Autogrow.TemplatePrefix(
+                        input=io.Image.Input("ref_video"),
+                        prefix="ref_video_",
+                        min=0,
+                        max=3,
+                    ),
+                ),
+                io.Autogrow.Input(
+                    "ref_video_audios",
+                    optional=True,
+                    tooltip="Soundtracks paired by index with reference videos.",
+                    template=io.Autogrow.TemplatePrefix(
+                        input=io.Audio.Input("ref_video_audio"),
+                        prefix="ref_video_audio_",
+                        min=0,
+                        max=3,
+                    ),
+                ),
+                io.Autogrow.Input(
+                    "ref_audios",
+                    optional=True,
+                    tooltip="Additional global audio references applied after the shot-local timeline audio.",
+                    template=io.Autogrow.TemplatePrefix(
+                        input=io.Audio.Input("ref_audio"),
+                        prefix="ref_audio_",
+                        min=0,
+                        max=3,
+                    ),
+                ),
+            ],
+            outputs=[
+                H3ShotPlan.Output(
+                    display_name="shot_plan",
+                    tooltip="Independent nested H3 latents and conditioning for sequential sampling.",
+                )
+            ],
+        )
+
+    @classmethod
+    def execute(
+        cls,
+        clip,
+        vae,
+        audio_vae,
+        prompt_schedule,
+        timeline_audio,
+        global_prompt,
+        width,
+        height,
+        affect_audio,
+        ref_image_size,
+        prompt_envelopes=None,
+        ref_images=None,
+        ref_videos=None,
+        ref_video_audios=None,
+        ref_audios=None,
+    ):
+        sections, total_frames = _independent_shot_sections(prompt_schedule)
+        envelopes = _prompt_envelopes(prompt_envelopes)
+        shots = []
+        total_render_frames = 0
+
+        for index, section in enumerate(sections):
+            start_frame = section["start_frame"]
+            end_frame = section["end_frame"]
+            authored_frames = end_frame - start_frame
+            latent, render_frames = minimax_h3._empty_av_latent(
+                width,
+                height,
+                authored_frames,
+            )
+            video, audio = _h3_tensors(latent)
+            local_audio = _shot_audio(timeline_audio, start_frame, end_frame)
+            shot_ref_audios = {"timeline_audio": local_audio}
+            shot_ref_audios.update(ref_audios or {})
+            ref_items, ref_blocks = _prepare_references(
+                vae,
+                audio_vae,
+                width,
+                height,
+                render_frames,
+                ref_image_size,
+                ref_images,
+                ref_videos,
+                ref_video_audios,
+                shot_ref_audios,
+            )
+
+            local_section = {
+                **section,
+                "start": 0.0,
+                "end": authored_frames / minimax_h3.FPS,
+                "fade_in_end": max(0.0, section["fade_in_end"] - section["start"]),
+                "fade_out_start": max(0.0, section["fade_out_start"] - section["start"]),
+                "crossfade_start": 0.0,
+                "crossfade_end": 0.0,
+            }
+            shot_envelopes = _shot_prompt_envelopes(
+                envelopes,
+                start_frame,
+                render_frames,
+            )
+            global_conditioning = _encode_prompt(
+                clip,
+                global_prompt.strip(),
+                ref_items,
+                ref_blocks,
+            )
+            conditioning_groups = _conditioning_groups(
+                clip,
+                global_prompt,
+                [local_section],
+                ref_items,
+                ref_blocks,
+            )
+            prompt_envelope_groups = _prompt_envelope_groups(
+                clip,
+                global_prompt,
+                shot_envelopes,
+                ref_items,
+                ref_blocks,
+            )
+            timeline = {
+                "type": "minimax_h3_prompt_timeline",
+                "frame_count": render_frames,
+                "video_t": video.shape[2],
+                "audio_t": audio.shape[-1],
+                "sections": [local_section],
+                "conditioning_groups": conditioning_groups,
+                "prompt_envelopes": shot_envelopes,
+                "prompt_envelope_groups": prompt_envelope_groups,
+                "global_conditioning": global_conditioning,
+                "transition_mode": "hard",
+                "transition_frames": 0,
+                "affect_audio": affect_audio,
+            }
+            shots.append({
+                "index": index,
+                "start_frame": start_frame,
+                "end_frame": end_frame,
+                "authored_frames": authored_frames,
+                "render_frames": render_frames,
+                "padding_frames": render_frames - authored_frames,
+                "prompt": section["prompt"],
+                "conditioning": _apply_timeline(timeline, latent),
+                "latent": latent,
+            })
+            total_render_frames += render_frames
+
+        plan = {
+            "type": "minimax_h3_beat_shot_plan",
+            "version": 1,
+            "fps": minimax_h3.FPS,
+            "width": width,
+            "height": height,
+            "total_frames": total_frames,
+            "total_render_frames": total_render_frames,
+            "shots": shots,
+        }
+        logging.info(
+            "FL MiniMax H3 beat shot planner: %d shots, %d authored frames, "
+            "%d render frames, %d padding frames.",
+            len(shots),
+            total_frames,
+            total_render_frames,
+            total_render_frames - total_frames,
+        )
+        return io.NodeOutput(plan)

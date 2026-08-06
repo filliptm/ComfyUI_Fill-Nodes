@@ -1,3 +1,4 @@
+import copy
 import importlib.util
 import pathlib
 import unittest
@@ -338,6 +339,150 @@ class TimelineMaskTests(unittest.TestCase):
         self.assertTrue(applied[-1][1]["default"])
 
 
+class H3BoundaryAlignmentTests(unittest.TestCase):
+    @staticmethod
+    def section(start_frame, end_frame, prompt):
+        start = start_frame / 24
+        end = end_frame / 24
+        return {
+            "start": start,
+            "end": end,
+            "fade_in_end": start,
+            "fade_out_start": end,
+            "crossfade_start": start,
+            "crossfade_end": start,
+            "curve": "linear",
+            "prompt": prompt,
+        }
+
+    def test_video_token_edges_match_h3_frame_grid(self):
+        edges = timeline._video_token_edges(67)
+
+        self.assertEqual(edges[:7], [0, 1, 5, 9, 13, 17, 18])
+        self.assertEqual(edges[-1], 226)
+
+    def test_hard_boundaries_align_without_mutating_authored_sections(self):
+        sections = [
+            self.section(0, 54, "First."),
+            self.section(54, 109, "Second."),
+            self.section(109, 163, "Third."),
+            self.section(163, 217, "Fourth."),
+        ]
+        authored = copy.deepcopy(sections)
+
+        aligned, adjustments, extended = timeline._align_h3_sections(
+            sections,
+            authored_frame_count=217,
+            frame_count=226,
+            video_t=67,
+            transition_mode="hard",
+        )
+
+        self.assertEqual(sections, authored)
+        self.assertEqual(
+            adjustments,
+            [
+                {"authored_frame": 54, "aligned_frame": 56, "offset_frames": 2},
+                {"authored_frame": 109, "aligned_frame": 111, "offset_frames": 2},
+                {"authored_frame": 163, "aligned_frame": 162, "offset_frames": -1},
+            ],
+        )
+        self.assertEqual(
+            [round(section["start"] * 24) for section in aligned],
+            [0, 56, 111, 162],
+        )
+        self.assertEqual(
+            [round(section["end"] * 24) for section in aligned],
+            [56, 111, 162, 226],
+        )
+        self.assertTrue(extended)
+
+        video, _ = timeline._temporal_weights(
+            aligned,
+            video_t=67,
+            audio_t=377,
+            transition_mode="hard",
+            transition_frames=0,
+            affect_audio="video only",
+        )
+        for token_weights in zip(*video):
+            self.assertEqual(sum(token_weights), 1.0)
+            self.assertTrue(all(weight in (0.0, 1.0) for weight in token_weights))
+
+    def test_crossfade_boundary_is_preserved(self):
+        sections = [
+            self.section(0, 54, "First."),
+            self.section(54, 109, "Second."),
+        ]
+        sections[1]["crossfade_start"] = 27 / 24
+        sections[1]["crossfade_end"] = 81 / 24
+
+        aligned, adjustments, _ = timeline._align_h3_sections(
+            sections,
+            authored_frame_count=109,
+            frame_count=124,
+            video_t=37,
+            transition_mode="hard",
+        )
+
+        self.assertEqual(round(aligned[0]["end"] * 24), 54)
+        self.assertEqual(round(aligned[1]["start"] * 24), 54)
+        self.assertEqual(round(aligned[1]["crossfade_start"] * 24), 27)
+        self.assertEqual(round(aligned[1]["crossfade_end"] * 24), 81)
+        self.assertEqual(adjustments, [])
+
+    def test_fade_lengths_move_with_aligned_boundary(self):
+        sections = [
+            self.section(0, 54, "First."),
+            self.section(54, 109, "Second."),
+        ]
+        sections[0]["fade_out_start"] = 50 / 24
+        sections[1]["fade_in_end"] = 60 / 24
+
+        aligned, _, _ = timeline._align_h3_sections(
+            sections,
+            authored_frame_count=109,
+            frame_count=124,
+            video_t=37,
+            transition_mode="hard",
+        )
+
+        self.assertEqual(round(aligned[0]["fade_out_start"] * 24), 52)
+        self.assertEqual(round(aligned[1]["fade_in_end"] * 24), 62)
+
+    def test_intentional_tail_is_not_extended(self):
+        sections = [self.section(0, 209, "First.")]
+
+        aligned, _, extended = timeline._align_h3_sections(
+            sections,
+            authored_frame_count=217,
+            frame_count=226,
+            video_t=67,
+            transition_mode="hard",
+        )
+
+        self.assertEqual(round(aligned[0]["end"] * 24), 209)
+        self.assertFalse(extended)
+
+    def test_soft_transition_keeps_authored_boundary(self):
+        sections = [
+            self.section(0, 54, "First."),
+            self.section(54, 109, "Second."),
+        ]
+
+        aligned, adjustments, _ = timeline._align_h3_sections(
+            sections,
+            authored_frame_count=109,
+            frame_count=111,
+            video_t=33,
+            transition_mode="cosine",
+        )
+
+        self.assertEqual(adjustments, [])
+        self.assertEqual(round(aligned[0]["end"] * 24), 54)
+        self.assertEqual(round(aligned[1]["start"] * 24), 54)
+
+
 class TimelineNodeTests(unittest.TestCase):
     def test_schema_exposes_native_tooltips(self):
         for node in (
@@ -383,6 +528,12 @@ class TimelineNodeTests(unittest.TestCase):
         self.assertEqual(audio.shape, (1, 32, 2, 8))
         self.assertEqual(output[3]["type"], "minimax_h3_prompt_timeline")
         self.assertEqual(len(output[3]["conditioning_groups"]), 1)
+        self.assertEqual(output[3]["authored_frame_count"], 5)
+        self.assertEqual(output[3]["padding_frames"], 0)
+        self.assertEqual(
+            output[3]["boundary_adjustments"],
+            [{"authored_frame": 2, "aligned_frame": 1, "offset_frames": -1}],
+        )
         self.assertIn("mask", output[0][0][1])
         self.assertTrue(output[0][-1][1]["default"])
 

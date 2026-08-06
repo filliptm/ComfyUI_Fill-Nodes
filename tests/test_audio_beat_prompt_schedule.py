@@ -132,6 +132,39 @@ class BeatPromptScheduleTests(unittest.TestCase):
                 sequence_duration=0,
             )
 
+    def test_bracketed_prompt_lines_are_not_treated_as_headers(self):
+        sections = schedule._parse_schedule(
+            (
+                "[0 - 24]\n"
+                "[Subject and action]\n"
+                "The rider looks over her shoulder.\n"
+                "[Camera]\n"
+                "Low tracking shot."
+            ),
+            0.0,
+            0.0,
+            "frames",
+        )
+
+        self.assertEqual(
+            sections[0]["prompt"],
+            (
+                "[Subject and action]\n"
+                "The rider looks over her shoulder.\n"
+                "[Camera]\n"
+                "Low tracking shot."
+            ),
+        )
+
+    def test_malformed_numeric_header_is_still_rejected(self):
+        with self.assertRaisesRegex(ValueError, "expected a header"):
+            schedule._parse_schedule(
+                "[0 - 24]\nFirst prompt.\n[24 - later]\nSecond prompt.",
+                0.0,
+                0.0,
+                "frames",
+            )
+
     def test_crossfade_resolves_around_touching_frame_boundary(self):
         output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
             beat_positions=beat_json(),
