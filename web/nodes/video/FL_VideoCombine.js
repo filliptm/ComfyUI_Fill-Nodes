@@ -410,23 +410,70 @@ function formatTime(value) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function syncVideoCombinePreviews() {
-  const videos = [];
-  for (const node of app.graph?._nodes || []) {
-    if (node.comfyClass !== "FL_VideoCombine") continue;
-    const video = node._flVideoCombinePanel?.video;
-    if (!video?.src || video.readyState < HTMLMediaElement.HAVE_METADATA) continue;
-    try {
-      video.pause();
-      video.currentTime = 0;
-      videos.push(video);
-    } catch {
-      // A preview can become unavailable while the graph is changing.
+const synchronizedPanels = new Set();
+let synchronizationFrame = null;
+
+function getVideoCombinePanels() {
+  return (app.graph?._nodes || [])
+    .filter((node) => node.comfyClass === "FL_VideoCombine")
+    .map((node) => node._flVideoCombinePanel)
+    .filter(Boolean);
+}
+
+function stopSynchronization() {
+  if (synchronizationFrame !== null) {
+    cancelAnimationFrame(synchronizationFrame);
+    synchronizationFrame = null;
+  }
+  synchronizedPanels.clear();
+}
+
+function removeSynchronizedPanel(panel) {
+  synchronizedPanels.delete(panel);
+  if (synchronizedPanels.size < 2 && synchronizationFrame !== null) {
+    cancelAnimationFrame(synchronizationFrame);
+    synchronizationFrame = null;
+  }
+}
+
+function maintainSynchronization() {
+  synchronizationFrame = null;
+  for (const panel of synchronizedPanels) {
+    if (!panel.isSynchronizationActive()) synchronizedPanels.delete(panel);
+  }
+  const panels = [...synchronizedPanels];
+  if (panels.length < 2 || document.hidden) return;
+
+  const leader = panels[0].video;
+  if (!leader.paused && leader.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+    for (const panel of panels.slice(1)) {
+      const video = panel.video;
+      if (video.paused || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) continue;
+      if (Number.isFinite(video.duration) && leader.currentTime >= video.duration) continue;
+      if (Math.abs(video.currentTime - leader.currentTime) > 0.08) {
+        video.currentTime = leader.currentTime;
+      }
     }
   }
-  for (const video of videos) {
-    video.play().catch(() => {});
+  synchronizationFrame = requestAnimationFrame(maintainSynchronization);
+}
+
+function syncVideoCombinePreviews() {
+  const panels = getVideoCombinePanels().filter((panel) => panel.hasPreview());
+  if (!panels.length) return;
+
+  stopSynchronization();
+  for (const panel of panels) panel.prepareForSynchronization();
+  for (const panel of panels) synchronizedPanels.add(panel);
+  for (const panel of panels) panel.requestPlayback(true);
+  if (panels.length > 1) {
+    synchronizationFrame = requestAnimationFrame(maintainSynchronization);
   }
+}
+
+function pauseAllVideoCombinePreviews() {
+  stopSynchronization();
+  for (const panel of getVideoCombinePanels()) panel.pausePlayback(false);
 }
 
 class VideoCombinePanel {
@@ -439,6 +486,8 @@ class VideoCombinePanel {
     this.configError = "";
     this.handleDocumentPointerDown = null;
     this.handleDocumentKeyDown = null;
+    this.playbackRequested = false;
+    this.restartAtStart = false;
 
     this.node.properties ||= {};
     if (!Number.isFinite(this.node.properties.previewVolume)) {
@@ -641,12 +690,16 @@ class VideoCombinePanel {
     this.playButton.addEventListener("click", () => {
       if (!this.video.src) return;
       if (this.video.paused) {
-        this.video.play().catch(() => {});
+        this.requestPlayback();
       } else {
-        this.video.pause();
+        this.pausePlayback();
       }
     });
     this.video.addEventListener("play", () => {
+      if (!this.playbackRequested || document.hidden) {
+        this.pausePlayback();
+        return;
+      }
       this.playButton.textContent = "❚❚";
     });
     this.video.addEventListener("pause", () => {
@@ -654,9 +707,12 @@ class VideoCombinePanel {
     });
     this.video.addEventListener("timeupdate", () => this.updateTime());
     this.video.addEventListener("loadedmetadata", () => {
+      if (this.restartAtStart) {
+        this.video.currentTime = 0;
+        this.restartAtStart = false;
+      }
       this.placeholder.style.display = "none";
       this.updateTime();
-      this.video.play().catch(() => {});
     });
     this.video.addEventListener("error", () => {
       if (!this.video.src) return;
@@ -673,6 +729,40 @@ class VideoCombinePanel {
       this.applyPreviewAudio();
     });
     this.syncButton.addEventListener("click", syncVideoCombinePreviews);
+  }
+
+  hasPreview() {
+    return Boolean(this.preview && this.video.src);
+  }
+
+  isSynchronizationActive() {
+    return this.playbackRequested && !this.video.ended;
+  }
+
+  requestPlayback(keepSynchronized = false) {
+    if (!this.video.src) return;
+    if (!keepSynchronized) removeSynchronizedPanel(this);
+    this.playbackRequested = true;
+    this.video.play().catch(() => {
+      this.playbackRequested = false;
+      removeSynchronizedPanel(this);
+    });
+  }
+
+  pausePlayback(removeFromSynchronization = true) {
+    this.playbackRequested = false;
+    this.video.pause();
+    if (removeFromSynchronization) removeSynchronizedPanel(this);
+  }
+
+  prepareForSynchronization() {
+    this.pausePlayback(false);
+    this.restartAtStart = true;
+    if (this.video.readyState !== HTMLMediaElement.HAVE_NOTHING) {
+      this.video.currentTime = 0;
+      this.restartAtStart = false;
+      this.updateTime();
+    }
   }
 
   setMenuOpen(open) {
@@ -766,6 +856,8 @@ class VideoCombinePanel {
 
   loadPreview(preview) {
     if (!preview?.filename) return;
+    this.pausePlayback();
+    this.restartAtStart = false;
     this.preview = preview;
     if (preview.preview_url) {
       const separator = preview.preview_url.includes("?") ? "&" : "?";
@@ -818,13 +910,14 @@ class VideoCombinePanel {
   }
 
   dispose() {
+    removeSynchronizedPanel(this);
     if (this.handleDocumentPointerDown) {
       document.removeEventListener("pointerdown", this.handleDocumentPointerDown);
     }
     if (this.handleDocumentKeyDown) {
       document.removeEventListener("keydown", this.handleDocumentKeyDown);
     }
-    this.video.pause();
+    this.pausePlayback(false);
     this.video.removeAttribute("src");
     this.video.load();
     if (this.node._flVideoCombinePanel === this) {
@@ -836,6 +929,12 @@ class VideoCombinePanel {
 
 app.registerExtension({
   name: "ComfyUI.FL_VideoCombine",
+  setup() {
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) pauseAllVideoCombinePreviews();
+    });
+    window.addEventListener("pagehide", pauseAllVideoCombinePreviews);
+  },
   nodeCreated(node) {
     if (node.comfyClass !== "FL_VideoCombine") return;
 
