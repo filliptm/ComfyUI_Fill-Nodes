@@ -12,6 +12,7 @@ from ..nodes.audio.audio_separation import (
 )
 from ..nodes.audio.audio_files import audio_library_entries
 from ..nodes.audio.audio_timeline import analyze_audio_file
+from ..nodes.audio.beat_this_detector import BeatThisError, model_status
 
 
 _separation_jobs = {}
@@ -78,14 +79,18 @@ async def analyze_audio_timeline(request):
             float(values.get("fps", 24.0)),
             int(values.get("trim_start_frame", 0)),
             int(values.get("length_frames", 0)),
-            values.get("bpm_method", "beat_intervals"),
             bool(values.get("half_time", False)),
             int(values.get("beat_offset_ms", 0)),
             values.get("analysis_source", "mix"),
         )
         return web.json_response(analysis)
-    except (TypeError, ValueError) as error:
+    except (BeatThisError, TypeError, ValueError) as error:
         return web.json_response({"error": str(error)}, status=400)
+
+
+@PromptServer.instance.routes.get("/fl/audio-prompt-timeline/beat-model/status")
+async def beat_model_status(_request):
+    return web.json_response(model_status())
 
 
 @PromptServer.instance.routes.get("/fl/audio-prompt-timeline/files")

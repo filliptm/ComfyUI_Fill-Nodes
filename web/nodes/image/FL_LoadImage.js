@@ -985,7 +985,7 @@ class LoadImagePanel {
       return { width: settings.width, height: settings.height };
     }
     let scale;
-    if (!settings.width && !settings.height) return null;
+    if (!settings.width && !settings.height) return { width, height };
     if (!settings.width) scale = settings.height / height;
     else if (!settings.height) scale = settings.width / width;
     else scale = Math.min(settings.width / width, settings.height / height);

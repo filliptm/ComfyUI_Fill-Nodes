@@ -9,7 +9,13 @@ from .audio_files import (
     available_audio_files,
     resolve_audio_path,
 )
-from .audio_timeline import analyze_audio_file, apply_beat_offset
+from .audio_timeline import (
+    ANALYSIS_VERSION,
+    DETECTOR_VERSION,
+    analyze_audio_file,
+    apply_beat_offset,
+    cached_analysis_audio_file,
+)
 
 
 FLPromptSchedule = io.Custom("FL_PROMPT_SCHEDULE")
@@ -83,6 +89,39 @@ def _load_beat_data(beat_positions):
     )
     if not isinstance(base_detected_beat_times, list):
         base_detected_beat_times = []
+    downbeat_times = data.get("downbeat_times", [])
+    if not isinstance(downbeat_times, list):
+        downbeat_times = []
+    base_downbeat_times = data.get("base_downbeat_times", downbeat_times)
+    if not isinstance(base_downbeat_times, list):
+        base_downbeat_times = []
+    detected_downbeat_times = data.get("detected_downbeat_times", downbeat_times)
+    if not isinstance(detected_downbeat_times, list):
+        detected_downbeat_times = []
+    base_detected_downbeat_times = data.get(
+        "base_detected_downbeat_times",
+        detected_downbeat_times,
+    )
+    if not isinstance(base_detected_downbeat_times, list):
+        base_detected_downbeat_times = []
+    detected_beat_confidences = data.get("detected_beat_confidences", [])
+    if not isinstance(detected_beat_confidences, list):
+        detected_beat_confidences = []
+    base_detected_beat_confidences = data.get(
+        "base_detected_beat_confidences",
+        detected_beat_confidences,
+    )
+    if not isinstance(base_detected_beat_confidences, list):
+        base_detected_beat_confidences = []
+    detected_downbeat_confidences = data.get("detected_downbeat_confidences", [])
+    if not isinstance(detected_downbeat_confidences, list):
+        detected_downbeat_confidences = []
+    base_detected_downbeat_confidences = data.get(
+        "base_detected_downbeat_confidences",
+        detected_downbeat_confidences,
+    )
+    if not isinstance(base_detected_downbeat_confidences, list):
+        base_detected_downbeat_confidences = []
     return {
         "bpm": bpm,
         "grid_bpm": data.get("grid_bpm", bpm),
@@ -91,11 +130,25 @@ def _load_beat_data(beat_positions):
         "beat_grid_density": data.get("beat_grid_density", "every_beat"),
         "beat_times": beat_times,
         "base_beat_times": base_beat_times,
+        "downbeat_times": downbeat_times,
+        "base_downbeat_times": base_downbeat_times,
         "audio_duration": duration,
         "detected_beat_times": data.get("detected_beat_times", []),
         "base_detected_beat_times": base_detected_beat_times,
+        "detected_downbeat_times": detected_downbeat_times,
+        "base_detected_downbeat_times": base_detected_downbeat_times,
+        "detected_beat_confidences": detected_beat_confidences,
+        "base_detected_beat_confidences": base_detected_beat_confidences,
+        "detected_downbeat_confidences": detected_downbeat_confidences,
+        "base_detected_downbeat_confidences": base_detected_downbeat_confidences,
         "onset_times": data.get("onset_times", []),
         "drum_times": data.get("drum_times", {}),
+        "bpm_source": data.get("bpm_source", ""),
+        "analysis_source": data.get("analysis_source", ""),
+        "beat_analysis_source": data.get("beat_analysis_source", ""),
+        "detector_version": data.get("detector_version", ""),
+        "detector": data.get("detector") if isinstance(data.get("detector"), dict) else None,
+        "analysis_cache_hit": bool(data.get("analysis_cache_hit", False)),
         "waveform_preview": (
             data.get("waveform_preview")
             if isinstance(data.get("waveform_preview"), dict)
@@ -239,6 +292,42 @@ def _parse_schedule(text, default_fade_in, default_fade_out, time_unit="beats"):
                 f"Beat prompt schedule line {section['line']}: the first section cannot crossfade."
             )
         previous = section
+    return sections
+
+
+def _apply_render_groups(sections, value):
+    if value is None or value == "":
+        return sections
+    try:
+        payload = json.loads(value) if isinstance(value, str) else value
+    except json.JSONDecodeError as error:
+        raise ValueError(f"Beat prompt render groups is not valid JSON: {error.msg}.") from error
+    if not isinstance(payload, dict) or payload.get("version") != 1:
+        raise ValueError("Beat prompt render groups must be a version 1 object.")
+    groups = payload.get("section_groups")
+    if not isinstance(groups, list) or len(groups) != len(sections):
+        raise ValueError(
+            "Beat prompt render groups must contain one section_groups entry per prompt section."
+        )
+
+    positions = {}
+    for index, group in enumerate(groups):
+        if group is None:
+            continue
+        if isinstance(group, bool) or not isinstance(group, int) or group < 1:
+            raise ValueError(
+                f"Beat prompt render group for section {index + 1} must be a positive integer or null."
+            )
+        positions.setdefault(group, []).append(index)
+
+    for group, indices in positions.items():
+        if indices != list(range(indices[0], indices[-1] + 1)):
+            raise ValueError(f"Beat prompt render group {group} must contain consecutive sections.")
+        for previous, current in zip(indices, indices[1:]):
+            if abs(sections[previous]["end_position"] - sections[current]["start_position"]) > _EPS:
+                raise ValueError(f"Beat prompt render group {group} requires touching prompt sections.")
+        for index in indices:
+            sections[index]["render_group"] = group
     return sections
 
 
@@ -393,7 +482,7 @@ def _frame_sections(sections, fps, total_frames):
             total_frames,
             max(crossfade_start, round(section["crossfade_end"] * fps)),
         )
-        frame_sections.append({
+        frame_section = {
             "line": section["line"],
             "start_frame": start_frame,
             "end_frame": end_frame,
@@ -404,7 +493,10 @@ def _frame_sections(sections, fps, total_frames):
             "crossfade_frames": crossfade_end - crossfade_start,
             "prompt": section["prompt"],
             "curve": section["curve"],
-        })
+        }
+        if "render_group" in section:
+            frame_section["render_group"] = section["render_group"]
+        frame_sections.append(frame_section)
     return frame_sections
 
 
@@ -519,13 +611,6 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
                     step=1,
                     tooltip="Source frame where the selected audio crop begins.",
                 ),
-                io.Combo.Input(
-                    "bpm_method",
-                    display_name="BPM method",
-                    options=["beat_intervals", "onset_strength"],
-                    default="beat_intervals",
-                    tooltip="Choose median detected beat intervals or Librosa onset-strength tempo.",
-                ),
                 io.Boolean.Input(
                     "half_time",
                     display_name="half-time",
@@ -546,12 +631,12 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
                 ),
                 io.Combo.Input(
                     "analysis_source",
-                    display_name="analysis source",
+                    display_name="transient source",
                     options=["mix", "drums", "vocals", "bass", "other"],
                     default="mix",
                     tooltip=(
-                        "Analyze the full mix or an explicitly separated stem. Stem choices become "
-                        "available after separation finishes."
+                        "Choose the waveform and transient reference shown in the editor. Beat This "
+                        "always analyzes the master mix; stem choices become available after separation."
                     ),
                 ),
                 io.Combo.Input(
@@ -562,6 +647,22 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
                     tooltip=(
                         "Backing value for the sequencer's Grid control. Every beat uses the "
                         "detected tempo; half-beat adds subdivisions."
+                    ),
+                ),
+                io.String.Input(
+                    "render_groups",
+                    default="",
+                    tooltip=(
+                        "Sequencer-owned render grouping metadata. The popup editor manages this "
+                        "automatically; empty keeps every prompt section independent."
+                    ),
+                ),
+                io.String.Input(
+                    "analysis_cache_key",
+                    default="",
+                    tooltip=(
+                        "Sequencer-owned analysis cache reference used to restore a previously "
+                        "selected local audio file after workflow widget migrations."
                     ),
                 ),
             ],
@@ -598,25 +699,28 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
         sequence_duration=0,
         audio_file="",
         trim_start_frame=0,
-        bpm_method="beat_intervals",
         half_time=False,
         beat_offset_ms=0,
         analysis_source="mix",
         beat_grid_density="every_beat",
+        render_groups="",
+        analysis_cache_key="",
     ):
         internal_analysis = None
         cropped_audio = None
+        if not audio_file and analysis_cache_key:
+            audio_file = cached_analysis_audio_file(analysis_cache_key)
         if audio_file:
             internal_analysis, cropped_audio = analyze_audio_file(
                 audio_file,
                 fps,
                 trim_start_frame,
                 sequence_duration,
-                bpm_method,
                 half_time,
                 beat_offset_ms,
                 analysis_source,
                 beat_grid_density,
+                detect_beats=not bool(beat_positions),
             )
         if beat_positions:
             beat_payload = _parse_beat_payload(beat_positions)
@@ -658,13 +762,17 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
             audio_duration,
             fps,
         )
-        sections = _resolve_schedule(
+        parsed_sections = _apply_render_groups(
             _parse_schedule(
                 timeline,
                 default_fade_in,
                 default_fade_out,
                 time_unit,
             ),
+            render_groups,
+        )
+        sections = _resolve_schedule(
+            parsed_sections,
             beat_times,
             audio_duration,
             curve,
@@ -693,19 +801,16 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
             "beat_grid_density": beat_data["beat_grid_density"],
             "beat_times": beat_times,
             "base_beat_times": beat_data["base_beat_times"],
-            "detected_beat_times": (
-                internal_analysis["detected_beat_times"]
-                if internal_analysis is not None
-                else beat_data["detected_beat_times"]
-            ),
-            "base_detected_beat_times": (
-                internal_analysis.get(
-                    "base_detected_beat_times",
-                    internal_analysis["detected_beat_times"],
-                )
-                if internal_analysis is not None
-                else beat_data["base_detected_beat_times"]
-            ),
+            "downbeat_times": beat_data["downbeat_times"],
+            "base_downbeat_times": beat_data["base_downbeat_times"],
+            "detected_beat_times": beat_data["detected_beat_times"],
+            "base_detected_beat_times": beat_data["base_detected_beat_times"],
+            "detected_downbeat_times": beat_data["detected_downbeat_times"],
+            "base_detected_downbeat_times": beat_data["base_detected_downbeat_times"],
+            "detected_beat_confidences": beat_data["detected_beat_confidences"],
+            "base_detected_beat_confidences": beat_data["base_detected_beat_confidences"],
+            "detected_downbeat_confidences": beat_data["detected_downbeat_confidences"],
+            "base_detected_downbeat_confidences": beat_data["base_detected_downbeat_confidences"],
             "beat_offset_ms": int(round(beat_offset_ms)),
             "onset_times": (
                 internal_analysis["onset_times"]
@@ -734,7 +839,24 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
             "total_frames": total_frames,
             "sections": sections,
             "frame_sections": frame_sections,
+            "bpm_source": beat_data["bpm_source"],
+            "analysis_source": (
+                internal_analysis.get("analysis_source", analysis_source)
+                if internal_analysis is not None
+                else beat_data["analysis_source"]
+            ),
+            "beat_analysis_source": beat_data["beat_analysis_source"],
+            "detector_version": beat_data["detector_version"],
+            "detector": beat_data["detector"],
+            "analysis_cache_hit": (
+                bool(internal_analysis.get("analysis_cache_hit", False))
+                if internal_analysis is not None
+                else beat_data["analysis_cache_hit"]
+            ),
         }
+        if internal_analysis is not None:
+            ui_payload["audio_file"] = internal_analysis.get("audio_file", audio_file)
+            ui_payload["cache_key"] = internal_analysis.get("cache_key", "")
         waveform = (
             internal_analysis["waveform_preview"]
             if internal_analysis is not None
@@ -751,7 +873,20 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
         )
 
     @classmethod
-    def fingerprint_inputs(cls, audio_file="", **kwargs):
+    def fingerprint_inputs(
+        cls,
+        audio_file="",
+        analysis_cache_key="",
+        beat_positions=None,
+        **kwargs,
+    ):
+        if not audio_file and analysis_cache_key:
+            audio_file = cached_analysis_audio_file(analysis_cache_key)
         if not audio_file:
             return None
-        return audio_file_hash(resolve_audio_path(audio_file))
+        analysis_version = (
+            f"audio-timeline-{ANALYSIS_VERSION}"
+            if beat_positions
+            else f"{DETECTOR_VERSION}:timeline-{ANALYSIS_VERSION}"
+        )
+        return f"{analysis_version}:{audio_file_hash(resolve_audio_path(audio_file))}"

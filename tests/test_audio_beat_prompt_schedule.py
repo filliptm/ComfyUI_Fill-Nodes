@@ -81,6 +81,66 @@ class BeatPromptScheduleTests(unittest.TestCase):
         self.assertIsNone(output[2])
         self.assertEqual(output[3], 120.0)
 
+    def test_render_groups_are_attached_without_changing_timeline_syntax(self):
+        node_output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
+            beat_positions=beat_json(),
+            timeline=(
+                "[0 - 20]\nFirst.\n\n"
+                "[20 - 40]\nSecond.\n\n"
+                "[40 - 60]\nThird."
+            ),
+            default_fade_in=0.0,
+            default_fade_out=0.0,
+            curve="linear",
+            time_unit="frames",
+            fps=24.0,
+            sequence_duration=60,
+            render_groups=json.dumps({
+                "version": 1,
+                "section_groups": [1, 1, None],
+            }),
+        )
+        output = node_output.result[0]
+
+        self.assertEqual(output["sections"][0]["render_group"], 1)
+        self.assertEqual(output["sections"][1]["render_group"], 1)
+        self.assertNotIn("render_group", output["sections"][2])
+        self.assertEqual(
+            node_output.ui["fl_prompt_sequencer"][0]["frame_sections"][1]["render_group"],
+            1,
+        )
+
+    def test_render_groups_require_matching_consecutive_touching_sections(self):
+        sections = schedule._parse_schedule(
+            "[0 - 10]\nFirst.\n[10 - 20]\nSecond.\n[20 - 30]\nThird.",
+            0.0,
+            0.0,
+            "frames",
+        )
+
+        with self.assertRaisesRegex(ValueError, "one section_groups entry"):
+            schedule._apply_render_groups(
+                sections,
+                {"version": 1, "section_groups": [1, 1]},
+            )
+        with self.assertRaisesRegex(ValueError, "consecutive"):
+            schedule._apply_render_groups(
+                sections,
+                {"version": 1, "section_groups": [1, None, 1]},
+            )
+
+        sections = schedule._parse_schedule(
+            "[0 - 10]\nFirst.\n[12 - 20]\nSecond.",
+            0.0,
+            0.0,
+            "frames",
+        )
+        with self.assertRaisesRegex(ValueError, "touching"):
+            schedule._apply_render_groups(
+                sections,
+                {"version": 1, "section_groups": [1, 1]},
+            )
+
     def test_seconds_mode_uses_direct_positions(self):
         output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
             beat_positions=beat_json(),
@@ -391,11 +451,12 @@ class BeatPromptScheduleTests(unittest.TestCase):
             [
                 "audio_file",
                 "trim_start_frame",
-                "bpm_method",
                 "half_time",
                 "beat_offset_ms",
                 "analysis_source",
                 "beat_grid_density",
+                "render_groups",
+                "analysis_cache_key",
             ],
         )
         self.assertEqual(
@@ -413,7 +474,14 @@ class BeatPromptScheduleTests(unittest.TestCase):
         analysis = {
             "bpm": 120.0,
             "beat_times": [0.0, 0.5],
+            "downbeat_times": [0.0],
             "detected_beat_times": [0.05, 0.52],
+            "detected_downbeat_times": [0.05],
+            "detected_beat_confidences": [0.9, 0.8],
+            "detected_downbeat_confidences": [0.95],
+            "detector": {"name": "beat_this"},
+            "analysis_source": "drums",
+            "beat_analysis_source": "mix",
             "onset_times": [0.05, 0.25, 0.52],
             "audio_duration": 1.0,
             "source_duration": 2.0,
@@ -448,8 +516,60 @@ class BeatPromptScheduleTests(unittest.TestCase):
         self.assertEqual(output.result[3], 120.0)
         payload = output.ui["fl_prompt_sequencer"][0]
         self.assertEqual(payload["detected_beat_times"], [0.05, 0.52])
+        self.assertEqual(payload["downbeat_times"], [0.0])
+        self.assertEqual(payload["detected_downbeat_times"], [0.05])
+        self.assertEqual(payload["detected_beat_confidences"], [0.9, 0.8])
+        self.assertEqual(payload["detector"], {"name": "beat_this"})
+        self.assertEqual(payload["analysis_source"], "drums")
+        self.assertEqual(payload["beat_analysis_source"], "mix")
         self.assertEqual(payload["drum_times"]["kick_times"], [0.05])
         self.assertEqual(payload["source_start"], 0.5)
+
+    def test_cached_analysis_restores_a_missing_audio_widget_value(self):
+        audio = {"waveform": torch.zeros(1, 1, 24000), "sample_rate": 24000}
+        analysis = {
+            "bpm": 120.0,
+            "beat_times": [0.0, 0.5],
+            "detected_beat_times": [0.0, 0.5],
+            "onset_times": [],
+            "audio_duration": 1.0,
+            "source_duration": 1.0,
+            "source_start": 0.0,
+            "waveform_preview": None,
+            "drum_times": {},
+            "audio_file": "song.wav",
+            "cache_key": "a" * 64,
+        }
+        with (
+            mock.patch.object(
+                schedule,
+                "cached_analysis_audio_file",
+                return_value="song.wav",
+            ) as restore,
+            mock.patch.object(
+                schedule,
+                "analyze_audio_file",
+                return_value=(analysis, audio),
+            ) as analyze,
+        ):
+            output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
+                beat_positions=None,
+                timeline="[0 - 24]\nCamera pulse.",
+                default_fade_in=0.0,
+                default_fade_out=0.0,
+                curve="linear",
+                fps=24.0,
+                sequence_duration=24,
+                audio_file="",
+                analysis_cache_key="a" * 64,
+            )
+
+        restore.assert_called_once_with("a" * 64)
+        self.assertEqual(analyze.call_args.args[0], "song.wav")
+        self.assertIs(output.result[2], audio)
+        payload = output.ui["fl_prompt_sequencer"][0]
+        self.assertEqual(payload["audio_file"], "song.wav")
+        self.assertEqual(payload["cache_key"], "a" * 64)
 
     def test_external_beats_must_match_uploaded_crop(self):
         analysis = {
@@ -472,6 +592,47 @@ class BeatPromptScheduleTests(unittest.TestCase):
                     sequence_duration=24,
                     audio_file="song.wav",
                 )
+
+    def test_external_beats_skip_beat_this_and_keep_auxiliary_audio_analysis(self):
+        external = json.loads(beat_json())
+        external.update({
+            "downbeat_times": [0.1, 1.2],
+            "detected_beat_times": [0.1, 0.6, 1.2, 1.9],
+            "detected_downbeat_times": [0.1, 1.2],
+            "detected_beat_confidences": [0.9, 0.8, 0.85, 0.75],
+            "detector": {"name": "external"},
+        })
+        auxiliary = {
+            "audio_duration": 2.5,
+            "source_duration": 2.5,
+            "source_start": 0.0,
+            "onset_times": [0.25],
+            "drum_times": {"kick_times": [0.25]},
+            "waveform_preview": None,
+        }
+        audio = {"waveform": torch.zeros(1, 1, 120000), "sample_rate": 48000}
+        with mock.patch.object(
+            schedule,
+            "analyze_audio_file",
+            return_value=(auxiliary, audio),
+        ) as analyze:
+            output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
+                beat_positions=json.dumps(external),
+                timeline="[0 - 60]\nCamera pulse.",
+                default_fade_in=0.0,
+                default_fade_out=0.0,
+                curve="linear",
+                fps=24.0,
+                sequence_duration=60,
+                audio_file="song.wav",
+            )
+
+        self.assertFalse(analyze.call_args.kwargs["detect_beats"])
+        payload = output.ui["fl_prompt_sequencer"][0]
+        self.assertEqual(payload["downbeat_times"], [0.1, 1.2])
+        self.assertEqual(payload["base_detected_beat_confidences"], [0.9, 0.8, 0.85, 0.75])
+        self.assertEqual(payload["detector"], {"name": "external"})
+        self.assertEqual(payload["onset_times"], [0.25])
 
     def test_scheduler_offset_applies_to_external_beat_positions(self):
         output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(

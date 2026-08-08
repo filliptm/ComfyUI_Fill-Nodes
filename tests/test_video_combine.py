@@ -300,5 +300,30 @@ class VideoCombineExecutionTests(unittest.TestCase):
         self.assertIsNone(metadata)
 
 
+class VideoCombineFrontendTests(unittest.TestCase):
+    def test_frontend_requires_explicit_playback_and_synchronizes_previews(self):
+        script = (pathlib.Path(__file__).parents[1] / "web" / "nodes" / "video" / "FL_VideoCombine.js").read_text(encoding="utf-8")
+
+        for behavior in (
+            'data-role="sync"',
+            "synchronizeVideoCombinePreviews()",
+            "prepareForSynchronization()",
+            "this.video.currentTime = 0",
+            "maintainSynchronization()",
+            "Math.abs(video.currentTime - leaderTime) > 0.08",
+            'document.addEventListener("visibilitychange"',
+            'window.addEventListener("pagehide"',
+            "pauseAllVideoCombinePreviews()",
+        ):
+            with self.subTest(behavior=behavior):
+                self.assertIn(behavior, script)
+
+        loaded_metadata = script.split('this.video.addEventListener("loadedmetadata"', 1)[1].split(
+            'this.video.addEventListener("error"', 1
+        )[0]
+        self.assertNotIn(".play(", loaded_metadata)
+        self.assertEqual(script.count("this.video.play().catch"), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

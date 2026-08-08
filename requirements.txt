@@ -1,4 +1,5 @@
 librosa
+beat-this==1.1.0
 sounddevice
 glitch_this
 PyOpenGL

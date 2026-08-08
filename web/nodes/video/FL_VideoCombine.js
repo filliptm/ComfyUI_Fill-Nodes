@@ -20,6 +20,63 @@ const DEFAULT_SETTINGS = {
 const MIN_NODE_WIDTH = 420;
 const MIN_NODE_HEIGHT = 360;
 const MIN_PANEL_HEIGHT = 280;
+const videoCombinePanels = new Set();
+const synchronizedPanels = new Set();
+let synchronizationFrame = null;
+
+function stopSynchronization() {
+  if (synchronizationFrame !== null) {
+    cancelAnimationFrame(synchronizationFrame);
+    synchronizationFrame = null;
+  }
+  synchronizedPanels.clear();
+}
+
+function removeSynchronizedPanel(panel) {
+  synchronizedPanels.delete(panel);
+  if (synchronizedPanels.size < 2 && synchronizationFrame !== null) {
+    cancelAnimationFrame(synchronizationFrame);
+    synchronizationFrame = null;
+  }
+}
+
+function maintainSynchronization() {
+  synchronizationFrame = null;
+  const panels = [...synchronizedPanels].filter((panel) => panel.isPlaying());
+  for (const panel of synchronizedPanels) {
+    if (!panels.includes(panel)) synchronizedPanels.delete(panel);
+  }
+  if (panels.length < 2 || document.hidden) return;
+
+  const leaderTime = panels[0].video.currentTime;
+  for (const panel of panels.slice(1)) {
+    const video = panel.video;
+    if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) continue;
+    if (Number.isFinite(video.duration) && leaderTime >= video.duration) continue;
+    if (Math.abs(video.currentTime - leaderTime) > 0.08) {
+      video.currentTime = leaderTime;
+    }
+  }
+  synchronizationFrame = requestAnimationFrame(maintainSynchronization);
+}
+
+function synchronizeVideoCombinePreviews() {
+  const panels = [...videoCombinePanels].filter((panel) => panel.hasPreview());
+  if (!panels.length) return;
+
+  stopSynchronization();
+  for (const panel of panels) panel.prepareForSynchronization();
+  for (const panel of panels) synchronizedPanels.add(panel);
+  for (const panel of panels) panel.requestPlayback(true);
+  if (panels.length > 1) {
+    synchronizationFrame = requestAnimationFrame(maintainSynchronization);
+  }
+}
+
+function pauseAllVideoCombinePreviews() {
+  stopSynchronization();
+  for (const panel of videoCombinePanels) panel.pausePlayback(false);
+}
 
 const STYLES = `
   .flvc-panel {
@@ -237,6 +294,11 @@ const STYLES = `
     height: 25px;
     padding: 0;
   }
+  .flvc-sync-button {
+    flex-basis: 40px;
+    font-size: 9px;
+    font-weight: 700;
+  }
   .flvc-time {
     color: #e4e4e7;
     flex: 0 0 82px;
@@ -409,6 +471,8 @@ class VideoCombinePanel {
     this.configError = "";
     this.handleDocumentPointerDown = null;
     this.handleDocumentKeyDown = null;
+    this.playbackRequested = false;
+    this.restartAtStart = false;
 
     this.node.properties ||= {};
     if (!Number.isFinite(this.node.properties.previewVolume)) {
@@ -429,6 +493,7 @@ class VideoCombinePanel {
     if (this.configError) {
       this.showConfigError();
     }
+    videoCombinePanels.add(this);
   }
 
   readSettings() {
@@ -497,6 +562,7 @@ class VideoCombinePanel {
             <button class="flvc-icon-button" data-role="play" type="button" title="Play or pause preview">▶</button>
             <span class="flvc-time" data-role="time">00:00 / 00:00</span>
             <span class="flvc-control-spacer"></span>
+            <button class="flvc-icon-button flvc-sync-button" data-role="sync" type="button" title="Restart and synchronize all FL Video Combine previews">Sync</button>
             <button class="flvc-icon-button" data-role="preview-mute" type="button" title="Mute preview">🔇</button>
             <input class="flvc-preview-volume" data-role="preview-volume" aria-label="Preview volume" type="range" min="0" max="100" step="1">
             <span class="flvc-preview-value" data-role="preview-volume-value">80%</span>
@@ -546,6 +612,7 @@ class VideoCombinePanel {
     this.error = this.container.querySelector('[data-role="error"]');
     this.summary = this.container.querySelector('[data-role="summary"]');
     this.playButton = this.container.querySelector('[data-role="play"]');
+    this.syncButton = this.container.querySelector('[data-role="sync"]');
     this.previewMuteButton = this.container.querySelector('[data-role="preview-mute"]');
     this.previewVolume = this.container.querySelector('[data-role="preview-volume"]');
     this.previewVolumeValue = this.container.querySelector('[data-role="preview-volume-value"]');
@@ -609,12 +676,17 @@ class VideoCombinePanel {
     this.playButton.addEventListener("click", () => {
       if (!this.video.src) return;
       if (this.video.paused) {
-        this.video.play().catch(() => {});
+        this.requestPlayback();
       } else {
-        this.video.pause();
+        this.pausePlayback();
       }
     });
+    this.syncButton.addEventListener("click", synchronizeVideoCombinePreviews);
     this.video.addEventListener("play", () => {
+      if (!this.playbackRequested || document.hidden) {
+        this.pausePlayback();
+        return;
+      }
       this.playButton.textContent = "❚❚";
     });
     this.video.addEventListener("pause", () => {
@@ -622,9 +694,12 @@ class VideoCombinePanel {
     });
     this.video.addEventListener("timeupdate", () => this.updateTime());
     this.video.addEventListener("loadedmetadata", () => {
+      if (this.restartAtStart) {
+        this.video.currentTime = 0;
+        this.restartAtStart = false;
+      }
       this.placeholder.style.display = "none";
       this.updateTime();
-      this.video.play().catch(() => {});
     });
     this.video.addEventListener("error", () => {
       if (!this.video.src) return;
@@ -640,6 +715,40 @@ class VideoCombinePanel {
       this.node.properties.previewVolume = Number(this.previewVolume.value) / 100;
       this.applyPreviewAudio();
     });
+  }
+
+  hasPreview() {
+    return Boolean(this.preview && this.video.src);
+  }
+
+  isPlaying() {
+    return this.playbackRequested && !this.video.paused && !this.video.ended;
+  }
+
+  requestPlayback(keepSynchronized = false) {
+    if (!this.video.src) return;
+    if (!keepSynchronized) removeSynchronizedPanel(this);
+    this.playbackRequested = true;
+    this.video.play().catch(() => {
+      this.playbackRequested = false;
+      removeSynchronizedPanel(this);
+    });
+  }
+
+  pausePlayback(removeFromSynchronization = true) {
+    this.playbackRequested = false;
+    this.video.pause();
+    if (removeFromSynchronization) removeSynchronizedPanel(this);
+  }
+
+  prepareForSynchronization() {
+    this.pausePlayback(false);
+    this.restartAtStart = true;
+    if (this.video.readyState !== HTMLMediaElement.HAVE_NOTHING) {
+      this.video.currentTime = 0;
+      this.restartAtStart = false;
+      this.updateTime();
+    }
   }
 
   setMenuOpen(open) {
@@ -733,6 +842,8 @@ class VideoCombinePanel {
 
   loadPreview(preview) {
     if (!preview?.filename) return;
+    this.pausePlayback();
+    this.restartAtStart = false;
     this.preview = preview;
     if (preview.preview_url) {
       const separator = preview.preview_url.includes("?") ? "&" : "?";
@@ -785,13 +896,15 @@ class VideoCombinePanel {
   }
 
   dispose() {
+    videoCombinePanels.delete(this);
+    removeSynchronizedPanel(this);
     if (this.handleDocumentPointerDown) {
       document.removeEventListener("pointerdown", this.handleDocumentPointerDown);
     }
     if (this.handleDocumentKeyDown) {
       document.removeEventListener("keydown", this.handleDocumentKeyDown);
     }
-    this.video.pause();
+    this.pausePlayback(false);
     this.video.removeAttribute("src");
     this.video.load();
     this.container.replaceChildren();
@@ -800,6 +913,12 @@ class VideoCombinePanel {
 
 app.registerExtension({
   name: "ComfyUI.FL_VideoCombine",
+  setup() {
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) pauseAllVideoCombinePreviews();
+    });
+    window.addEventListener("pagehide", pauseAllVideoCombinePreviews);
+  },
   nodeCreated(node) {
     if (node.comfyClass !== "FL_VideoCombine") return;
 

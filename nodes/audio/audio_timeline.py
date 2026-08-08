@@ -11,10 +11,11 @@ import folder_paths
 
 from .audio_files import audio_file_hash, load_audio_file, resolve_audio_path
 from .audio_separation import load_cached_stem
+from .beat_this_detector import MODEL_FPS, MODEL_SHA256, analyze_beats as analyze_beat_this
 
 
-ANALYSIS_VERSION = 4
-DETECTOR_VERSION = "fl-audio-timeline-2"
+ANALYSIS_VERSION = 6
+DETECTOR_VERSION = f"beat-this-final0-{MODEL_SHA256[:12]}"
 _WAVEFORM_BUCKETS_PER_SECOND = 60
 _MAX_WAVEFORM_BUCKETS = 8192
 _WAVEFORM_SCALE = 32767
@@ -113,42 +114,6 @@ def waveform_preview(waveform, sample_rate):
     }
 
 
-def _tempo_value(tempo):
-    if isinstance(tempo, np.ndarray):
-        return float(tempo[0]) if tempo.size else 0.0
-    return float(tempo)
-
-
-def _regularize_beats(detected_beats, interval, duration):
-    if len(detected_beats) < 2 or interval <= 0:
-        return detected_beats
-
-    beats = list(detected_beats)
-    current = detected_beats[0] - interval
-    while current > 0:
-        beats.insert(0, current)
-        current -= interval
-    current = detected_beats[-1] + interval
-    while current < duration:
-        beats.append(current)
-        current += interval
-
-    ordered = np.sort(np.asarray(beats, dtype=np.float64))
-    gaps = np.diff(ordered)
-    if not np.any(gaps > interval * 1.5):
-        return ordered
-
-    filled = []
-    for index, beat in enumerate(ordered[:-1]):
-        filled.append(beat)
-        gap = ordered[index + 1] - beat
-        if gap > interval * 1.5:
-            for step in range(1, int(gap / interval)):
-                filled.append(beat + step * interval)
-    filled.append(ordered[-1])
-    return np.asarray(filled, dtype=np.float64)
-
-
 def _detect_drums(waveform, sample_rate, onset_frames, onset_times):
     stft_mag = np.abs(librosa.stft(waveform))
     frequencies = librosa.fft_frequencies(sr=sample_rate)
@@ -221,6 +186,18 @@ def apply_beat_offset(analysis, fps, beat_offset_ms=0, beat_grid_density="every_
         "base_detected_beat_times",
         analysis.get("detected_beat_times", []),
     )
+    base_downbeat_times = list(
+        analysis.get("base_downbeat_times", analysis.get("downbeat_times", []))
+    )
+    base_detected_downbeat_times = analysis.get(
+        "base_detected_downbeat_times",
+        analysis.get("detected_downbeat_times", base_downbeat_times),
+    )
+    downbeat_indices = set()
+    for downbeat in base_downbeat_times:
+        index = int(np.argmin(np.abs(np.asarray(base_beat_times) - downbeat)))
+        if abs(base_beat_times[index] - downbeat) <= 1.0 / MODEL_FPS:
+            downbeat_indices.add(index)
 
     base_grid_interval = float(analysis.get("base_grid_interval_seconds", 0.0))
     if base_grid_interval <= 0 and len(base_beat_times) > 1:
@@ -232,44 +209,61 @@ def apply_beat_offset(analysis, fps, beat_offset_ms=0, beat_grid_density="every_
         raise ValueError("Beat analysis must provide a valid beat interval or BPM.")
 
     if beat_grid_density == "every_2_beats":
-        base_grid = base_beat_times[::2]
+        base_grid = [
+            (base_beat_times[index], index in downbeat_indices)
+            for index in range(0, len(base_beat_times), 2)
+        ]
         grid_interval = base_grid_interval * 2.0
     elif beat_grid_density == "half_beat":
         base_grid = []
         for index, beat_time in enumerate(base_beat_times):
-            base_grid.append(beat_time)
+            base_grid.append((beat_time, index in downbeat_indices))
             if index + 1 < len(base_beat_times):
-                base_grid.append((beat_time + base_beat_times[index + 1]) / 2.0)
+                base_grid.append(((beat_time + base_beat_times[index + 1]) / 2.0, False))
         grid_interval = base_grid_interval / 2.0
     else:
-        base_grid = base_beat_times
+        base_grid = [
+            (beat_time, index in downbeat_indices)
+            for index, beat_time in enumerate(base_beat_times)
+        ]
         grid_interval = base_grid_interval
 
-    shifted_grid = [beat_time + offset for beat_time in base_grid]
-    grid_beat_times = [
-        beat_time for beat_time in shifted_grid if 0.0 <= beat_time < duration
+    shifted_grid = [(beat_time + offset, is_downbeat) for beat_time, is_downbeat in base_grid]
+    grid = [
+        (beat_time, is_downbeat)
+        for beat_time, is_downbeat in shifted_grid
+        if 0.0 <= beat_time < duration
     ]
     if offset > 0:
-        beat_time = shifted_grid[0] - grid_interval
+        beat_time = shifted_grid[0][0] - grid_interval
         while beat_time >= 0:
             if beat_time < duration:
-                grid_beat_times.insert(0, beat_time)
+                grid.insert(0, (beat_time, False))
             beat_time -= grid_interval
     elif offset < 0:
-        beat_time = shifted_grid[-1] + grid_interval
+        beat_time = shifted_grid[-1][0] + grid_interval
         while beat_time < duration:
             if beat_time >= 0:
-                grid_beat_times.append(beat_time)
+                grid.append((beat_time, False))
             beat_time += grid_interval
+    grid_beat_times = [beat_time for beat_time, _ in grid]
+    grid_downbeat_times = [beat_time for beat_time, is_downbeat in grid if is_downbeat]
 
     result = dict(analysis)
     result["version"] = ANALYSIS_VERSION
     result["base_beat_times"] = base_beat_times
     result["base_detected_beat_times"] = list(base_detected_beat_times)
+    result["base_downbeat_times"] = base_downbeat_times
+    result["base_detected_downbeat_times"] = list(base_detected_downbeat_times)
     result["base_grid_interval_seconds"] = base_grid_interval
     result["beat_times"] = grid_beat_times
+    result["downbeat_times"] = grid_downbeat_times
     result["detected_beat_times"] = list(base_detected_beat_times)
+    result["detected_downbeat_times"] = list(base_detected_downbeat_times)
     result["beat_frames"] = [round(value * fps) for value in result["beat_times"]]
+    result["downbeat_frames"] = [
+        round(value * fps) for value in result["downbeat_times"]
+    ]
     result["detected_beat_frames"] = [
         round(value * fps) for value in result["detected_beat_times"]
     ]
@@ -284,44 +278,15 @@ def apply_beat_offset(analysis, fps, beat_offset_ms=0, beat_grid_density="every_
 def analyze_audio(
     audio,
     fps,
-    bpm_method="beat_intervals",
     half_time=False,
     beat_offset_ms=0,
     beat_grid_density="every_beat",
+    detect_beats=True,
+    beat_audio=None,
 ):
-    if bpm_method not in {"beat_intervals", "onset_strength"}:
-        raise ValueError(f"Unknown BPM method: {bpm_method}")
     waveform = mono_numpy(audio)
     sample_rate = int(audio["sample_rate"])
     duration = len(waveform) / sample_rate
-    tempo, beat_frames = librosa.beat.beat_track(y=waveform, sr=sample_rate, units="frames")
-    detected_beats = librosa.frames_to_time(beat_frames, sr=sample_rate).astype(np.float64)
-    onset_strength_bpm = _tempo_value(tempo)
-
-    if len(detected_beats) > 1:
-        interval = float(np.median(np.diff(detected_beats)))
-        interval_bpm = 60.0 / interval
-        if bpm_method == "beat_intervals":
-            bpm = interval_bpm
-            bpm_source = "beat_intervals_median"
-        else:
-            bpm = onset_strength_bpm
-            bpm_source = "onset_strength"
-    else:
-        bpm = onset_strength_bpm
-        bpm_source = "onset_strength"
-        interval = 60.0 / bpm if bpm > 0 else 0.0
-
-    if half_time:
-        bpm /= 2.0
-        interval *= 2.0
-        detected_beats = detected_beats[::2]
-
-    regularized_beats = _regularize_beats(detected_beats, interval, duration)
-    detected_beats = np.unique(detected_beats)
-    regularized_beats = np.unique(regularized_beats)
-    if not len(regularized_beats):
-        raise ValueError("No beats were detected in the selected audio range.")
 
     onset_env = librosa.onset.onset_strength(y=waveform, sr=sample_rate)
     onset_frames = librosa.onset.onset_detect(
@@ -331,40 +296,86 @@ def analyze_audio(
     )
     onset_times = librosa.frames_to_time(onset_frames, sr=sample_rate)
     drum_times = _detect_drums(waveform, sample_rate, onset_frames, onset_times)
-    beat_times = regularized_beats.tolist()
-    detected_times = detected_beats.tolist()
     onsets = onset_times.tolist()
 
     analysis = {
         "version": ANALYSIS_VERSION,
         "detector_version": DETECTOR_VERSION,
-        "bpm": float(bpm),
-        "bpm_source": bpm_source,
-        "base_grid_interval_seconds": float(interval),
-        "beat_times": beat_times,
-        "detected_beat_times": detected_times,
         "onset_times": onsets,
-        "beat_frames": [round(value * fps) for value in beat_times],
-        "detected_beat_frames": [round(value * fps) for value in detected_times],
         "onset_frames": [round(value * fps) for value in onsets],
-        "num_beats": len(beat_times),
         "sample_rate": sample_rate,
         "audio_duration": float(duration),
         "drum_times": drum_times,
         "waveform_preview": waveform_preview(waveform, sample_rate),
     }
+    if not detect_beats:
+        return analysis
+
+    beat_waveform = mono_numpy(beat_audio) if beat_audio is not None else waveform
+    beat_sample_rate = int(beat_audio["sample_rate"]) if beat_audio is not None else sample_rate
+    detected = analyze_beat_this(beat_waveform, beat_sample_rate)
+    beat_times = np.asarray(detected["beat_times"], dtype=np.float64)
+    downbeat_times = np.asarray(detected["downbeat_times"], dtype=np.float64)
+    beat_confidences = np.asarray(detected["beat_confidences"], dtype=np.float64)
+    downbeat_confidences = np.asarray(
+        detected["downbeat_confidences"], dtype=np.float64
+    )
+    if half_time:
+        retained = np.arange(0, len(beat_times), 2)
+        retained_indices = set(retained.tolist())
+        downbeat_retained = []
+        for index, downbeat in enumerate(downbeat_times):
+            nearest = int(np.argmin(np.abs(beat_times - downbeat)))
+            if nearest in retained_indices:
+                downbeat_retained.append(index)
+        beat_times = beat_times[retained]
+        beat_confidences = beat_confidences[retained]
+        downbeat_times = downbeat_times[downbeat_retained]
+        downbeat_confidences = downbeat_confidences[downbeat_retained]
+    if len(beat_times) < 2:
+        raise ValueError("Beat This must detect at least two beats in the selected audio range.")
+
+    interval = float(np.median(np.diff(beat_times)))
+    analysis.update({
+        "bpm": 60.0 / interval,
+        "bpm_source": "beat_this_intervals_median",
+        "base_grid_interval_seconds": interval,
+        "beat_times": beat_times.tolist(),
+        "downbeat_times": downbeat_times.tolist(),
+        "detected_beat_times": beat_times.tolist(),
+        "detected_downbeat_times": downbeat_times.tolist(),
+        "base_detected_beat_confidences": beat_confidences.tolist(),
+        "detected_beat_confidences": beat_confidences.tolist(),
+        "base_detected_downbeat_confidences": downbeat_confidences.tolist(),
+        "detected_downbeat_confidences": downbeat_confidences.tolist(),
+        "beat_frames": [round(value * fps) for value in beat_times],
+        "downbeat_frames": [round(value * fps) for value in downbeat_times],
+        "detected_beat_frames": [round(value * fps) for value in beat_times],
+        "num_beats": len(beat_times),
+        "num_downbeats": len(downbeat_times),
+        "detector": detected["detector"],
+    })
     return apply_beat_offset(analysis, fps, beat_offset_ms, beat_grid_density)
 
 
-def analysis_cache_key(path, fps, trim_start_frame, length_frames, bpm_method, half_time, analysis_source):
+def analysis_cache_key(
+    path,
+    fps,
+    trim_start_frame,
+    length_frames,
+    half_time,
+    analysis_source,
+    detect_beats=True,
+):
     values = {
+        "analysis_version": ANALYSIS_VERSION,
         "audio_sha256": audio_file_hash(path),
         "fps": float(fps),
         "trim_start_frame": int(trim_start_frame),
         "length_frames": int(length_frames),
-        "bpm_method": bpm_method,
         "half_time": bool(half_time),
         "analysis_source": analysis_source,
+        "detect_beats": bool(detect_beats),
         "detector_version": DETECTOR_VERSION,
     }
     encoded = json.dumps(values, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -377,16 +388,40 @@ def _cache_path(cache_key):
     return directory / f"{cache_key}.json"
 
 
+def cached_analysis_audio_file(cache_key):
+    if (
+        not isinstance(cache_key, str)
+        or len(cache_key) != 64
+        or any(character not in "0123456789abcdef" for character in cache_key.lower())
+    ):
+        return ""
+    cache_path = _cache_path(cache_key)
+    if not cache_path.is_file():
+        return ""
+    try:
+        analysis = json.loads(cache_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ""
+    filename = analysis.get("audio_file") if isinstance(analysis, dict) else None
+    if not isinstance(filename, str) or not filename:
+        return ""
+    try:
+        resolve_audio_path(filename)
+    except ValueError:
+        return ""
+    return filename
+
+
 def analyze_audio_file(
     filename,
     fps,
     trim_start_frame=0,
     length_frames=0,
-    bpm_method="beat_intervals",
     half_time=False,
     beat_offset_ms=0,
     analysis_source="mix",
     beat_grid_density="every_beat",
+    detect_beats=True,
 ):
     path = resolve_audio_path(filename)
     _, master_audio = load_audio_file(filename)
@@ -401,32 +436,40 @@ def analyze_audio_file(
         fps,
         trim_start_frame,
         length_frames,
-        bpm_method,
         half_time,
         analysis_source,
+        detect_beats,
     )
     cache_path = _cache_path(cache_key)
-    if cache_path.is_file():
+    cache_hit = cache_path.is_file()
+    if cache_hit:
         analysis = json.loads(cache_path.read_text(encoding="utf-8"))
     else:
         analysis = analyze_audio(
             analysis_audio,
             fps,
-            bpm_method,
             half_time,
+            detect_beats=detect_beats,
+            beat_audio=cropped_audio if analysis_source != "mix" and detect_beats else None,
         )
         analysis.update(crop)
         analysis.update({
             "audio_file": filename,
             "analysis_source": analysis_source,
+            "beat_analysis_source": "mix" if detect_beats else None,
             "cache_key": cache_key,
         })
         temporary_path = cache_path.with_suffix(".tmp")
         temporary_path.write_text(json.dumps(analysis, separators=(",", ":")), encoding="utf-8")
         temporary_path.replace(cache_path)
-    return apply_beat_offset(
-        analysis,
-        fps,
-        beat_offset_ms,
-        beat_grid_density,
-    ), cropped_audio
+    if detect_beats:
+        analysis = apply_beat_offset(
+            analysis,
+            fps,
+            beat_offset_ms,
+            beat_grid_density,
+        )
+    else:
+        analysis = dict(analysis)
+    analysis["analysis_cache_hit"] = cache_hit
+    return analysis, cropped_audio

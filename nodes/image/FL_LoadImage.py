@@ -127,8 +127,6 @@ def _parse_settings(load_settings, width_override=None, height_override=None):
             raise ValueError("FL Load Image width and height overrides must be between 0 and 16384.")
         settings[name] = value
 
-    if resize_mode == "fit" and settings["width"] == 0 and settings["height"] == 0:
-        raise ValueError("FL Load Image fit resize requires a width or height.")
     if resize_mode == "crop" and (settings["width"] == 0 or settings["height"] == 0):
         raise ValueError("FL Load Image crop resize requires both width and height.")
     return settings
@@ -142,6 +140,8 @@ def _target_dimensions(source_width, source_height, settings):
 
     width = settings["width"]
     height = settings["height"]
+    if width == 0 and height == 0:
+        return source_width, source_height
     if width == 0:
         scale = height / source_height
     elif height == 0:

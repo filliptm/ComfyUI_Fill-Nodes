@@ -17,6 +17,12 @@ SPEC.loader.exec_module(analyzer)
 
 
 class WaveformPreviewTests(unittest.TestCase):
+    def test_schema_has_one_bpm_policy(self):
+        optional_inputs = analyzer.FL_Audio_BPM_Analyzer.INPUT_TYPES()["optional"]
+
+        self.assertNotIn("bpm_method", optional_inputs)
+        self.assertIn("half_time", optional_inputs)
+
     def test_preview_preserves_normalized_minimums_and_maximums(self):
         waveform = np.array([-1.0, -0.5, 0.5, 1.0], dtype=np.float32)
 

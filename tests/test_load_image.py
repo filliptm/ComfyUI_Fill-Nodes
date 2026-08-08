@@ -47,8 +47,10 @@ class LoadImageSettingsTests(unittest.TestCase):
                 load_image._parse_settings(json.dumps(settings(**{name: value})))
 
     def test_resize_requirements_are_validated(self):
-        with self.assertRaisesRegex(ValueError, "requires a width or height"):
-            load_image._parse_settings(json.dumps(settings(resize_mode="fit")))
+        self.assertEqual(
+            load_image._parse_settings(json.dumps(settings(resize_mode="fit"))),
+            settings(resize_mode="fit"),
+        )
         with self.assertRaisesRegex(ValueError, "requires both width and height"):
             load_image._parse_settings(json.dumps(settings(resize_mode="crop", width=512)))
 
@@ -123,9 +125,11 @@ class LoadImagePathTests(unittest.TestCase):
 
 class LoadImageProcessingTests(unittest.TestCase):
     def test_fit_and_crop_dimensions(self):
+        unconstrained = load_image._target_dimensions(1920, 1080, settings(resize_mode="fit"))
         fit = load_image._target_dimensions(1920, 1080, settings(resize_mode="fit", width=512, height=512))
         crop = load_image._target_dimensions(1920, 1080, settings(resize_mode="crop", width=512, height=512))
 
+        self.assertEqual(unconstrained, (1920, 1080))
         self.assertEqual(fit, (512, 288))
         self.assertEqual(crop, (512, 512))
 
@@ -133,6 +137,7 @@ class LoadImageProcessingTests(unittest.TestCase):
         image = torch.rand((1, 6, 10, 3))
 
         self.assertIs(load_image._resize_image(image, settings()), image)
+        self.assertIs(load_image._resize_image(image, settings(resize_mode="fit")), image)
         fit = load_image._resize_image(image, settings(resize_mode="fit", width=5, height=5))
         crop = load_image._resize_image(image, settings(resize_mode="crop", width=4, height=4))
 
@@ -264,6 +269,7 @@ class LoadImageFrontendTests(unittest.TestCase):
             "connectedOverrideValue(name)",
             "requested_${name}",
             "applyPreviewGeometry()",
+            "if (!settings.width && !settings.height) return { width, height };",
             'data-role="image-stage"',
             'data-resize-mode="crop"',
             'container.className = "flli-container"',

@@ -12,6 +12,7 @@ from .nodes.ai.FL_Fal_Kontext import FL_Fal_Kontext
 from .nodes.ai.FL_Fal_Pixverse import FL_Fal_Pixverse
 from .nodes.ai.FL_Fal_Pixverse_LipSync import FL_Fal_Pixverse_LipSync
 from .nodes.ai.FL_Fal_Pixverse_Transition import FL_Fal_Pixverse_Transition
+from .nodes.ai.FL_Fal_Seedance2_ReferenceToVideo import FL_Fal_Seedance2_ReferenceToVideo
 from .nodes.ai.FL_Fal_Seedance_i2v import FL_Fal_Seedance_i2v
 from .nodes.ai.FL_Fal_Seedream_Edit import FL_Fal_Seedream_Edit
 from .nodes.ai.FL_Fal_SeedVR_Upscale import FL_Fal_SeedVR_Upscale
@@ -149,7 +150,6 @@ from .nodes.image.FL_SaveWebpImages import FL_SaveWebPImage
 
 # KSAMPLERS NODES
 from .nodes.ksamplers.FL_KsamplerBasic import FL_KsamplerBasic
-from .nodes.ksamplers.FL_MiniMaxH3BeatKSampler import FL_MiniMaxH3BeatKSampler
 from .nodes.ksamplers.FL_KsamplerContextWindow import FL_KsamplerContextWindow
 from .nodes.ksamplers.FL_KsamplerPlus import FL_KsamplerPlus
 from .nodes.ksamplers.FL_KsamplerPlusV2 import FL_KsamplerPlusV2
@@ -182,7 +182,6 @@ from .nodes.pdf.FL_TextToPDF import FL_TextToPDF
 
 # PROMPTING NODES
 from .nodes.prompting.FL_MadLibGenerator import FL_MadLibGenerator
-from .nodes.prompting.FL_MiniMaxH3PromptTimeline import FL_MiniMaxH3ApplyTimeline, FL_MiniMaxH3BeatShotPlanner, FL_MiniMaxH3PromptTimeline
 from .nodes.prompting.FL_Prompt import FL_PromptBasic
 from .nodes.prompting.FL_PromptMulti import FL_PromptMulti
 from .nodes.prompting.FL_PromptSelector import FL_PromptSelector
@@ -243,7 +242,6 @@ from .nodes.video.FL_VideoCadenceCompile import FL_VideoCadenceCompile
 from .nodes.video.FL_VideoCrossfade import FL_VideoCrossfade
 from .nodes.video.FL_VideoCut import FL_VideoCut
 from .nodes.video.FL_LoadVideo import FL_LoadVideo
-from .nodes.video.FL_MiniMaxH3ShotAssembler import FL_MiniMaxH3ShotAssembler
 from .nodes.video.FL_VideoCombine import FL_VideoCombine
 from .nodes.video.FL_VideoTrim import FL_VideoTrim
 
@@ -289,9 +287,6 @@ NODE_CLASS_MAPPINGS = {
     "FL_DepthBlur": FL_DepthBlur,
     "FL_RandomNumber": FL_RandomNumber,
     "FL_PromptSelector": FL_PromptSelector,
-    "FL_MiniMaxH3PromptTimeline": FL_MiniMaxH3PromptTimeline,
-    "FL_MiniMaxH3ApplyTimeline": FL_MiniMaxH3ApplyTimeline,
-    "FL_MiniMaxH3BeatShotPlanner": FL_MiniMaxH3BeatShotPlanner,
     "FL_Shadertoy": FL_Shadertoy,
     "FL_PixelArtShader": FL_PixelArtShader,
     "FL_InfiniteZoom": FL_InfiniteZoom,
@@ -328,7 +323,6 @@ NODE_CLASS_MAPPINGS = {
     "FL_KsamplerPlus": FL_KsamplerPlus,
     "FL_KsamplerPlusV2": FL_KsamplerPlusV2,
     "FL_KsamplerBasic": FL_KsamplerBasic,
-    "FL_MiniMaxH3BeatKSampler": FL_MiniMaxH3BeatKSampler,
     "FL_KsamplerContextWindow": FL_KsamplerContextWindow,
     "FL_KsamplerSigma": FL_KsamplerSigma,
     "FL_KsamplerSEG_Regions": FL_KsamplerSEG_Regions,
@@ -381,7 +375,6 @@ NODE_CLASS_MAPPINGS = {
     "FL_ApplyMask": FL_ApplyMask,
     "FL_ProResVideo": FL_ProResVideo,
     "FL_LoadVideo": FL_LoadVideo,
-    "FL_MiniMaxH3ShotAssembler": FL_MiniMaxH3ShotAssembler,
     "FL_VideoCombine": FL_VideoCombine,
     "FL_Padding": FL_Padding,
     "FL_GoogleDriveDownloader": FL_GoogleDriveDownloader,
@@ -402,6 +395,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_Fal_Kontext": FL_Fal_Kontext,
     "FL_Fal_GPTImage2_Edit": FL_Fal_GPTImage2_Edit,
     "FL_Fal_Gemini_ImageEdit": FL_Fal_Gemini_ImageEdit,
+    "FL_Fal_Seedance2_ReferenceToVideo": FL_Fal_Seedance2_ReferenceToVideo,
     "FL_Fal_Seedance_i2v": FL_Fal_Seedance_i2v,
     "FL_Fal_Seedream_Edit": FL_Fal_Seedream_Edit,
     "FL_Fal_SeedVR_Upscale": FL_Fal_SeedVR_Upscale,
@@ -501,9 +495,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_RandomNumber": "FL Random Number",
     "FL_PromptSelector": "FL Prompt Selector",
     "FL_PromptSelectorBasic": "FL Prompt Selector Basic",
-    "FL_MiniMaxH3PromptTimeline": "FL MiniMax H3 Prompt Timeline",
-    "FL_MiniMaxH3ApplyTimeline": "FL MiniMax H3 Apply Timeline",
-    "FL_MiniMaxH3BeatShotPlanner": "FL MiniMax H3 Beat Shot Planner",
     "FL_Shadertoy": "FL Shadertoy",
     "FL_PixelArtShader": "FL Pixel Art",
     "FL_InfiniteZoom": "FL Infinite Zoom",
@@ -540,7 +531,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_KsamplerPlus": "FL KSampler Plus",
     "FL_KsamplerPlusV2": "FL KSampler Plus V2",
     "FL_KsamplerBasic": "FL KSampler Basic",
-    "FL_MiniMaxH3BeatKSampler": "FL MiniMax H3 Beat KSampler",
     "FL_KsamplerContextWindow": "FL Context Window KSampler",
     "FL_KsamplerSigma": "FL KSampler Sigma",
     "FL_KsamplerSEG_Regions": "FL KSampler SEG Regions",
@@ -593,7 +583,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_ApplyMask": "FL Apply Mask",
     "FL_ProResVideo": "FL ProRes Video",
     "FL_LoadVideo": "FL Load Video",
-    "FL_MiniMaxH3ShotAssembler": "FL MiniMax H3 Shot Assembler",
     "FL_VideoCombine": "FL Video Combine",
     "FL_Padding": "FL Padding",
     "FL_GoogleDriveDownloader": "FL Google Drive Downloader",
@@ -614,6 +603,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_Fal_Kontext": "FL Fal Kontext API",
     "FL_Fal_GPTImage2_Edit": "FL Fal GPT-Image-2 Edit",
     "FL_Fal_Gemini_ImageEdit": "FL Fal Gemini Image Edit",
+    "FL_Fal_Seedance2_ReferenceToVideo": "FL Fal Seedance 2.0 Reference to Video",
     "FL_Fal_Seedance_i2v": "FL Fal Seedance i2v",
     "FL_Fal_Seedream_Edit": "FL Fal Seedream Edit",
     "FL_Fal_SeedVR_Upscale": "FL Fal SeedVR Upscale",
