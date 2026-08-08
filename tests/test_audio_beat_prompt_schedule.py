@@ -498,6 +498,11 @@ class BeatPromptScheduleTests(unittest.TestCase):
                 "hihat_times": [],
                 "duration": 1.0,
             },
+            "source_analysis": {
+                "type": "fl_audio_source_analysis",
+                "version": 1,
+                "beat_times": [0.5, 1.0, 1.5],
+            },
         }
         with mock.patch.object(schedule, "analyze_audio_file", return_value=(analysis, audio)):
             output = schedule.FL_Audio_Beat_Prompt_Schedule.execute(
@@ -524,6 +529,8 @@ class BeatPromptScheduleTests(unittest.TestCase):
         self.assertEqual(payload["beat_analysis_source"], "mix")
         self.assertEqual(payload["drum_times"]["kick_times"], [0.05])
         self.assertEqual(payload["source_start"], 0.5)
+        self.assertIs(payload["source_analysis"], analysis["source_analysis"])
+        self.assertNotIn("source_analysis", output.result[0])
 
     def test_cached_analysis_restores_a_missing_audio_widget_value(self):
         audio = {"waveform": torch.zeros(1, 1, 24000), "sample_rate": 24000}

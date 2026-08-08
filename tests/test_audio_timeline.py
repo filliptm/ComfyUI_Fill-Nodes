@@ -42,7 +42,7 @@ class AudioTimelineTests(unittest.TestCase):
             mock.patch.object(timeline, "_detect_drums", return_value={}),
             mock.patch.object(timeline, "waveform_preview", return_value={}),
         ):
-            analysis = timeline.analyze_audio(audio, fps=24.0)
+            analysis = timeline.analyze_audio(audio)
 
         self.assertAlmostEqual(analysis["bpm"], 120.0)
         self.assertEqual(analysis["bpm_source"], "beat_this_intervals_median")
@@ -64,7 +64,7 @@ class AudioTimelineTests(unittest.TestCase):
             mock.patch.object(timeline, "_detect_drums", return_value={}),
             mock.patch.object(timeline, "waveform_preview", return_value={}),
         ):
-            analysis = timeline.analyze_audio(audio, fps=24.0, detect_beats=False)
+            analysis = timeline.analyze_audio(audio, detect_beats=False)
 
         detector.assert_not_called()
         self.assertNotIn("beat_times", analysis)
@@ -88,7 +88,7 @@ class AudioTimelineTests(unittest.TestCase):
             mock.patch.object(timeline, "_detect_drums", return_value={}),
             mock.patch.object(timeline, "waveform_preview", return_value={}),
         ):
-            timeline.analyze_audio(stem, fps=24.0, beat_audio=mix)
+            timeline.analyze_audio(stem, beat_audio=mix)
 
         self.assertEqual(beat_this.call_args.args[1], 200)
         timeline.np.testing.assert_array_equal(beat_this.call_args.args[0], timeline.np.ones(400))
@@ -284,7 +284,7 @@ class AudioTimelineTests(unittest.TestCase):
             with (
                 mock.patch.object(timeline, "resolve_audio_path", return_value=pathlib.Path("song.wav")),
                 mock.patch.object(timeline, "load_audio_file", return_value=(pathlib.Path("song.wav"), master)),
-                mock.patch.object(timeline, "load_cached_stem", return_value=stem),
+                mock.patch.object(timeline, "load_cached_stem", return_value=stem) as load_stem,
                 mock.patch.object(timeline, "analysis_cache_key", return_value="key"),
                 mock.patch.object(timeline, "_cache_path", return_value=cache_path),
                 mock.patch.object(timeline, "analyze_audio", return_value=analysis) as analyze,
@@ -295,10 +295,20 @@ class AudioTimelineTests(unittest.TestCase):
                     length_frames=24,
                     analysis_source="drums",
                 )
+                _, second_crop = timeline.analyze_audio_file(
+                    "song.wav",
+                    fps=24.0,
+                    trim_start_frame=12,
+                    length_frames=12,
+                    analysis_source="drums",
+                )
 
         self.assertEqual(cropped["waveform"].mean(), 1.0)
+        self.assertEqual(second_crop["waveform"].mean(), 1.0)
         self.assertEqual(analyze.call_args.args[0]["waveform"].mean(), 2.0)
         self.assertEqual(analyze.call_args.kwargs["beat_audio"]["waveform"].mean(), 1.0)
+        self.assertEqual(analyze.call_count, 1)
+        self.assertEqual(load_stem.call_count, 1)
 
     def test_offset_changes_reuse_the_base_analysis_cache(self):
         master = {"waveform": torch.ones(1, 1, 48000), "sample_rate": 48000}
@@ -366,14 +376,151 @@ class AudioTimelineTests(unittest.TestCase):
         self.assertEqual(every_two["beat_times"], [0.0, 0.5])
         self.assertEqual(every_beat["cache_key"], every_two["cache_key"])
 
+    def test_different_crops_reuse_full_source_analysis_and_rebase_events(self):
+        master = {"waveform": torch.ones(1, 1, 96000), "sample_rate": 24000}
+        source_analysis = {
+            "bpm": 60.0,
+            "base_grid_interval_seconds": 1.0,
+            "beat_times": [0.25, 1.25, 2.25, 3.25],
+            "downbeat_times": [0.25, 2.25],
+            "detected_beat_times": [0.25, 1.25, 2.25, 3.25],
+            "detected_downbeat_times": [0.25, 2.25],
+            "detected_beat_confidences": [0.9, 0.8, 0.7, 0.6],
+            "detected_downbeat_confidences": [0.95, 0.75],
+            "onset_times": [0.5, 1.5, 2.5, 3.5],
+            "audio_duration": 4.0,
+            "waveform_preview": {
+                "version": 1,
+                "duration": 4.0,
+                "scale": 32767,
+                "peaks": list(range(16)),
+            },
+            "drum_times": {
+                "kick_times": [1.25, 3.25],
+                "snare_times": [2.25],
+                "hihat_times": [],
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            cache_path = pathlib.Path(directory) / "analysis.json"
+            with (
+                mock.patch.object(timeline, "resolve_audio_path", return_value=pathlib.Path("song.wav")),
+                mock.patch.object(timeline, "load_audio_file", return_value=(pathlib.Path("song.wav"), master)),
+                mock.patch.object(timeline, "analysis_cache_key", return_value="key"),
+                mock.patch.object(timeline, "_cache_path", return_value=cache_path),
+                mock.patch.object(timeline, "analyze_audio", return_value=source_analysis) as analyze,
+            ):
+                first, first_audio = timeline.analyze_audio_file(
+                    "song.wav", fps=24.0, trim_start_frame=24, length_frames=48
+                )
+                second, second_audio = timeline.analyze_audio_file(
+                    "song.wav", fps=24.0, trim_start_frame=48, length_frames=48
+                )
+
+        self.assertEqual(analyze.call_count, 1)
+        self.assertEqual(analyze.call_args.args[0]["waveform"].shape[-1], 96000)
+        self.assertEqual(first_audio["waveform"].shape[-1], 48000)
+        self.assertEqual(second_audio["waveform"].shape[-1], 48000)
+        self.assertEqual(first["beat_times"], [0.25, 1.25])
+        self.assertEqual(second["beat_times"], [0.25, 1.25])
+        self.assertEqual(first["detected_beat_confidences"], [0.8, 0.7])
+        self.assertEqual(first["onset_times"], [0.5, 1.5])
+        self.assertEqual(first["drum_times"]["kick_times"], [0.25])
+        self.assertEqual(first["source_start"], 1.0)
+        self.assertEqual(second["source_start"], 2.0)
+        self.assertEqual(first["source_analysis"]["beat_times"], [0.25, 1.25, 2.25, 3.25])
+        self.assertFalse(first["analysis_cache_hit"])
+        self.assertTrue(second["analysis_cache_hit"])
+
+    def test_fps_half_time_and_density_project_from_one_source_cache(self):
+        master = {"waveform": torch.ones(1, 1, 96000), "sample_rate": 24000}
+        source_analysis = {
+            "bpm": 120.0,
+            "base_grid_interval_seconds": 0.5,
+            "beat_times": [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5],
+            "downbeat_times": [0.0, 2.0],
+            "detected_beat_times": [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5],
+            "detected_downbeat_times": [0.0, 2.0],
+            "detected_beat_confidences": [0.9] * 8,
+            "detected_downbeat_confidences": [0.95, 0.85],
+            "onset_times": [],
+            "audio_duration": 4.0,
+            "waveform_preview": None,
+            "drum_times": {},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            cache_path = pathlib.Path(directory) / "analysis.json"
+            with (
+                mock.patch.object(timeline, "resolve_audio_path", return_value=pathlib.Path("song.wav")),
+                mock.patch.object(timeline, "load_audio_file", return_value=(pathlib.Path("song.wav"), master)),
+                mock.patch.object(timeline, "analysis_cache_key", return_value="key"),
+                mock.patch.object(timeline, "_cache_path", return_value=cache_path),
+                mock.patch.object(timeline, "analyze_audio", return_value=source_analysis) as analyze,
+            ):
+                regular, _ = timeline.analyze_audio_file(
+                    "song.wav", fps=24.0, trim_start_frame=12, length_frames=48
+                )
+                half_time, _ = timeline.analyze_audio_file(
+                    "song.wav",
+                    fps=48.0,
+                    trim_start_frame=24,
+                    length_frames=96,
+                    half_time=True,
+                )
+                every_two, _ = timeline.analyze_audio_file(
+                    "song.wav",
+                    fps=24.0,
+                    trim_start_frame=12,
+                    length_frames=48,
+                    beat_grid_density="every_2_beats",
+                )
+
+        self.assertEqual(analyze.call_count, 1)
+        self.assertEqual(regular["beat_times"], [0.0, 0.5, 1.0, 1.5])
+        self.assertEqual(half_time["beat_times"], [0.5, 1.5])
+        self.assertEqual(every_two["beat_times"], [0.5, 1.5])
+        self.assertEqual(regular["cache_key"], half_time["cache_key"])
+        self.assertEqual(regular["cache_key"], every_two["cache_key"])
+
+    def test_projection_uses_half_open_boundaries_and_keeps_confidence_pairs(self):
+        analysis = {
+            "beat_times": [1.0, 1.5, 2.0],
+            "downbeat_times": [1.0, 2.0],
+            "base_beat_times": [1.0, 1.5, 2.0],
+            "base_downbeat_times": [1.0, 2.0],
+            "detected_beat_times": [1.0, 1.5, 2.0],
+            "base_detected_beat_times": [1.0, 1.5, 2.0],
+            "detected_beat_confidences": [0.9, 0.8, 0.7],
+            "base_detected_beat_confidences": [0.9, 0.8, 0.7],
+            "detected_downbeat_times": [1.0, 2.0],
+            "base_detected_downbeat_times": [1.0, 2.0],
+            "detected_downbeat_confidences": [0.95, 0.75],
+            "base_detected_downbeat_confidences": [0.95, 0.75],
+            "onset_times": [1.0, 2.0],
+            "drum_times": {"kick_times": [1.0, 2.0]},
+            "waveform_preview": None,
+        }
+        crop = {
+            "source_duration": 3.0,
+            "source_start": 1.0,
+            "trim_start_frame": 24,
+            "length_frames": 24,
+            "audio_duration": 1.0,
+            "sample_rate": 48000,
+        }
+
+        projected = timeline.project_analysis(analysis, crop, fps=24.0)
+
+        self.assertEqual(projected["beat_times"], [0.0, 0.5])
+        self.assertEqual(projected["detected_beat_confidences"], [0.9, 0.8])
+        self.assertEqual(projected["downbeat_times"], [0.0])
+        self.assertEqual(projected["onset_times"], [0.0])
+        self.assertEqual(projected["drum_times"]["kick_times"], [0.0])
+
     def test_beat_detection_mode_has_a_separate_versioned_cache_key(self):
         with mock.patch.object(timeline, "audio_file_hash", return_value="audio"):
-            beats = timeline.analysis_cache_key(
-                pathlib.Path("song.wav"), 24.0, 0, 0, False, "mix", True
-            )
-            auxiliary = timeline.analysis_cache_key(
-                pathlib.Path("song.wav"), 24.0, 0, 0, False, "mix", False
-            )
+            beats = timeline.analysis_cache_key(pathlib.Path("song.wav"), "mix", True)
+            auxiliary = timeline.analysis_cache_key(pathlib.Path("song.wav"), "mix", False)
 
         self.assertNotEqual(beats, auxiliary)
 

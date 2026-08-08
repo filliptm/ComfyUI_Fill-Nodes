@@ -1,13 +1,21 @@
 import { app } from "../../../../scripts/app.js";
 import { api } from "../../../../scripts/api.js";
+import {
+  cropTimes,
+  cropTimesWithValues,
+  sourceTimes,
+  sourceTimeToLocalFrame,
+  waveformBinRange,
+} from "./audio_timeline_coordinates.js";
 
 const STYLE_ID = "fl-beat-prompt-sequencer-styles";
 const INSTANCES = new Map();
 const HEADER_RE = /^\s*\[\s*([0-9]+(?:\.[0-9]+)?)\s*-\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\|\s*(.*?))?\s*\]\s*$/;
 const HEADER_START_RE = /^\s*\[\s*[0-9]+(?:\.[0-9]+)?\s*-/;
 const EPSILON = 1e-6;
-const FORMAT_VERSION = 13;
-const COMPATIBLE_FORMAT_VERSIONS = new Set([6, 7, 8, 9, 10, 11, 12, FORMAT_VERSION]);
+const FORMAT_VERSION = 15;
+const COMPATIBLE_FORMAT_VERSIONS = new Set([6, 7, 8, 9, 10, 11, 12, 13, 14, FORMAT_VERSION]);
+const SOURCE_ANALYSIS_VERSION = 1;
 const LEGACY_BPM_METHODS = new Set(["beat_intervals", "onset_strength"]);
 const COMPACT_NODE_WIDTH = 380;
 const MEDIA_FILE_RE = /\.(?:aac|aiff?|flac|m4a|mka|mkv|mov|mp3|mp4|oga|ogg|opus|wav|webm|wma)$/i;
@@ -597,7 +605,7 @@ function setWidgetValue(widget, value) {
 }
 
 function restoreCachedAudioWidgets(widgets, saved) {
-  const beatData = saved?.beatData;
+  const beatData = saved?.sourceAnalysis || saved?.beatData;
   if (!beatData) return;
   const audioFile = String(beatData.audioFile || "");
   const cacheKey = String(beatData.cacheKey || "");
@@ -894,6 +902,165 @@ function cropWaveformPreview(preview, startSeconds, duration) {
   };
 }
 
+function analysisArray(value, snake, camel = snake) {
+  const values = value?.[snake] ?? value?.[camel];
+  return Array.isArray(values) ? values.map((entry) => finiteNumber(entry)) : [];
+}
+
+function sourceAnalysisValue(value) {
+  if (!value || value.type !== "fl_audio_source_analysis" ||
+      finiteNumber(value.version) !== SOURCE_ANALYSIS_VERSION) {
+    return null;
+  }
+  const duration = finiteNumber(
+    value.source_duration ?? value.sourceDuration ?? value.audio_duration ?? value.audioDuration,
+  );
+  if (!(duration > 0)) return null;
+  return {
+    type: "fl_audio_source_analysis",
+    version: SOURCE_ANALYSIS_VERSION,
+    analysisVersion: finiteNumber(value.analysis_version ?? value.analysisVersion),
+    bpm: finiteNumber(value.bpm),
+    baseGridIntervalSeconds: finiteNumber(
+      value.base_grid_interval_seconds ?? value.baseGridIntervalSeconds,
+    ),
+    beatTimes: analysisArray(value, "beat_times", "beatTimes"),
+    downbeatTimes: analysisArray(value, "downbeat_times", "downbeatTimes"),
+    detectedBeatTimes: analysisArray(value, "detected_beat_times", "detectedBeatTimes"),
+    detectedDownbeatTimes: analysisArray(value, "detected_downbeat_times", "detectedDownbeatTimes"),
+    detectedBeatConfidences: analysisArray(value, "detected_beat_confidences", "detectedBeatConfidences"),
+    detectedDownbeatConfidences: analysisArray(
+      value,
+      "detected_downbeat_confidences",
+      "detectedDownbeatConfidences",
+    ),
+    onsetTimes: analysisArray(value, "onset_times", "onsetTimes"),
+    drumTimes: value.drum_times || value.drumTimes || {},
+    duration,
+    supportsHalfTime: value.supports_half_time == null && value.supportsHalfTime == null
+      ? true
+      : Boolean(value.supports_half_time ?? value.supportsHalfTime),
+    waveformPreview: normalizeWaveformPreview(value.waveform_preview || value.waveformPreview),
+    waveformPreviewStart: finiteNumber(
+      value.waveform_preview_start ?? value.waveformPreviewStart,
+    ),
+    cacheKey: String(value.cache_key || value.cacheKey || ""),
+    audioFile: String(value.audio_file || value.audioFile || ""),
+    detector: value.detector || null,
+    detectorVersion: String(value.detector_version || value.detectorVersion || ""),
+    bpmSource: String(value.bpm_source || value.bpmSource || ""),
+    analysisSource: String(value.analysis_source || value.analysisSource || "mix"),
+    beatAnalysisSource: String(value.beat_analysis_source || value.beatAnalysisSource || "mix"),
+    analysisCacheHit: Boolean(value.analysis_cache_hit ?? value.analysisCacheHit),
+  };
+}
+
+function sourceAnalysisFromCropPayload(value) {
+  if (!value) return null;
+  const sourceStart = Math.max(0, finiteNumber(value.source_start ?? value.sourceStart));
+  const cropDuration = Math.max(0, finiteNumber(value.audio_duration ?? value.audioDuration));
+  const sourceDuration = Math.max(
+    sourceStart + cropDuration,
+    finiteNumber(value.source_duration ?? value.sourceDuration),
+  );
+  if (!(cropDuration > 0) || !(sourceDuration > 0)) return null;
+
+  const offset = finiteNumber(value.beat_offset_ms ?? value.beatOffsetMs) / 1000;
+  const payloadBeats = analysisArray(value, "beat_times", "beatTimes");
+  const payloadDownbeats = analysisArray(value, "downbeat_times", "downbeatTimes");
+  const baseBeats = analysisArray(value, "base_beat_times", "baseBeatTimes");
+  const baseDownbeats = analysisArray(value, "base_downbeat_times", "baseDownbeatTimes");
+  const baseDetectedBeats = analysisArray(
+    value,
+    "base_detected_beat_times",
+    "baseDetectedBeatTimes",
+  );
+  const baseDetectedDownbeats = analysisArray(
+    value,
+    "base_detected_downbeat_times",
+    "baseDetectedDownbeatTimes",
+  );
+  const baseBeatConfidences = analysisArray(
+    value,
+    "base_detected_beat_confidences",
+    "baseDetectedBeatConfidences",
+  );
+  const baseDownbeatConfidences = analysisArray(
+    value,
+    "base_detected_downbeat_confidences",
+    "baseDetectedDownbeatConfidences",
+  );
+  const drums = { ...(value.drum_times || value.drumTimes || {}) };
+  for (const [snake, camel] of [
+    ["kick_times", "kickTimes"],
+    ["snare_times", "snareTimes"],
+    ["hihat_times", "hihatTimes"],
+  ]) {
+    drums[snake] = sourceTimes(analysisArray(drums, snake, camel), sourceStart);
+  }
+
+  return sourceAnalysisValue({
+    type: "fl_audio_source_analysis",
+    version: SOURCE_ANALYSIS_VERSION,
+    analysis_version: value.analysis_version ?? value.analysisVersion,
+    bpm: value.bpm,
+    base_grid_interval_seconds: value.base_grid_interval_seconds ?? value.baseGridIntervalSeconds,
+    beat_times: sourceTimes(
+      baseBeats.length ? baseBeats : payloadBeats.map((entry) => entry - offset),
+      sourceStart,
+    ),
+    downbeat_times: sourceTimes(
+      baseDownbeats.length ? baseDownbeats : payloadDownbeats.map((entry) => entry - offset),
+      sourceStart,
+    ),
+    detected_beat_times: sourceTimes(
+      baseDetectedBeats.length
+        ? baseDetectedBeats
+        : analysisArray(value, "detected_beat_times", "detectedBeatTimes"),
+      sourceStart,
+    ),
+    detected_downbeat_times: sourceTimes(
+      baseDetectedDownbeats.length
+        ? baseDetectedDownbeats
+        : analysisArray(value, "detected_downbeat_times", "detectedDownbeatTimes"),
+      sourceStart,
+    ),
+    detected_beat_confidences: baseBeatConfidences.length
+      ? baseBeatConfidences
+      : analysisArray(value, "detected_beat_confidences", "detectedBeatConfidences"),
+    detected_downbeat_confidences: baseDownbeatConfidences.length
+      ? baseDownbeatConfidences
+      : analysisArray(value, "detected_downbeat_confidences", "detectedDownbeatConfidences"),
+    onset_times: sourceTimes(analysisArray(value, "onset_times", "onsetTimes"), sourceStart),
+    drum_times: drums,
+    source_duration: sourceDuration,
+    supports_half_time: false,
+    waveform_preview: value.waveform_preview || value.waveformPreview,
+    waveform_preview_start: sourceStart,
+    cache_key: value.cache_key || value.cacheKey,
+    audio_file: value.audio_file || value.audioFile,
+    detector: value.detector,
+    detector_version: value.detector_version || value.detectorVersion,
+    bpm_source: value.bpm_source || value.bpmSource,
+    analysis_source: value.analysis_source || value.analysisSource,
+    beat_analysis_source: value.beat_analysis_source || value.beatAnalysisSource,
+    analysis_cache_hit: value.analysis_cache_hit ?? value.analysisCacheHit,
+  });
+}
+
+function medianInterval(values) {
+  const intervals = values
+    .slice(1)
+    .map((value, index) => value - values[index])
+    .filter((value) => value > EPSILON)
+    .sort((left, right) => left - right);
+  if (!intervals.length) return 0;
+  const middle = Math.floor(intervals.length / 2);
+  return intervals.length % 2
+    ? intervals[middle]
+    : (intervals[middle - 1] + intervals[middle]) / 2;
+}
+
 function audioViewURL(value) {
   const match = String(value || "").match(/^(.*?)(?:\s+\[(input|output|temp)\])?$/);
   const relative = (match?.[1] || "").replace(/\\/g, "/");
@@ -933,6 +1100,7 @@ class BeatPromptSequencer {
     this.hover = null;
     this.sourceWaveformPreview = null;
     this.sourceAudioDuration = 0;
+    this.sourceAnalysis = null;
     this.audioElement = null;
     this.audioURL = "";
     this.playbackFrameRequest = null;
@@ -952,9 +1120,12 @@ class BeatPromptSequencer {
 
     const saved = node.properties?.flBeatPromptSequencer || {};
     const savedCompatible = COMPATIBLE_FORMAT_VERSIONS.has(finiteNumber(saved.formatVersion));
-    this.beatData = savedCompatible ? saved.beatData || null : null;
+    this.sourceAnalysis = savedCompatible ? sourceAnalysisValue(saved.sourceAnalysis) : null;
+    this.beatData = savedCompatible && !this.sourceAnalysis ? saved.beatData || null : null;
     if (this.beatData) {
       this.beatData.waveformPreview = normalizeWaveformPreview(this.beatData.waveformPreview);
+      this.sourceAnalysis = sourceAnalysisFromCropPayload(this.beatData);
+      if (this.sourceAnalysis) this.beatData = null;
     }
     restoreCachedAudioWidgets(this.widgets, saved);
     this.dataFresh = false;
@@ -1015,7 +1186,7 @@ class BeatPromptSequencer {
         <span class="flbps-source-label" data-role="source-label">No audio selected</span>
         <span class="flbps-spacer"></span>
         <span class="flbps-status" data-role="status">Choose audio to load the timeline</span>
-        <label class="flbps-auto" title="Refresh beat, onset, and drum markers after audio or trim changes">
+        <label class="flbps-auto" title="Refresh beat, onset, and drum markers after the audio or transient source changes">
           <input data-role="auto-analyze" type="checkbox"> Auto analyze
         </label>
         <button class="flbps-button" data-action="analyze" title="Analyze beats, onsets, and drums without queueing the workflow">Analyze</button>
@@ -1222,14 +1393,12 @@ class BeatPromptSequencer {
       this.resnapClipsToGrid();
       this.zoomToFit();
       this.markDirty();
-      this.scheduleAnalysis();
     });
     bind(this.widgets.sequenceDuration, () => {
       this.refreshBrowserCrop();
       this.resnapClipsToGrid();
       this.zoomToFit();
       this.markDirty();
-      this.scheduleAnalysis();
     });
     bind(this.widgets.audioFile, () => {
       if (this.widgets.analysisCacheKey) this.widgets.analysisCacheKey.value = "";
@@ -1237,11 +1406,17 @@ class BeatPromptSequencer {
     });
     bind(this.widgets.trimStartFrame, () => {
       this.refreshBrowserCrop();
+    });
+    bind(this.widgets.halfTime, () => {
+      this.refreshBrowserCrop();
+      this.resnapClipsToGrid();
+      this.markDirty();
+    });
+    bind(this.widgets.beatOffset, (value) => this.setBeatOffset(value, false, true));
+    bind(this.widgets.analysisSource, () => {
+      this.invalidateAnalysis();
       this.scheduleAnalysis();
     });
-    bind(this.widgets.halfTime, () => this.scheduleAnalysis());
-    bind(this.widgets.beatOffset, (value) => this.setBeatOffset(value, false, true));
-    bind(this.widgets.analysisSource, () => this.scheduleAnalysis());
     bind(this.widgets.beatGridDensity, (value) => this.setBeatGridDensity(value, false));
     bind(this.widgets.defaultFadeIn, () => this.markDirty());
     bind(this.widgets.defaultFadeOut, () => this.markDirty());
@@ -1265,23 +1440,76 @@ class BeatPromptSequencer {
       `${sign}${offset} ms · ${frameSign}${frames.toFixed(2)} fr`;
   }
 
+  cropBounds() {
+    const sourceDuration = this.sourceDurationSeconds();
+    const start = clamp(this.cropStartSeconds(), 0, sourceDuration);
+    const duration = Math.min(this.cropDurationSeconds(), Math.max(0, sourceDuration - start));
+    return { start, end: start + duration, duration, sourceDuration };
+  }
+
+  sourceBeatValues() {
+    const source = this.sourceAnalysis;
+    if (!source?.beatTimes?.length) return null;
+    if (!source.supportsHalfTime || !this.widgets.halfTime?.value) {
+      const interval = source.baseGridIntervalSeconds ||
+        medianInterval(source.beatTimes) ||
+        (source.bpm > 0 ? 60 / source.bpm : 0);
+      return {
+        beats: source.beatTimes,
+        downbeats: source.downbeatTimes,
+        detectedBeats: source.detectedBeatTimes,
+        detectedDownbeats: source.detectedDownbeatTimes,
+        beatConfidences: source.detectedBeatConfidences,
+        downbeatConfidences: source.detectedDownbeatConfidences,
+        interval,
+        bpm: interval > 0 ? 60 / interval : source.bpm,
+      };
+    }
+
+    const retained = source.beatTimes.map((_, index) => index).filter((index) => index % 2 === 0);
+    const retainedSet = new Set(retained);
+    const beats = retained.map((index) => source.beatTimes[index]);
+    const beatConfidences = retained
+      .filter((index) => index < source.detectedBeatConfidences.length)
+      .map((index) => source.detectedBeatConfidences[index]);
+    const downbeats = [];
+    const downbeatConfidences = [];
+    for (let index = 0; index < source.downbeatTimes.length; index++) {
+      const downbeat = source.downbeatTimes[index];
+      let nearest = 0;
+      for (let position = 1; position < source.beatTimes.length; position++) {
+        if (Math.abs(source.beatTimes[position] - downbeat) <
+            Math.abs(source.beatTimes[nearest] - downbeat)) {
+          nearest = position;
+        }
+      }
+      if (!retainedSet.has(nearest)) continue;
+      downbeats.push(downbeat);
+      if (index < source.detectedDownbeatConfidences.length) {
+        downbeatConfidences.push(source.detectedDownbeatConfidences[index]);
+      }
+    }
+    const interval = medianInterval(beats);
+    return {
+      beats,
+      downbeats,
+      detectedBeats: beats,
+      detectedDownbeats: downbeats,
+      beatConfidences,
+      downbeatConfidences,
+      interval,
+      bpm: interval > 0 ? 60 / interval : source.bpm,
+    };
+  }
+
   baseGridIntervalSeconds() {
+    const sourceValues = this.sourceBeatValues();
+    if (sourceValues) return sourceValues.interval;
     const values = this.beatData?.baseBeatTimes || [];
     const configured = finiteNumber(this.beatData?.baseGridIntervalSeconds);
     if (configured > 0) return configured;
-    if (values.length > 1) {
-      const intervals = values
-        .slice(1)
-        .map((value, index) => finiteNumber(value) - finiteNumber(values[index]))
-        .filter((value) => value > EPSILON)
-        .sort((left, right) => left - right);
-      if (intervals.length) {
-        const middle = Math.floor(intervals.length / 2);
-        return intervals.length % 2
-          ? intervals[middle]
-          : (intervals[middle - 1] + intervals[middle]) / 2;
-      }
-    }
+    const interval = medianInterval(values);
+    if (interval > 0) return interval;
     const bpm = finiteNumber(this.beatData?.bpm);
     return bpm > 0 ? 60 / bpm : 0;
   }
@@ -1294,7 +1522,7 @@ class BeatPromptSequencer {
   }
 
   baseGridTimes() {
-    const values = this.beatData?.baseBeatTimes || [];
+    const values = this.sourceBeatValues()?.beats || this.beatData?.baseBeatTimes || [];
     if (this.beatGridDensity() === "every_2_beats") {
       return values.filter((_, index) => index % 2 === 0);
     }
@@ -1302,16 +1530,17 @@ class BeatPromptSequencer {
     const result = [];
     for (let index = 0; index < values.length; index++) {
       result.push(values[index]);
-      if (index + 1 < values.length) {
-        result.push((values[index] + values[index + 1]) / 2);
-      }
+      if (index + 1 < values.length) result.push((values[index] + values[index + 1]) / 2);
     }
     return result;
   }
 
   gridBeatTimes(offsetMs = this.beatOffsetMs()) {
     const values = this.baseGridTimes();
-    const duration = Math.max(0, finiteNumber(this.beatData?.audioDuration));
+    const sourceMode = Boolean(this.sourceAnalysis);
+    const duration = sourceMode
+      ? this.sourceDurationSeconds()
+      : Math.max(0, finiteNumber(this.beatData?.audioDuration));
     const interval = this.gridIntervalSeconds();
     if (!values.length || !(duration > 0) || !(interval > 0)) return [];
     const offset = finiteNumber(offsetMs) / 1000;
@@ -1328,13 +1557,19 @@ class BeatPromptSequencer {
         if (beatTime >= 0) result.push(beatTime);
       }
     }
-    return result;
+    if (!sourceMode) return result;
+    const crop = this.cropBounds();
+    return cropTimes(result, crop.start, crop.end);
   }
 
   gridDownbeatTimes(offsetMs = this.beatOffsetMs()) {
-    const beats = this.beatData?.baseBeatTimes || [];
-    const downbeats = this.beatData?.baseDownbeatTimes || [];
-    const duration = Math.max(0, finiteNumber(this.beatData?.audioDuration));
+    const sourceValues = this.sourceBeatValues();
+    const beats = sourceValues?.beats || this.beatData?.baseBeatTimes || [];
+    const downbeats = sourceValues?.downbeats || this.beatData?.baseDownbeatTimes || [];
+    const sourceMode = Boolean(this.sourceAnalysis);
+    const duration = sourceMode
+      ? this.sourceDurationSeconds()
+      : Math.max(0, finiteNumber(this.beatData?.audioDuration));
     const offset = finiteNumber(offsetMs) / 1000;
     if (!beats.length || !downbeats.length || !(duration > 0)) return [];
     const density = this.beatGridDensity();
@@ -1349,7 +1584,82 @@ class BeatPromptSequencer {
       const shifted = finiteNumber(beats[nearest]) + offset;
       if (shifted >= 0 && shifted < duration) result.push(shifted);
     }
-    return result;
+    if (!sourceMode) return result;
+    const crop = this.cropBounds();
+    return cropTimes(result, crop.start, crop.end);
+  }
+
+  projectSourceAnalysis() {
+    const source = this.sourceAnalysis;
+    const sourceValues = this.sourceBeatValues();
+    if (!source || !sourceValues) return false;
+    const crop = this.cropBounds();
+    const [detectedBeatTimes, detectedBeatConfidences] = cropTimesWithValues(
+      sourceValues.detectedBeats,
+      sourceValues.beatConfidences,
+      crop.start,
+      crop.end,
+    );
+    const [detectedDownbeatTimes, detectedDownbeatConfidences] = cropTimesWithValues(
+      sourceValues.detectedDownbeats,
+      sourceValues.downbeatConfidences,
+      crop.start,
+      crop.end,
+    );
+    const drums = { ...(source.drumTimes || {}) };
+    for (const key of ["kick_times", "snare_times", "hihat_times"]) {
+      drums[key] = cropTimes(drums[key] || [], crop.start, crop.end);
+    }
+    drums.duration = crop.duration;
+    drums.total_kicks = drums.kick_times.length;
+    drums.total_snares = drums.snare_times.length;
+    drums.total_hihats = drums.hihat_times.length;
+
+    const interval = this.gridIntervalSeconds();
+    this.beatData = {
+      bpm: sourceValues.bpm,
+      gridBpm: interval > 0 ? 60 / interval : sourceValues.bpm,
+      baseGridIntervalSeconds: sourceValues.interval,
+      gridIntervalSeconds: interval,
+      beatGridDensity: this.beatGridDensity(),
+      baseBeatTimes: cropTimes(sourceValues.beats, crop.start, crop.end),
+      baseDetectedBeatTimes: detectedBeatTimes,
+      baseDownbeatTimes: cropTimes(sourceValues.downbeats, crop.start, crop.end),
+      baseDetectedDownbeatTimes: detectedDownbeatTimes,
+      baseDetectedBeatConfidences: detectedBeatConfidences,
+      baseDetectedDownbeatConfidences: detectedDownbeatConfidences,
+      beatTimes: this.gridBeatTimes(),
+      downbeatTimes: this.gridDownbeatTimes(),
+      detectedBeatTimes,
+      detectedDownbeatTimes,
+      detectedBeatConfidences,
+      detectedDownbeatConfidences,
+      onsetTimes: cropTimes(source.onsetTimes, crop.start, crop.end),
+      drumTimes: drums,
+      audioDuration: crop.duration,
+      sourceDuration: crop.sourceDuration,
+      sourceStart: crop.start,
+      fps: this.fps(),
+      waveformPreview: cropWaveformPreview(
+        source.waveformPreview,
+        crop.start - source.waveformPreviewStart,
+        crop.duration,
+      ) ||
+        cropWaveformPreview(this.sourceWaveformPreview, crop.start, crop.duration),
+      cacheKey: source.cacheKey,
+      audioFile: source.audioFile,
+      detector: source.detector,
+      detectorVersion: source.detectorVersion,
+      bpmSource: source.bpmSource,
+      analysisSource: source.analysisSource,
+      beatAnalysisSource: source.beatAnalysisSource,
+      analysisCacheHit: source.analysisCacheHit,
+      beatOffsetMs: this.beatOffsetMs(),
+    };
+    this.updateTransportTime();
+    this.refreshBeatStatus();
+    this.scheduleDraw();
+    return true;
   }
 
   applyBeatOffset() {
@@ -1361,6 +1671,7 @@ class BeatPromptSequencer {
     if (this.controls?.beatGridDensity) {
       this.controls.beatGridDensity.value = density;
     }
+    if (this.projectSourceAnalysis()) return;
     if (!this.beatData) {
       this.scheduleDraw();
       return;
@@ -1405,6 +1716,9 @@ class BeatPromptSequencer {
   saveViewState() {
     this.node.properties = this.node.properties || {};
     const savedBeatData = this.beatData ? { ...this.beatData, waveformPreview: null } : null;
+    const savedSourceAnalysis = this.sourceAnalysis
+      ? { ...this.sourceAnalysis, waveformPreview: null }
+      : null;
     const previous = { ...(this.node.properties.flBeatPromptSequencer || {}) };
     delete previous.magnetMode;
     delete previous.snapMode;
@@ -1412,7 +1726,8 @@ class BeatPromptSequencer {
     this.node.properties.flBeatPromptSequencer = {
       ...previous,
       formatVersion: FORMAT_VERSION,
-      beatData: savedBeatData,
+      beatData: this.sourceAnalysis ? null : savedBeatData,
+      sourceAnalysis: savedSourceAnalysis,
       viewStart: this.viewStart,
       viewEnd: this.viewEnd,
       autoAnalyze: this.autoAnalyze,
@@ -1428,10 +1743,44 @@ class BeatPromptSequencer {
     return this.trimStartFrame() / this.fps();
   }
 
+  sourceDurationSeconds() {
+    return Math.max(
+      0,
+      finiteNumber(
+        this.sourceAudioDuration || this.sourceAnalysis?.duration || this.beatData?.sourceDuration,
+      ),
+    );
+  }
+
   cropDurationSeconds() {
     const configured = this.configuredFrameCount();
     if (configured > 0) return configured / this.fps();
-    return Math.max(0, this.sourceAudioDuration - this.cropStartSeconds());
+    return Math.max(0, this.sourceDurationSeconds() - this.cropStartSeconds());
+  }
+
+  waveformSource() {
+    if (this.sourceAnalysis?.waveformPreview) {
+      const analysisWaveform = {
+        preview: this.sourceAnalysis.waveformPreview,
+        start: this.sourceAnalysis.waveformPreviewStart,
+      };
+      const crop = this.cropBounds();
+      if (analysisWaveform.start <= crop.start + EPSILON &&
+          analysisWaveform.start + analysisWaveform.preview.duration >= crop.end - EPSILON) {
+        return analysisWaveform;
+      }
+      if (!this.sourceWaveformPreview) return analysisWaveform;
+    }
+    if (this.sourceWaveformPreview) {
+      return { preview: this.sourceWaveformPreview, start: 0 };
+    }
+    if (this.beatData?.waveformPreview) {
+      return {
+        preview: this.beatData.waveformPreview,
+        start: finiteNumber(this.beatData.sourceStart),
+      };
+    }
+    return null;
   }
 
   setStatus(text, state = "", progress = null) {
@@ -1476,7 +1825,13 @@ class BeatPromptSequencer {
   }
 
   invalidateAnalysis() {
-    if (!this.beatData) return;
+    this.sourceAnalysis = null;
+    if (!this.beatData) {
+      this.dataFresh = false;
+      this.setStatus("Audio changed · analysis pending", "cached");
+      this.scheduleDraw();
+      return;
+    }
     this.beatData.baseBeatTimes = [];
     this.beatData.baseDetectedBeatTimes = [];
     this.beatData.baseDownbeatTimes = [];
@@ -1497,6 +1852,10 @@ class BeatPromptSequencer {
   }
 
   refreshBrowserCrop() {
+    if (!this.sourceAnalysis && this.beatData?.beatTimes?.length) {
+      this.sourceAnalysis = sourceAnalysisFromCropPayload(this.beatData);
+    }
+    if (this.projectSourceAnalysis()) return;
     if (!this.sourceWaveformPreview || !(this.sourceAudioDuration > 0)) {
       this.updateTransportTime();
       return;
@@ -1527,6 +1886,7 @@ class BeatPromptSequencer {
     this.sourceWaveformPreview = null;
     this.sourceAudioDuration = 0;
     if (!filename) {
+      this.sourceAnalysis = null;
       this.beatData = null;
       if (this.widgets.analysisCacheKey) this.widgets.analysisCacheKey.value = "";
       this.audioElement = null;
@@ -1585,8 +1945,11 @@ class BeatPromptSequencer {
         this.startPlaybackLoop();
       });
       this.audioElement.addEventListener("ended", () => this.loopPlayback(true));
+      if (this.sourceAnalysis?.audioFile !== filename ||
+          this.sourceAnalysis?.analysisSource !== (this.widgets.analysisSource?.value || "mix")) {
+        this.invalidateAnalysis();
+      }
       this.refreshBrowserCrop();
-      this.invalidateAnalysis();
       this.zoomToFit(false);
       this.scheduleAnalysis(0);
     } catch (error) {
@@ -1634,10 +1997,14 @@ class BeatPromptSequencer {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || `Analysis failed (${response.status}).`);
       if (request !== this.analysisRequest) return;
-      this.applyAnalysis(payload, true);
+      const completeSource = this.applyAnalysis(payload, true);
       if (this.migrationPending) this.loadTimeline();
       this.resnapClipsToGrid();
-      this.clearError();
+      if (completeSource) {
+        this.clearError();
+      } else {
+        this.showError("Restart ComfyUI and refresh the browser to load full-source beat analysis.");
+      }
       this.saveViewState();
       analysisCompleted = true;
     } catch (error) {
@@ -1653,6 +2020,41 @@ class BeatPromptSequencer {
   }
 
   applyAnalysis(payload, fresh) {
+    const sourceAnalysis = sourceAnalysisValue(payload.source_analysis);
+    if (sourceAnalysis) {
+      this.sourceAnalysis = sourceAnalysis;
+      const audioFile = String(
+        sourceAnalysis.audioFile || payload.audio_file || this.widgets.audioFile?.value || "",
+      );
+      if (this.widgets.audioFile && !this.widgets.audioFile.value && audioFile) {
+        this.widgets.audioFile.value = audioFile;
+      }
+      if (this.widgets.analysisCacheKey) {
+        this.widgets.analysisCacheKey.value = sourceAnalysis.cacheKey;
+      }
+      this.dataFresh = fresh && !sourceAnalysis.analysisCacheHit;
+      this.applyBeatOffset();
+      return true;
+    }
+
+    const partialSource = sourceAnalysisFromCropPayload(payload);
+    if (partialSource) {
+      this.sourceAnalysis = partialSource;
+      const audioFile = String(
+        partialSource.audioFile || payload.audio_file || this.widgets.audioFile?.value || "",
+      );
+      if (this.widgets.audioFile && !this.widgets.audioFile.value && audioFile) {
+        this.widgets.audioFile.value = audioFile;
+      }
+      if (this.widgets.analysisCacheKey) {
+        this.widgets.analysisCacheKey.value = partialSource.cacheKey;
+      }
+      this.dataFresh = fresh && !partialSource.analysisCacheHit;
+      this.applyBeatOffset();
+      return false;
+    }
+
+    this.sourceAnalysis = null;
     const payloadOffset = finiteNumber(payload.beat_offset_ms, 0) / 1000;
     const payloadBeatTimes = (payload.beat_times || []).map((value) => finiteNumber(value));
     const payloadDetectedBeatTimes = (payload.detected_beat_times || []).map(
@@ -1723,6 +2125,7 @@ class BeatPromptSequencer {
     }
     this.dataFresh = fresh && !this.beatData.analysisCacheHit;
     this.applyBeatOffset();
+    return false;
   }
 
   updatePlayButton() {
@@ -2325,20 +2728,44 @@ class BeatPromptSequencer {
   }
 
   beatFrames() {
+    if (this.sourceAnalysis) {
+      return this.gridBeatTimes().map((seconds) => Math.round(seconds * this.fps()));
+    }
     return (this.beatData?.beatTimes || []).map((seconds) => Math.round(seconds * this.fps()));
   }
 
   downbeatFrames() {
+    if (this.sourceAnalysis) {
+      return this.gridDownbeatTimes().map((seconds) => Math.round(seconds * this.fps()));
+    }
     return (this.beatData?.downbeatTimes || []).map((seconds) => Math.round(seconds * this.fps()));
   }
 
   detectedBeatFrames() {
+    const sourceValues = this.sourceBeatValues();
+    if (sourceValues) {
+      const crop = this.cropBounds();
+      return sourceValues.detectedBeats
+        .filter((seconds) => seconds >= crop.start && seconds < crop.end)
+        .map((seconds) => sourceTimeToLocalFrame(seconds, crop.start, this.fps()));
+    }
     return (this.beatData?.detectedBeatTimes || []).map((seconds) => Math.round(seconds * this.fps()));
   }
 
   detectedBeatMarkers() {
-    const times = this.beatData?.detectedBeatTimes || [];
-    const confidences = this.beatData?.detectedBeatConfidences || [];
+    const sourceValues = this.sourceBeatValues();
+    const crop = sourceValues ? this.cropBounds() : null;
+    const [times, confidences] = sourceValues
+      ? cropTimesWithValues(
+        sourceValues.detectedBeats,
+        sourceValues.beatConfidences,
+        crop.start,
+        crop.end,
+      )
+      : [
+        this.beatData?.detectedBeatTimes || [],
+        this.beatData?.detectedBeatConfidences || [],
+      ];
     const intervals = times.slice(1).map((value, index) => value - times[index]).filter((value) => value > EPSILON);
     const sorted = [...intervals].sort((left, right) => left - right);
     const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
@@ -2353,8 +2780,19 @@ class BeatPromptSequencer {
   }
 
   detectedDownbeatMarkers() {
-    const times = this.beatData?.detectedDownbeatTimes || [];
-    const confidences = this.beatData?.detectedDownbeatConfidences || [];
+    const sourceValues = this.sourceBeatValues();
+    const crop = sourceValues ? this.cropBounds() : null;
+    const [times, confidences] = sourceValues
+      ? cropTimesWithValues(
+        sourceValues.detectedDownbeats,
+        sourceValues.downbeatConfidences,
+        crop.start,
+        crop.end,
+      )
+      : [
+        this.beatData?.detectedDownbeatTimes || [],
+        this.beatData?.detectedDownbeatConfidences || [],
+      ];
     return times.map((seconds, index) => ({
       frame: Math.round(seconds * this.fps()),
       confidence: clamp(finiteNumber(confidences[index], 1), 0, 1),
@@ -2363,6 +2801,12 @@ class BeatPromptSequencer {
   }
 
   onsetFrames() {
+    if (this.sourceAnalysis) {
+      const crop = this.cropBounds();
+      return this.sourceAnalysis.onsetTimes
+        .filter((seconds) => seconds >= crop.start && seconds < crop.end)
+        .map((seconds) => sourceTimeToLocalFrame(seconds, crop.start, this.fps()));
+    }
     return (this.beatData?.onsetTimes || []).map((seconds) => Math.round(seconds * this.fps()));
   }
 
@@ -2737,12 +3181,10 @@ class BeatPromptSequencer {
     this.resnapClipsToGrid(croppedMarkers);
     this.playheadFrame = 0;
     this.refreshBrowserCrop();
-    this.invalidateAnalysis();
     this.serialize();
     this.syncInspector();
     this.zoomToFit(false);
     this.markDirty();
-    this.scheduleAnalysis(0);
   }
 
   setAudioIn(frame) {
@@ -3165,7 +3607,6 @@ class BeatPromptSequencer {
       );
     }
     this.refreshBrowserCrop();
-    this.invalidateAnalysis();
     this.markDirty();
   }
 
@@ -3201,7 +3642,6 @@ class BeatPromptSequencer {
           end: trimHit.handles.end,
           sourceFrames: trimHit.handles.sourceFrames,
         },
-        beatFrames: this.beatFrames(),
         pointerStartFrame: this.sourceFrameAtX(x),
         active: false,
       };
@@ -3473,7 +3913,6 @@ class BeatPromptSequencer {
 
   onPointerUp(event) {
     if (!this.drag) return;
-    const finishedDrag = this.drag;
     const trimChanged = this.drag.type === "trim-start" ||
       this.drag.type === "trim-end" ||
       this.drag.type === "trim-move";
@@ -3485,17 +3924,8 @@ class BeatPromptSequencer {
     if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
     if (changed) {
       if (trimChanged) {
-        const start = this.trimStartFrame();
-        const duration = this.sequenceFrameCount();
-        const markers = (finishedDrag.beatFrames || [])
-          .map((marker) => finishedDrag.original.start + marker - start)
-          .filter((marker) => marker >= 0 && marker <= duration);
-        if (markers.length) {
-          markers.push(0, duration);
-          this.resnapClipsToGrid([...new Set(markers)].sort((left, right) => left - right));
-        }
+        this.resnapClipsToGrid();
         this.zoomToFit(false);
-        this.scheduleAnalysis(0);
       } else if (viewChanged) {
         this.saveViewState();
       } else {
@@ -3713,7 +4143,8 @@ class BeatPromptSequencer {
   drawWaveformLane(ctx, width, top, bottom) {
     const right = width - TIMELINE_RIGHT;
     const center = (top + bottom) / 2;
-    const preview = this.beatData?.waveformPreview;
+    const waveform = this.waveformSource();
+    const preview = waveform?.preview;
 
     ctx.fillStyle = "#14191e";
     ctx.fillRect(TIMELINE_LEFT, top, right - TIMELINE_LEFT, bottom - top);
@@ -3746,9 +4177,11 @@ class BeatPromptSequencer {
     }
 
     const binCount = preview.peaks.length / 2;
-    const waveformEndFrame = preview.duration * this.fps();
-    const visibleStart = Math.max(this.viewStart, 0);
-    const visibleEnd = Math.min(this.viewEnd, waveformEndFrame);
+    const cropStart = this.cropStartSeconds();
+    const waveformStartFrame = (waveform.start - cropStart) * this.fps();
+    const waveformEndFrame = (waveform.start + preview.duration - cropStart) * this.fps();
+    const visibleStart = Math.max(this.viewStart, waveformStartFrame, 0);
+    const visibleEnd = Math.min(this.viewEnd, waveformEndFrame, this.sequenceFrameCount());
     if (!(visibleEnd > visibleStart)) return;
 
     const startX = Math.max(TIMELINE_LEFT, Math.floor(this.frameToX(visibleStart, width)));
@@ -3760,14 +4193,13 @@ class BeatPromptSequencer {
     for (let x = startX; x <= endX; x++) {
       const firstFrame = this.frameAtX(x);
       const lastFrame = this.frameAtX(Math.min(endX, x + 1));
-      const firstBin = clamp(
-        Math.floor((firstFrame / this.fps() / preview.duration) * binCount),
-        0,
-        binCount - 1,
-      );
-      const lastBin = clamp(
-        Math.ceil((lastFrame / this.fps() / preview.duration) * binCount),
-        firstBin + 1,
+      const [firstBin, lastBin] = waveformBinRange(
+        firstFrame,
+        lastFrame,
+        cropStart,
+        this.fps(),
+        waveform.start,
+        preview.duration,
         binCount,
       );
       let minimum = preview.scale;
@@ -3786,7 +4218,7 @@ class BeatPromptSequencer {
         this.hover.x < TIMELINE_LEFT || this.hover.x > right) {
       return;
     }
-    const frame = clamp(Math.round(this.frameAtX(this.hover.x)), 0, Math.round(waveformEndFrame));
+    const frame = clamp(Math.round(this.frameAtX(this.hover.x)), 0, this.sequenceFrameCount());
     const seconds = frame / this.fps();
     const x = this.frameToX(frame, width);
     ctx.strokeStyle = "rgba(251,191,36,.42)";
@@ -4866,6 +5298,7 @@ function migrateRemovedBpmMethod(graphData) {
       node.properties.flBeatPromptSequencer = {
         ...(node.properties.flBeatPromptSequencer || {}),
         beatData: null,
+        sourceAnalysis: null,
         formatVersion: FORMAT_VERSION,
       };
     }
@@ -4925,6 +5358,7 @@ app.registerExtension({
     delete savedSequencer.snapMode;
     if (!COMPATIBLE_FORMAT_VERSIONS.has(previousFormat)) {
       savedSequencer.beatData = null;
+      savedSequencer.sourceAnalysis = null;
       savedSequencer.viewStart = 0;
       savedSequencer.viewEnd = 0;
     }

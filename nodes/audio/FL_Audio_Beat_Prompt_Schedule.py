@@ -857,6 +857,9 @@ class FL_Audio_Beat_Prompt_Schedule(io.ComfyNode):
         if internal_analysis is not None:
             ui_payload["audio_file"] = internal_analysis.get("audio_file", audio_file)
             ui_payload["cache_key"] = internal_analysis.get("cache_key", "")
+            source_analysis = internal_analysis.get("source_analysis")
+            if isinstance(source_analysis, dict) and "beat_times" in source_analysis:
+                ui_payload["source_analysis"] = source_analysis
         waveform = (
             internal_analysis["waveform_preview"]
             if internal_analysis is not None
