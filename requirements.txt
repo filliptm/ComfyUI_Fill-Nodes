@@ -1,20 +1,16 @@
 librosa
-sounddevice
 glitch_this
 PyOpenGL
 glfw
-scipy >=1.13.1
+scipy>=1.13.1
 requests
 aiohttp
-moviepy==1.0.3
+imageio[ffmpeg]
 matplotlib
 reportlab
 openai
 PyPDF2
-pdf2image
 PyMuPDF
-reportlab
-PyPDF2
 ollama
 kornia
 opencv-python
@@ -26,3 +22,4 @@ fal-client
 runwayml
 httpx
 huggingface_hub
+scikit-learn
