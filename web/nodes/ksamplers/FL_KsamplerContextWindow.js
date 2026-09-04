@@ -140,6 +140,7 @@ class ContextWindowProgressWidget {
 }
 
 const INSTANCES = new Map();
+const nodeKey = (value) => String(value);
 
 app.registerExtension({
   name: "ComfyUI.FL_KsamplerContextWindow",
@@ -167,14 +168,15 @@ app.registerExtension({
 
     setTimeout(() => {
       const inst = new ContextWindowProgressWidget({ container });
-      INSTANCES.set(node.id, inst);
+      INSTANCES.set(nodeKey(node.id), inst);
     }, 50);
 
     widget.onRemove = () => {
-      const inst = INSTANCES.get(node.id);
+      const key = nodeKey(node.id);
+      const inst = INSTANCES.get(key);
       if (inst) {
         inst.dispose();
-        INSTANCES.delete(node.id);
+        INSTANCES.delete(key);
       }
     };
   },
@@ -183,16 +185,14 @@ app.registerExtension({
 api.addEventListener("executing", (event) => {
   const detail = event.detail;
   if (!detail || !detail.node) return;
-  const nodeId = parseInt(detail.node, 10);
-  const inst = INSTANCES.get(nodeId);
+  const inst = INSTANCES.get(nodeKey(detail.node));
   if (inst) inst.reset();
 });
 
 api.addEventListener("fl_context_window_progress", (event) => {
   const detail = event.detail;
   if (!detail) return;
-  const nodeId = parseInt(detail.node, 10);
-  const inst = INSTANCES.get(nodeId);
+  const inst = INSTANCES.get(nodeKey(detail.node));
   if (!inst) return;
   inst.update(detail);
 });
