@@ -244,6 +244,7 @@ from .nodes.video.FL_VideoCrossfade import FL_VideoCrossfade
 from .nodes.video.FL_VideoCut import FL_VideoCut
 from .nodes.video.FL_LoadVideo import FL_LoadVideo
 from .nodes.video.FL_VideoCombine import FL_VideoCombine
+from .nodes.video.FL_VideoPicker import FL_VideoPicker
 from .nodes.video.FL_VideoTrim import FL_VideoTrim
 
 # WIP NODES
@@ -378,6 +379,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_ProResVideo": FL_ProResVideo,
     "FL_LoadVideo": FL_LoadVideo,
     "FL_VideoCombine": FL_VideoCombine,
+    "FL_VideoPicker": FL_VideoPicker,
     "FL_Padding": FL_Padding,
     "FL_GoogleDriveDownloader": FL_GoogleDriveDownloader,
     "FL_NodeLoader": FL_NodeLoader,
@@ -587,6 +589,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_ProResVideo": "FL ProRes Video",
     "FL_LoadVideo": "FL Load Video",
     "FL_VideoCombine": "FL Video Combine",
+    "FL_VideoPicker": "FL Video Picker",
     "FL_Padding": "FL Padding",
     "FL_GoogleDriveDownloader": "FL Google Drive Downloader",
     "FL_NodeLoader": "FL Node Loader",

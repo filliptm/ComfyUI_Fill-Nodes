@@ -586,6 +586,7 @@ The MiniMax Music 3 loaders now live in the dedicated `ComfyUI-FL-MiniMaxMusic3`
 | `FL_VideoCadenceCompile` | Loads videos from a directory, crops each video from the middle to match specified frame counts from a cadence list, and concatenates all frames into a single image batch. Validates frame counts and dimensions with error handling. |
 | `FL_VideoCrossfade` | Blends two video sequences with configurable crossfade duration using multiple blend modes (normal, multiply, screen, overlay, soft_light, add, subtract). Resizes both inputs to target dimensions and generates smooth transitions between sequences. |
 | `FL_VideoCut` | Detects scene cuts in image batches and exports each scene as a separate MP4 file using parallel FFmpeg processing. Features optimized scene detection (intensity/histogram/hybrid), GPU acceleration, downsample optimization, and direct frame piping to FFmpeg for performance. |
+| `FL_VideoPicker` | Splits a decoded video mosaic into an X×Y grid, presents synchronized looping previews for multi-selection, and emits each selected slice as a separate video-list item. Intended for zero-overlap tiled KSampler outputs; route shared audio around the picker. |
 | `FL_VideoTrim` | Trims specified numbers of frames from the start and end of an image batch, returning the trimmed video along with separate outputs for removed start and end frames. |
 
 ### 📷 Screenshots & Examples
