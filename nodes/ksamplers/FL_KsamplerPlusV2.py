@@ -219,6 +219,9 @@ class FL_KsamplerPlusV2:
             overlap_width = int(base_slice_width * overlap)
 
             samples = None  # We'll initialize this later when we know the correct number of channels
+            # Nested secondary streams are sampled with the first spatial tile, then held fixed.
+            sampled_latent_samples = latent_samples
+            secondary_sampled = False
 
             # We're splitting all conditioning between slices
 
@@ -281,15 +284,21 @@ class FL_KsamplerPlusV2:
                     batch_positive = positive * len(batch_sections)
                     batch_negative = negative * len(batch_sections)
 
-                tile_samples = replace_primary_tensor(latent_samples.to(device=device), batch_latents)
+                tile_samples = replace_primary_tensor(sampled_latent_samples.to(device=device), batch_latents)
                 tile_latent = {"samples": tile_samples}
                 sliced_noise_mask = batch_sections[0][7]
-                if sliced_noise_mask is not None or latent_samples.is_nested:
+                if latent_samples.is_nested and secondary_sampled:
                     tile_latent["noise_mask"] = primary_only_noise_mask(tile_samples, sliced_noise_mask)
+                elif sliced_noise_mask is not None:
+                    tile_latent["noise_mask"] = replace_primary_tensor(noise_mask.to(device=device), sliced_noise_mask)
 
                 processed_batch = common_ksampler(model, seed + i, steps, cfg, sampler_name, scheduler,
                                                   batch_positive, batch_negative,
                                                   tile_latent, denoise=denoise)[0]
+
+                if latent_samples.is_nested and not secondary_sampled:
+                    sampled_latent_samples = processed_batch["samples"]
+                    secondary_sampled = True
 
                 processed_samples = primary_tensor(processed_batch["samples"])
                 processed_sections = torch.split(processed_samples, b, dim=0)
@@ -324,7 +333,7 @@ class FL_KsamplerPlusV2:
 
             if latent_samples.is_nested:
                 samples = samples.to(device=primary_samples.device, dtype=primary_samples.dtype)
-            output_samples = replace_primary_tensor(latent_samples, samples)
+            output_samples = replace_primary_tensor(sampled_latent_samples, samples)
             output_image = None
             if vae is not None:
                 output_image = safe_vae_decode(vae, {"samples": output_samples}, node_name="FL_KsamplerPlusV2")

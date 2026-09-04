@@ -182,6 +182,7 @@ from .nodes.pdf.FL_TextToPDF import FL_TextToPDF
 
 # PROMPTING NODES
 from .nodes.prompting.FL_MadLibGenerator import FL_MadLibGenerator
+from .nodes.prompting.FL_GenerateText import FL_GenerateText
 from .nodes.prompting.FL_Prompt import FL_PromptBasic
 from .nodes.prompting.FL_PromptMulti import FL_PromptMulti
 from .nodes.prompting.FL_PromptSelector import FL_PromptSelector
@@ -287,6 +288,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_DepthBlur": FL_DepthBlur,
     "FL_RandomNumber": FL_RandomNumber,
     "FL_PromptSelector": FL_PromptSelector,
+    "FL_GenerateText": FL_GenerateText,
     "FL_Shadertoy": FL_Shadertoy,
     "FL_PixelArtShader": FL_PixelArtShader,
     "FL_InfiniteZoom": FL_InfiniteZoom,
@@ -494,6 +496,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_DepthBlur": "FL Depth Blur",
     "FL_RandomNumber": "FL Random Number",
     "FL_PromptSelector": "FL Prompt Selector",
+    "FL_GenerateText": "FL Generate Text",
     "FL_PromptSelectorBasic": "FL Prompt Selector Basic",
     "FL_Shadertoy": "FL Shadertoy",
     "FL_PixelArtShader": "FL Pixel Art",
