@@ -4,10 +4,13 @@ import time
 import torch
 
 import comfy.context_windows
+import comfy.latent_formats
 import comfy.nested_tensor
 import comfy.samplers
 from comfy_execution.utils import get_executing_context
-from nodes import VAEDecode, VAEEncode, common_ksampler
+from comfy_extras import nodes_minimax_h3
+from nodes import VAEEncode, common_ksampler
+from server import PromptServer
 
 from ._vae_helpers import safe_vae_decode
 
@@ -22,6 +25,10 @@ CONTEXT_SCHEDULES = [
 FUSE_METHODS = comfy.context_windows.ContextFuseMethods.LIST_STATIC
 
 TEMPORAL_UNITS = [
+    "auto",
+    "wan",
+    "ltx",
+    "minimax_h3",
     "video_frames_4n_plus_1",
     "latent_frames",
 ]
@@ -99,6 +106,10 @@ class FLSafeIndexListContextHandler(comfy.context_windows.IndexListContextHandle
             }
         )
 
+    def emit_settings(self, settings):
+        if self.node_id is not None:
+            self._send_event({"node": self.node_id, "status": "resolved", **settings})
+
     def _emit_progress(self, window_idx: int, total_windows: int, window):
         if self.node_id is None:
             return
@@ -129,12 +140,9 @@ class FLSafeIndexListContextHandler(comfy.context_windows.IndexListContextHandle
 
     @staticmethod
     def _send_event(payload: dict):
-        try:
-            from server import PromptServer
-
-            PromptServer.instance.send_sync("fl_context_window_progress", payload)
-        except Exception as e:
-            logging.debug(f"[FL_KsamplerContextWindow] progress event send failed: {e}")
+        server = getattr(PromptServer, "instance", None)
+        if server is not None:
+            server.send_sync("fl_context_window_progress", payload)
 
 
 class FL_KsamplerContextWindow:
@@ -152,18 +160,18 @@ class FL_KsamplerContextWindow:
                 "sampler_name": (comfy.samplers.KSampler.SAMPLERS,),
                 "scheduler": (comfy.samplers.KSampler.SCHEDULERS,),
                 "denoise": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "context_length": ("INT", {"default": 81, "min": 1, "max": 10000, "step": 4}),
-                "context_overlap": ("INT", {"default": 30, "min": 0, "max": 10000}),
+                "context_length": ("INT", {"default": 81, "min": 1, "max": 10000, "step": 1, "tooltip": "Requested video frames per window in Auto mode. Snaps down to the model's frame grid; does not change the clip duration."}),
+                "context_overlap": ("INT", {"default": 30, "min": 0, "max": 10000, "tooltip": "Requested shared video frames. Snaps down to latent boundaries. Ignored by the batched schedule."}),
                 "context_schedule": (CONTEXT_SCHEDULES, {"default": comfy.context_windows.ContextSchedules.STATIC_STANDARD}),
                 "context_stride": ("INT", {"default": 1, "min": 1, "max": 10000}),
                 "fuse_method": (FUSE_METHODS, {"default": comfy.context_windows.ContextFuseMethods.PYRAMID}),
-                "temporal_unit": (TEMPORAL_UNITS, {"default": "video_frames_4n_plus_1"}),
-                "closed_loop": ("BOOLEAN", {"default": False, "advanced": True}),
-                "freenoise": ("BOOLEAN", {"default": False, "advanced": True}),
-                "causal_window_fix": ("BOOLEAN", {"default": True, "advanced": True}),
-                "temporal_dim": ("INT", {"default": 2, "min": 0, "max": 5, "advanced": True}),
-                "cond_retain_index_list": ("STRING", {"default": "", "multiline": False, "advanced": True}),
-                "split_conds_to_windows": ("BOOLEAN", {"default": False, "advanced": True}),
+                "temporal_unit": (TEMPORAL_UNITS, {"default": "auto", "tooltip": "Auto reads the connected model. Explicit profiles use video frames; latent_frames uses raw latent positions. video_frames_4n_plus_1 preserves the original conversion for saved workflows."}),
+                "closed_loop": ("BOOLEAN", {"default": False}),
+                "freenoise": ("BOOLEAN", {"default": False}),
+                "causal_window_fix": ("BOOLEAN", {"default": True}),
+                "temporal_dim": ("INT", {"default": 2, "min": 0, "max": 5}),
+                "cond_retain_index_list": ("STRING", {"default": "", "multiline": False}),
+                "split_conds_to_windows": ("BOOLEAN", {"default": False}),
             },
             "optional": {
                 "vae": ("VAE",),
@@ -240,12 +248,28 @@ class FL_KsamplerContextWindow:
                     "For 4D latents, set temporal_dim=0 only if you intentionally want to window over batch."
                 )
 
-            latent_context_length, latent_context_overlap = self._convert_context_units(
-                context_length,
-                context_overlap,
-                temporal_unit,
-            )
+            settings = self._resolve_context(model, context_length, context_overlap, temporal_unit, context_schedule)
+            latent_context_length = settings["latent_length"]
+            latent_context_overlap = settings["latent_overlap"]
             self._validate_context(latent_context_length, latent_context_overlap)
+            if temporal_unit not in ("latent_frames", "video_frames_4n_plus_1") and temporal_dim != 2:
+                raise ValueError("FL_KsamplerContextWindow: model-aware video windows use temporal_dim=2. Use latent_frames for another axis.")
+            total_temporal = primary_samples.shape[temporal_dim]
+            context_active = total_temporal > latent_context_length
+            if settings["profile"] == "minimax_h3":
+                self._validate_h3(samples, total_temporal)
+                if context_active and context_schedule != comfy.context_windows.ContextSchedules.STATIC_STANDARD:
+                    raise ValueError("FL_KsamplerContextWindow: MiniMax H3 model-aware windows currently require standard_static.")
+                if freenoise:
+                    raise ValueError("FL_KsamplerContextWindow: disable FreeNoise for MiniMax H3; independent audio shuffling is not supported.")
+            settings.update({
+                "requested_length": context_length,
+                "requested_overlap": context_overlap,
+                "total_latents": total_temporal,
+                "context_active": context_active,
+                "anchor_latents": int(causal_window_fix and context_active),
+                "schedule": context_schedule,
+            })
 
             context_model = model.clone()
             context_model.model_options["context_handler"] = FLSafeIndexListContextHandler(
@@ -263,6 +287,7 @@ class FL_KsamplerContextWindow:
                 node_id=node_id,
             )
             context_handler = context_model.model_options["context_handler"]
+            context_handler.emit_settings(settings)
             comfy.context_windows.create_prepare_sampling_wrapper(context_model)
             if freenoise:
                 comfy.context_windows.create_sampler_sample_wrapper(context_model)
@@ -300,12 +325,84 @@ class FL_KsamplerContextWindow:
                 causal_window_fix=causal_window_fix,
                 temporal_unit=temporal_unit,
             )
+            debug_info += (
+                f"\n- resolved_model_profile: {settings['profile']}"
+                f"\n- effective_video_frames: {settings['video_frames']}"
+                f"\n- effective_overlap_frames: {settings['overlap_frames']}"
+                f"\n- additional_anchor_latents: {settings['anchor_latents']}"
+            )
 
             return (model, positive, negative, sampled, vae, output_image, debug_info)
 
         except Exception as e:
             logging.error(f"Error in FL_KsamplerContextWindow: {e}")
             raise
+
+    @staticmethod
+    def _resolve_context(model, context_length, context_overlap, temporal_unit, context_schedule):
+        length, overlap = int(context_length), int(context_overlap)
+        if length < 1 or overlap < 0:
+            raise ValueError("FL_KsamplerContextWindow: window length must be positive and overlap cannot be negative.")
+        profile = temporal_unit
+        if profile == "auto":
+            latent_format = model.get_model_object("latent_format")
+            if isinstance(latent_format, comfy.latent_formats.MiniMaxH3Video):
+                profile = "minimax_h3"
+            elif isinstance(latent_format, comfy.latent_formats.LTXV):
+                profile = "ltx"
+            elif isinstance(latent_format, comfy.latent_formats.Wan21):
+                profile = "wan"
+            else:
+                raise ValueError("FL_KsamplerContextWindow: Auto does not recognize this model. Select a frame profile or latent_frames in Advanced.")
+
+        video_frames = overlap_frames = None
+        if profile in ("latent_frames", "video_frames_4n_plus_1"):
+            latent_length, latent_overlap = FL_KsamplerContextWindow._convert_context_units(length, overlap, profile)
+            if profile == "video_frames_4n_plus_1":
+                video_frames = (latent_length - 1) * 4 + 1
+                overlap_frames = (latent_overlap - 1) * 4 + 1 if latent_overlap else 0
+        elif profile in ("wan", "ltx"):
+            ratio = 4 if profile == "wan" else 8
+            latent_length = (length - 1) // ratio + 1
+            latent_overlap = overlap // ratio
+            video_frames = (latent_length - 1) * ratio + 1
+            overlap_frames = latent_overlap * ratio
+        elif profile == "minimax_h3":
+            if length < 5:
+                raise ValueError("FL_KsamplerContextWindow: MiniMax H3 requires a window of at least 5 video frames.")
+            video_frames = nodes_minimax_h3.align_frame_count(length)
+            if video_frames > length:
+                video_frames -= 17
+            latent_length = nodes_minimax_h3.video_latent_t(video_frames)
+            # Bound the shared span at any phase of H3's repeating (1, 4, 4, 4, 4) token durations.
+            cycles, remainder = divmod(overlap, 17)
+            latent_overlap = cycles * 5 + remainder // 4
+            overlap_frames = cycles * 17 + (remainder // 4) * 4
+        else:
+            raise ValueError(f"FL_KsamplerContextWindow: unknown temporal_unit '{temporal_unit}'.")
+
+        if context_schedule == comfy.context_windows.ContextSchedules.BATCHED:
+            latent_overlap = overlap_frames = 0
+        return {
+            "profile": profile,
+            "latent_length": latent_length,
+            "latent_overlap": latent_overlap,
+            "video_frames": video_frames,
+            "overlap_frames": overlap_frames,
+        }
+
+    @staticmethod
+    def _validate_h3(samples, video_t):
+        if not isinstance(samples, comfy.nested_tensor.NestedTensor) or len(samples.unbind()) != 2:
+            raise ValueError("FL_KsamplerContextWindow: MiniMax H3 requires its native video/audio latent pair.")
+        video, audio = samples.unbind()
+        if video.ndim != 5 or video.shape[1] != 24 or audio.ndim != 4 or audio.shape[1:3] != (32, 2):
+            raise ValueError("FL_KsamplerContextWindow: invalid MiniMax H3 video/audio latent shapes.")
+        if video_t < 2 or (video_t - 2) % 5:
+            raise ValueError("FL_KsamplerContextWindow: MiniMax H3 clip latents must have 5n+2 video positions. Align the length in the latent creator or H3 planner.")
+        frame_count = (video_t - 2) // 5 * 17 + 5
+        if audio.shape[-1] != round(frame_count / nodes_minimax_h3.FPS * nodes_minimax_h3.AUDIO_LATENT_FPS):
+            raise ValueError("FL_KsamplerContextWindow: MiniMax H3 audio and video durations do not match. Recreate the paired latent with the H3 planner.")
 
     @staticmethod
     def _convert_context_units(context_length, context_overlap, temporal_unit):

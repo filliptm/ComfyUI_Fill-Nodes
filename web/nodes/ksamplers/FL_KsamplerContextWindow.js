@@ -10,9 +10,8 @@ const STYLES = `
     display: flex;
     flex-direction: column;
     font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
-    gap: 8px;
-    min-height: 104px;
-    padding: 10px;
+    gap: 5px;
+    padding: 8px;
     box-sizing: border-box;
   }
   .flks-context-widget * { box-sizing: border-box; }
@@ -68,17 +67,79 @@ const STYLES = `
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .flks-context-advanced {
+    background: transparent;
+    border: 0;
+    color: #cbd5e1;
+    cursor: pointer;
+    font: inherit;
+    font-size: 10px;
+    padding: 0;
+    text-align: left;
+  }
 `;
 
+const ADVANCED_DEFAULTS = {
+  context_schedule: "standard_static",
+  context_stride: 1,
+  fuse_method: "pyramid",
+  temporal_unit: "auto",
+  closed_loop: false,
+  freenoise: false,
+  causal_window_fix: true,
+  temporal_dim: 2,
+  cond_retain_index_list: "",
+  split_conds_to_windows: false,
+};
+
+const findWidget = (node, name) => node.widgets?.find((widget) => widget.name === name);
+const linkedInput = (node, name) => node.inputs?.some((input) => input.name === name && input.link != null);
+
+export function visibleContextControls(node, expanded) {
+  const schedule = findWidget(node, "context_schedule")?.value;
+  const scheduleLinked = linkedInput(node, "context_schedule");
+  return Object.fromEntries(Object.keys(ADVANCED_DEFAULTS).map((name) => {
+    let relevant = true;
+    if (name === "context_stride") relevant = scheduleLinked || schedule?.endsWith("_uniform");
+    if (name === "closed_loop") relevant = scheduleLinked || schedule === "looped_uniform";
+    return [name, Boolean(expanded && relevant)];
+  }));
+}
+
+export function advancedOverrides(node) {
+  return Object.entries(ADVANCED_DEFAULTS).filter(([name, value]) =>
+    linkedInput(node, name) || (findWidget(node, name) && findWidget(node, name).value !== value)
+  ).map(([name]) => name);
+}
+
+const HIDDEN_WIDGETS = new WeakMap();
+
+function setWidgetVisible(widget, visible) {
+  if (!widget) return;
+  if (widget.type === "converted-widget" && !HIDDEN_WIDGETS.has(widget)) return;
+  if (!visible && !HIDDEN_WIDGETS.has(widget)) {
+    HIDDEN_WIDGETS.set(widget, { type: widget.type, computeSize: widget.computeSize, hidden: widget.hidden });
+    widget.type = "converted-widget";
+    widget.computeSize = () => [0, -4];
+    widget.hidden = true;
+    if (widget.element) widget.element.style.display = "none";
+  } else if (visible && HIDDEN_WIDGETS.has(widget)) {
+    Object.assign(widget, HIDDEN_WIDGETS.get(widget));
+    HIDDEN_WIDGETS.delete(widget);
+    if (widget.element) widget.element.style.display = "";
+  }
+}
+
 class ContextWindowProgressWidget {
-  constructor({ container }) {
+  constructor({ container, node }) {
     this.container = container;
+    this.node = node;
     this.injectStyles();
     this.element = document.createElement("div");
     this.element.className = "flks-context-widget";
     this.element.innerHTML = `
       <div class="flks-context-header">
-        <span class="flks-context-title">Context Windows</span>
+        <span class="flks-context-title" data-role="model">Auto · resolves when sampling</span>
         <span class="flks-context-badge" data-role="percent">idle</span>
       </div>
       <div class="flks-context-bar">
@@ -88,14 +149,54 @@ class ContextWindowProgressWidget {
         <span data-role="step">step - / -</span>
         <span data-role="window">window - / -</span>
       </div>
-      <div class="flks-context-window" data-role="indices">Run to see context-window progress.</div>
+      <div class="flks-context-window" data-role="indices">Window settings use video frames in Auto mode.</div>
+      <button type="button" class="flks-context-advanced" data-role="advanced">▸ Advanced</button>
     `;
     this.percentEl = this.element.querySelector('[data-role="percent"]');
     this.fillEl = this.element.querySelector('[data-role="fill"]');
     this.stepEl = this.element.querySelector('[data-role="step"]');
     this.windowEl = this.element.querySelector('[data-role="window"]');
     this.indicesEl = this.element.querySelector('[data-role="indices"]');
+    this.modelEl = this.element.querySelector('[data-role="model"]');
+    this.advancedEl = this.element.querySelector('[data-role="advanced"]');
+    this.advancedEl.addEventListener("click", () => {
+      this.node.properties.fl_context_advanced = !this.node.properties.fl_context_advanced;
+      this.refreshControls();
+      this.node.graph?.change();
+    });
     this.container.appendChild(this.element);
+  }
+
+  refreshControls() {
+    const expanded = Boolean(this.node.properties.fl_context_advanced);
+    for (const [name, visible] of Object.entries(visibleContextControls(this.node, expanded))) {
+      // Converted inputs keep their socket and their frontend-managed widget state.
+      if (!linkedInput(this.node, name)) {
+        setWidgetVisible(findWidget(this.node, name), visible);
+      }
+    }
+    const batched = findWidget(this.node, "context_schedule")?.value === "batched" && !linkedInput(this.node, "context_schedule");
+    if (!linkedInput(this.node, "context_overlap")) {
+      setWidgetVisible(findWidget(this.node, "context_overlap"), !batched);
+    }
+    const overrides = advancedOverrides(this.node);
+    this.advancedEl.textContent = `${expanded ? "▾" : "▸"} Advanced${overrides.length ? ` · ${overrides.length} overrides` : ""}`;
+    this.advancedEl.title = overrides.join(", ");
+    this.advancedEl.setAttribute("aria-expanded", String(expanded));
+    const size = this.node.computeSize();
+    this.node.setSize([Math.max(this.node.size[0], 330), size[1]]);
+    this.node.setDirtyCanvas(true, true);
+  }
+
+  markStale() {
+    const mode = findWidget(this.node, "temporal_unit")?.value || "auto";
+    this.modelEl.textContent = this.settings ? "Settings changed · run to resolve" : `${mode === "auto" ? "Auto" : mode} · resolves when sampling`;
+    this.modelEl.title = "Model detection is performed by the backend when this node runs.";
+    this.percentEl.textContent = "idle";
+    this.fillEl.style.width = "0%";
+    this.stepEl.textContent = "step - / -";
+    this.windowEl.textContent = "window - / -";
+    this.indicesEl.textContent = "Run to resolve window settings.";
   }
 
   injectStyles() {
@@ -108,6 +209,8 @@ class ContextWindowProgressWidget {
   }
 
   reset() {
+    this.settings = null;
+    this.modelEl.textContent = "Resolving model and window…";
     this.percentEl.textContent = "0%";
     this.fillEl.style.width = "0%";
     this.stepEl.textContent = "step 0 / -";
@@ -116,6 +219,20 @@ class ContextWindowProgressWidget {
   }
 
   update(detail) {
+    if (detail.status === "resolved") {
+      this.settings = detail;
+      const names = { wan: "Wan", ltx: "LTX", minimax_h3: "MiniMax H3", video_frames_4n_plus_1: "Legacy 4n+1", latent_frames: "Latent units" };
+      const units = detail.video_frames == null ? "" : `${detail.video_frames} frames / `;
+      this.modelEl.textContent = `${names[detail.profile] || detail.profile} · ${units}${detail.latent_length} latents`;
+      this.modelEl.title = `Requested window: ${detail.requested_length}; overlap: ${detail.requested_overlap}. Effective overlap: ${detail.latent_overlap} latents${detail.overlap_frames == null ? "" : ` (up to ${detail.overlap_frames} frames)`}. Additional causal anchor: ${detail.anchor_latents} latent. Total clip: ${detail.total_latents} video latents. Window frame spans can vary at temporal boundaries.`;
+      this.indicesEl.textContent = detail.context_active ? `Overlap ${detail.latent_overlap} latents · ${detail.schedule}${detail.anchor_latents ? " · +1 anchor" : ""}` : "Single window · clip duration preserved";
+      return;
+    }
+    if (detail.status === "error") {
+      this.percentEl.textContent = "error";
+      this.indicesEl.textContent = detail.message || "Sampling failed. See the node error for details.";
+      return;
+    }
     const value = Number(detail.value || 0);
     const max = Math.max(1, Number(detail.max || 1));
     const pct = Math.max(0, Math.min(100, (value / max) * 100));
@@ -131,6 +248,7 @@ class ContextWindowProgressWidget {
       this.indicesEl.textContent = `latent frames ${first}-${last} (${indices.length})`;
     } else if (detail.status === "done") {
       this.indicesEl.textContent = "Sampling completed.";
+      if (this.settings) this.modelEl.textContent = `Last run: ${this.modelEl.textContent}`;
     }
   }
 
@@ -150,43 +268,81 @@ app.registerExtension({
 
     const container = document.createElement("div");
     container.style.width = "100%";
-    container.style.minHeight = "104px";
 
     const widget = node.addDOMWidget(
       "context_progress",
       "flks-context-window-progress",
       container,
       {
-        getMinHeight: () => 130,
+        getMinHeight: () => 104,
+        getMaxHeight: () => 104,
         hideOnZoom: false,
         serialize: false,
       }
     );
 
-    const [oldW, oldH] = node.size;
-    node.setSize([Math.max(oldW, 330), Math.max(oldH, 730)]);
-
-    setTimeout(() => {
-      const inst = new ContextWindowProgressWidget({ container });
+    node.properties ||= {};
+    let inst;
+    let registeredKey;
+    const initTimer = setTimeout(() => {
+      inst = new ContextWindowProgressWidget({ container, node });
       INSTANCES.set(nodeKey(node.id), inst);
+      registeredKey = nodeKey(node.id);
+      inst.markStale();
+      inst.refreshControls();
     }, 50);
 
+    for (const control of node.widgets || []) {
+      if (control === widget) continue;
+      const callback = control.callback;
+      control.callback = function (...args) {
+        const result = callback?.apply(this, args);
+        inst?.markStale();
+        inst?.refreshControls();
+        return result;
+      };
+    }
+    const onConfigure = node.onConfigure;
+    node.onConfigure = function (...args) {
+      const result = onConfigure?.apply(this, args);
+      if (inst) {
+        if (INSTANCES.get(registeredKey) === inst) INSTANCES.delete(registeredKey);
+        registeredKey = nodeKey(node.id);
+        INSTANCES.set(registeredKey, inst);
+        inst.markStale();
+        inst.refreshControls();
+      }
+      return result;
+    };
+    const onConnectionsChange = node.onConnectionsChange;
+    node.onConnectionsChange = function (...args) {
+      const result = onConnectionsChange?.apply(this, args);
+      inst?.markStale();
+      inst?.refreshControls();
+      return result;
+    };
+
     widget.onRemove = () => {
-      const key = nodeKey(node.id);
-      const inst = INSTANCES.get(key);
+      clearTimeout(initTimer);
       if (inst) {
         inst.dispose();
-        INSTANCES.delete(key);
+        if (INSTANCES.get(registeredKey) === inst) INSTANCES.delete(registeredKey);
       }
     };
   },
 });
 
 api.addEventListener("executing", (event) => {
-  const detail = event.detail;
-  if (!detail || !detail.node) return;
-  const inst = INSTANCES.get(nodeKey(detail.node));
+    const detail = event.detail;
+  const id = detail?.node ?? detail;
+  if (id == null) return;
+  const inst = INSTANCES.get(nodeKey(id));
   if (inst) inst.reset();
+});
+
+api.addEventListener("execution_error", (event) => {
+  const detail = event.detail;
+  INSTANCES.get(nodeKey(detail?.node_id))?.update({ status: "error", message: detail?.exception_message });
 });
 
 api.addEventListener("fl_context_window_progress", (event) => {
