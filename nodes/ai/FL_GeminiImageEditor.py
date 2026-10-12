@@ -25,7 +25,7 @@ class FL_GeminiImageEditor:
             "required": {
                 "prompt": ("STRING", {"multiline": True}),
                 "api_key": ("STRING", {"default": "", "multiline": False}),
-                "model": (["models/gemini-2.0-flash-exp", "models/gemini-2.0-flash-preview-image-generation", "models/gemini-2.5-flash-image-preview", "models/gemini-2.5-flash-image", "models/gemini-3-pro-image-preview"], {"default": "models/gemini-2.5-flash-image"}),
+                "model": (["models/gemini-2.0-flash-exp", "models/gemini-2.0-flash-preview-image-generation", "models/gemini-2.5-flash-image-preview", "models/gemini-3.1-flash-image", "models/gemini-3-pro-image-preview"], {"default": "models/gemini-3.1-flash-image"}),
                 "aspect_ratio": (["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"], {"default": "1:1"}),
                 "image_size": (["1K", "2K", "4K"], {"default": "1K", "tooltip": "Resolution size (2K/4K only supported by gemini-3-pro-image-preview)"}),
                 "always_square": ("BOOLEAN", {"default": False, "description": "When enabled, pads images to square dimensions. When disabled, outputs original resolution as image list."}),
