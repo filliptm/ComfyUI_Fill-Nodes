@@ -3,7 +3,7 @@ import torch
 from PIL import Image
 import numpy as np
 from PyPDF2 import PdfReader
-import fitz  # PyMuPDF
+import pymupdf as fitz  # PyMuPDF
 
 
 class FL_PDFToImages:
