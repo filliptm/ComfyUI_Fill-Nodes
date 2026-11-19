@@ -4,6 +4,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
 
+from ..sup import draw_text
+
 class FL_ImageCaptionLayout:
     @classmethod
     def INPUT_TYPES(cls):
@@ -57,7 +59,7 @@ class FL_ImageCaptionLayout:
             caption_file = os.path.splitext(image_file)[0] + '.txt'
             caption_path = os.path.join(image_directory, caption_file)
             try:
-                with open(caption_path, 'r') as f:
+                with open(caption_path, 'r', encoding='utf-8') as f:
                     caption = f.read().strip()
             except FileNotFoundError:
                 caption = "No caption found"
@@ -79,7 +81,7 @@ class FL_ImageCaptionLayout:
             wrapped_text = textwrap.fill(caption, width=(image_size - 10) // (font_size // 2))
 
             # Draw wrapped text
-            draw.text((5, 5), wrapped_text, font=font, fill=text_color)
+            draw_text(draw, (5, 5), wrapped_text, font=font, fill=text_color)
 
             # Paste caption box
             layout.paste(caption_box, (x, y + image_size))

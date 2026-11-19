@@ -4,6 +4,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from comfy.utils import ProgressBar
 
+from ..sup import draw_text, has_arabic, text_bbox
+
 class FL_ImageNotes:
     @classmethod
     def INPUT_TYPES(cls):
@@ -83,11 +85,16 @@ class FL_ImageNotes:
             text_width, text_height = self.get_text_size(line, font)
             x = (new_width - text_width) // 2  # Center text in the new width
             y = text_y_start + (i * line_height)
-            draw.text((x, y), line, font=font, fill="white")
+            draw_text(draw, (x, y), line, font=font, fill="white")
 
         return new_image
 
     def get_text_size(self, text, font):
+        if has_arabic(text):
+            # Measured as draw_text draws it: joined, right to left
+            measure = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+            _, _, right, bottom = text_bbox(measure, (0, 0), text, font=font)
+            return right, bottom + font.getmetrics()[1]
         ascent, descent = font.getmetrics()
         text_width = font.getmask(text).getbbox()[2]
         text_height = font.getmask(text).getbbox()[3] + descent

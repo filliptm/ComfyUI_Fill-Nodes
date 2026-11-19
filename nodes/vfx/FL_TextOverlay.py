@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib import font_manager
 
-from ..sup import ROOT_FONTS
+from ..sup import ROOT_FONTS, draw_text
 from comfy.utils import ProgressBar
 
 def parse_fonts() -> dict:
@@ -106,7 +106,7 @@ font size, font color, and choose from available system or local fonts.
             # Modern PIL versions (>=9.2.0) support `anchor` in `text()`
             try:
                 pil_anchor_val = self._get_pil_anchor(anchor)
-                draw.text((x_abs, y_abs), text, font=font_path, fill=font_color_rgb, anchor=pil_anchor_val)
+                draw_text(draw, (x_abs, y_abs), text, font=font_path, fill=font_color_rgb, anchor=pil_anchor_val)
             except TypeError: # Older PIL might not have 'anchor'
                 print("Warning: PIL version might not support 'anchor' directly. Text will be drawn with top-left at X,Y.")
                 # Manual anchor adjustment (simplified)
