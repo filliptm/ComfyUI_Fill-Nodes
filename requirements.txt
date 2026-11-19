@@ -28,3 +28,4 @@ keyring>=25,<26
 openai-codex==0.144.4
 huggingface_hub
 scikit-learn
+khatt>=0.15.0

@@ -34,6 +34,7 @@ dependencies = [
     "openai-codex==0.144.4",
     "huggingface_hub",
     "scikit-learn",
+    "khatt>=0.15.0",
 ]
 
 [project.urls]
