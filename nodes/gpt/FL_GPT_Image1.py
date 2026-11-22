@@ -245,7 +245,7 @@ class FL_GPT_Image1:
                 # Check for organization verification error
                 if isinstance(error_msg, str) and "organization verification" in error_msg.lower():
                     simple_error = "OpenAI organization verification required"
-                    self._log("Organization verification required for GPT-image-1 access")
+                    self._log("Organization verification required for GPT Image access")
                     return self._create_error_image(simple_error), json.dumps(response, indent=2)
                 
                 # For other errors, create a simplified message
@@ -327,7 +327,7 @@ class FL_GPT_Image1:
     def generate_image(self, prompt, api_key, batch_size=1, size="auto", quality="auto", background="auto",
                        output_format="png", output_compression=100, moderation="auto", seed=0,
                        image=None, mask=None):
-        """Generate images using OpenAI's GPT-image-1 model"""
+        """Generate or edit images using OpenAI's GPT Image 2.5 Flare model"""
         # Reset log messages
         self.log_messages = []
         
@@ -341,14 +341,14 @@ class FL_GPT_Image1:
                 return (error_img, full_text)
                 
             # Add a note about organization verification
-            self._log("Note: GPT-image-1 requires OpenAI organization verification. If you encounter a 403 error, please visit: https://help.openai.com/en/articles/10910291-api-organization-verification")
+            self._log("Note: GPT Image models may require OpenAI organization verification. If you encounter a 403 error, please visit: https://help.openai.com/en/articles/10910291-api-organization-verification")
             
             # Determine which endpoint to use based on inputs
             endpoint = "generations"  # Default endpoint
             
             # Prepare the payload
             payload = {
-                "model": "gpt-image-1",
+                "model": "gpt-image-2.5-flare",
                 "prompt": prompt,
                 "n": batch_size,  # OpenAI API uses 'n' parameter, but we call it 'batch_size' in the UI
                 "size": size,
