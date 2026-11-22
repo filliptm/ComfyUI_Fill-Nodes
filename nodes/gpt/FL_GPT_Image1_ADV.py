@@ -23,8 +23,8 @@ class FL_GPT_Image1_ADV:
                 "inputcount": ("INT", {"default": 1, "min": 1, "max": 100, "step": 1}), # Max 10 concurrent calls
                 "api_key": ("STRING", {"default": os.getenv("OPENAI_API_KEY", ""), "multiline": False}),
                 # Global settings from FL_GPT_Image1.py, with _setting suffix
-                "size_setting": (["1024x1024", "1536x1024", "1024x1536"], {"default": "1024x1024"}), # Adjusted for gpt-image-1 supported sizes
-                "quality_setting": (["auto", "high", "medium", "low"], {"default": "auto"}), # Adjusted for gpt-image-1
+                "size_setting": (["1024x1024", "1536x1024", "1024x1536"], {"default": "1024x1024"}),
+                "quality_setting": (["auto", "high", "medium", "low"], {"default": "auto"}),
                 "background_setting": (["auto", "transparent", "opaque"], {"default": "auto"}),
                 "output_format_setting": (["png", "jpeg", "webp"], {"default": "png"}),
                 "prompt_1": ("STRING", {"multiline": True, "default": "Describe image 1", "forceInput": True}),
@@ -40,8 +40,8 @@ class FL_GPT_Image1_ADV:
     FUNCTION = "generate_images_advanced"
     CATEGORY = "🏵️Fill Nodes/GPT"
     DESCRIPTION = """
-Generates images using OpenAI's "gpt-image-1" model based on multiple prompts.
-Each prompt (and optional image/mask for edits) triggers an asynchronous API call.
+Generates or edits images using OpenAI GPT Image 2.5 Flare based on multiple prompts.
+Each prompt (and optional image for edits) triggers an asynchronous API call.
 Uses global settings for size, quality, etc., for all generations/edits.
 """
 
@@ -238,7 +238,7 @@ Uses global settings for size, quality, etc., for all generations/edits.
             img_tensor = torch.from_numpy(img_array).unsqueeze(0)
             self._log(f"[Call {call_id}] Image processed. Shape: {img_tensor.shape}")
             
-            # Extract revised_prompt if available (DALL-E 3 feature, gpt-image-1 might provide it)
+            # Include a revised prompt if the response provides one.
             revised_prompt = img_data_entry.get("revised_prompt", "N/A")
             response_text_details = f"Revised Prompt (if any): {revised_prompt}\n"
             # Add other relevant info from response_json if needed, e.g. usage, id
@@ -264,7 +264,7 @@ Uses global settings for size, quality, etc., for all generations/edits.
             return img_tensor, response_text, call_id
 
         except Exception as e:
-            self._log(f"[Call {call_id}] Error in async generation for OpenAI (gpt-image-1): {str(e)}")
+            self._log(f"[Call {call_id}] Error in async generation for OpenAI GPT Image: {str(e)}")
             traceback.print_exc()
             err_w, err_h = 1024, 1024
             try: err_w, err_h = map(int, target_size_str.split('x'))
@@ -283,7 +283,7 @@ Uses global settings for size, quality, etc., for all generations/edits.
         # hardcoded_output_compression = 100
 
         if not api_key:
-            error_msg = "API key not provided for OpenAI (gpt-image-1)."
+            error_msg = "API key not provided for OpenAI GPT Image."
             self._log(error_msg)
             err_w, err_h = 1024,1024
             try:
@@ -293,7 +293,7 @@ Uses global settings for size, quality, etc., for all generations/edits.
             error_img_instance = self._create_error_image(error_msg, err_w, err_h)
             return ([error_img_instance] * inputcount, error_msg)
 
-        self._log(f"Note: 'gpt-image-1' model may require OpenAI organization verification. See OpenAI docs if errors occur.")
+        self._log("Note: GPT Image models may require OpenAI organization verification.")
 
         max_api_retries = 3
 
@@ -314,20 +314,19 @@ Uses global settings for size, quality, etc., for all generations/edits.
                 endpoint = "generations"
                 # Base payload for generations
                 payload = {
-                    "model": "gpt-image-1",
+                    "model": "gpt-image-2.5-flare",
                     "prompt": current_prompt,
                     "n": 1,
                     "size": size_setting,
-                    "response_format": "b64_json" # Crucial for getting image data to process into tensor
                 }
 
                 # Add common optional parameters
                 if quality_setting != "auto": payload["quality"] = quality_setting
                 if background_setting != "auto": payload["background"] = background_setting
                 payload["moderation"] = hardcoded_moderation # Always use hardcoded "low"
-                # output_format_setting from UI primarily informs how FL_GPT_Image1 saves/handles,
-                # for ADV node returning tensors, b64_json is the key API request.
-                # The original FL_GPT_Image1 sends 'output_format' if not png.
+                # GPT Image responses include base64 image data without a response_format flag.
+                if output_format_setting not in ["png", "auto"]:
+                    payload["output_format"] = output_format_setting
 
                 # Seed: OpenAI API for DALL-E generations doesn't typically use a 'seed' parameter in the request.
                 # We log it here for tracking and consistency with other ADV nodes.
@@ -338,34 +337,19 @@ Uses global settings for size, quality, etc., for all generations/edits.
                     # For ADV, simple incrementing is fine for logging.
                     current_slot_seed = seed_setting + (slot_idx - 1)
                 
-                self._log(f"[Call {task_call_id}] Using effective seed for logging/tracking: {current_slot_seed if current_slot_seed != 0 else 'Random (seed_setting was 0)'}. (Note: OpenAI API for gpt-image-1 does not use this seed directly in the request for generation.)")
+                self._log(f"[Call {task_call_id}] Using effective seed for logging/tracking: {current_slot_seed if current_slot_seed != 0 else 'Random (seed_setting was 0)'}. (Note: OpenAI API does not use this seed directly in the request for generation.)")
 
                 if pil_image_for_slot:
                     endpoint = "edits" # Or "variations" if no prompt is desired for image-only input. "edits" usually implies a prompt.
                     # Modify payload for edits/variations
                     payload["image"] = pil_image_for_slot
-                    # Mask logic removed
-                    # if pil_mask_for_slot:
-                    #     payload["mask"] = pil_mask_for_slot
-                    
-                    # Parameters not typically used or differently handled for edits:
-                    # FL_GPT_Image1.py *does* send 'size' for edits. To align, we will NOT delete it.
-                    # The API documentation says output matches input size for edits, so 'size' might be ignored or validated.
-                    # if "size" in payload: del payload["size"] # Removing this line to match FL_GPT_Image1's behavior
-                    if "response_format" in payload: del payload["response_format"] # Remove, will use API default or 'output_format'
-                    # Based on FL_GPT_Image1.py, if output_format_setting is not 'png' or 'auto',
-                    # it sends 'output_format: <value>' for edits.
-                    if output_format_setting not in ["png", "auto"]:
-                        payload["output_format"] = output_format_setting
-                    # Note: 'quality', 'background', 'style', 'moderation' might behave differently or be ignored by 'gpt-image-1' for edits.
-                    # The current error is only about 'response_format'. We keep others for now.
 
                 tasks.append(self._generate_single_image_async(
                     api_key, payload, endpoint, task_call_id, max_api_retries, size_setting
                 ))
 
             if not tasks:
-                self._log("No tasks were created for OpenAI (gpt-image-1).")
+                self._log("No tasks were created for OpenAI GPT Image.")
                 return []
 
             # Run all tasks concurrently
@@ -433,7 +417,7 @@ Uses global settings for size, quality, etc., for all generations/edits.
                 err_w, err_h = map(int, size_setting.split('x'))
             except:
                 pass
-            batched_images = self._create_error_image("No images generated by OpenAI (gpt-image-1)", err_w, err_h)
+            batched_images = self._create_error_image("No images generated by OpenAI GPT Image", err_w, err_h)
             if inputcount > 1 and not all(img is None for img in output_images) : # if some generated, but then failed to batch
                  # Create a list of error images if batching fails but some individual images were okay
                  batched_images_list = []
@@ -477,7 +461,7 @@ Uses global settings for size, quality, etc., for all generations/edits.
 
 
         combined_responses = "\n\n".join(output_texts)
-        final_log_output = "Processing Logs (OpenAI gpt-image-1 ADV):\n" + "\n".join(self.log_messages) + "\n\n" + combined_responses
+        final_log_output = "Processing Logs (OpenAI GPT Image ADV):\n" + "\n".join(self.log_messages) + "\n\n" + combined_responses
 
         return (batched_images, final_log_output)
 
